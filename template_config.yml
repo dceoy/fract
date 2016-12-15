@@ -1,0 +1,9 @@
+environment: live
+oanda_token: 12345678900987654321-abc34135acde13f13530
+instruments:
+  - USD_JPY
+  - EUR_JPY
+  - GBP_JPY
+  - EUR_USD
+  - GBP_USD
+  - EUR_GBP
