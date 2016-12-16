@@ -1,20 +1,22 @@
 #!/usr/bin/env python
 
 import oandapy
+import redis
 from config import read_yaml
 
 
 class StreamDriver(oandapy.Streamer):
-    def __init__(self, count=10, *args, **kwargs):
+    def __init__(self, redis_config, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.count = count
-        self.reccnt = 0
+        self.redis = redis_config
 
     def on_success(self, data):
         print(data)
-        self.reccnt += 1
-        if self.reccnt == self.count:
-            self.disconnect()
+        tick = data['tick']
+        r = redis.StrictRedis(host=self.redis['host'],
+                              port=self.redis['port'],
+                              db=self.redis['db'])
+        r.rpush(tick['instrument'], tick['bid'])
 
     def on_error(self, data):
         print(data)
@@ -23,8 +25,10 @@ class StreamDriver(oandapy.Streamer):
 
 if __name__ == '__main__':
     cf = read_yaml('../config.yml')
-    stream = StreamDriver(environment=cf['environment'],
-                          access_token=cf['oanda_token'])
-    stream.rates(account_id=cf['oanda_account_id'],
-                 instruments=str.join(',', cf['currency_pair']),
+    cf_oanda = cf['oanda']
+    stream = StreamDriver(environment=cf_oanda['environment'],
+                          access_token=cf_oanda['access_token'],
+                          redis_config=cf['redis'])
+    stream.rates(account_id=cf_oanda['account_id'],
+                 instruments=str.join(',', cf_oanda['currency_pair']),
                  ignore_heartbeat=True)

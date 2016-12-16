@@ -1,10 +1,15 @@
-environment: live   # sandbox, practice, or live
-oanda_account_id: 12345
-oanda_token: 12345678900987654321-abc34135acde13f13530
-currency_pair:
-  - EUR_USD
-  - GBP_USD
-  - EUR_GBP
-  - USD_JPY
-  - EUR_JPY
-  - GBP_JPY
+oanda:
+  environment: live   # sandbox, practice, or live
+  account_id: 12345
+  access_token: 12345678900987654321-abc34135acde13f13530
+  currency_pair:
+    - EUR_USD
+    - GBP_USD
+    - EUR_GBP
+    - USD_JPY
+    - EUR_JPY
+    - GBP_JPY
+redis:
+  host: 127.0.0.1
+  port: 6379
+  db: 0
