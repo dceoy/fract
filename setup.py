@@ -13,10 +13,12 @@ setup(
     author_email='d.narsil@gmail.com',
     url='https://github.com/dceoy/fractus',
     install_requires=[
-        'redis'
+        'pyyaml',
+        'redis',
+        'oandapy'
     ],
     dependency_links=[
-        'http://github.com/oanda/oandapy/tarball/master#egg=python_dateutil'
+        'git+https://github.com/oanda/oandapy.git#egg=oandapy'
     ],
     entry_points={
         'console_scripts': ['fract=fractus.cli.main:main'],

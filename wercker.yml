@@ -1,0 +1,29 @@
+box:
+  id: ubuntu
+  entrypoint: /bin/bash -c
+test:
+  steps:
+    - script:
+        name: Prepare required packages
+        code: |
+          apt-get -y update
+          apt-get -y install git python3-pip redis-server
+    - script:
+        name: Install fractus
+        code: |
+          pip3 install -U pip
+          pip3 install -U git+https://github.com/oanda/oandapy.git
+          pip3 install .
+    - script:
+        name: Test base options
+        code: |
+          fract --version
+          fract --help
+  after-steps:
+    - script:
+        code: |
+          apt-get -y update
+          apt-get -y install curl
+    - slack-notifier:
+        url: $SLACK_URL
+        channel: $SLACK_CHANNEL
