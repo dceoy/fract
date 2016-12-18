@@ -2,7 +2,6 @@
 
 import oandapy
 import redis
-from config import read_yaml
 
 
 class StreamDriver(oandapy.Streamer):
@@ -23,12 +22,10 @@ class StreamDriver(oandapy.Streamer):
         self.disconnect()
 
 
-if __name__ == '__main__':
-    cf = read_yaml('../config.yml')
-    cf_oanda = cf['oanda']
-    stream = StreamDriver(environment=cf_oanda['environment'],
-                          access_token=cf_oanda['access_token'],
-                          redis_config=cf['redis'])
-    stream.rates(account_id=cf_oanda['account_id'],
-                 instruments=str.join(',', cf_oanda['currency_pair']),
+def stream_prices(config):
+    stream = StreamDriver(environment=config['oanda']['environment'],
+                          access_token=config['oanda']['access_token'],
+                          redis_config=config['redis'])
+    stream.rates(account_id=config['oanda']['account_id'],
+                 instruments=str.join(',', config['oanda']['currency_pair']),
                  ignore_heartbeat=True)
