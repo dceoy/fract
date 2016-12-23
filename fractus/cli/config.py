@@ -15,6 +15,11 @@ def set_log_config(debug=False):
                         level=lv)
 
 
+def set_config_yml(path=None, env='FRACTUS_YML', default='fractus.yml'):
+    return(os.path.expanduser(tuple(filter(lambda p: p is not None,
+                                           [path, os.getenv(env), default]))[0]))
+
+
 def read_yaml(path):
     with open(path) as f:
         dict = yaml.load(f)
@@ -23,9 +28,8 @@ def read_yaml(path):
 
 def write_config_yml(path):
     if os.path.exists(path):
-        print('%s already exists' % path)
+        print('The file already exists: {}'.format(path))
     else:
-        print('Generate %s for configurations' % path)
         with open(path, 'w') as f:
             f.write(yaml.dump({
                 'oanda': {
@@ -48,3 +52,4 @@ def write_config_yml(path):
                     'max_record': 1000
                 }
             }, default_flow_style=False))
+        print('A YAML template for configurations was generated: {}'.format(path))

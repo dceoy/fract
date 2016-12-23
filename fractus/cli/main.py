@@ -4,7 +4,7 @@ Stream and trade forex with Oanda API
 
 Usage:
     fract init [--debug] [--config <yaml>]
-    fract stream [--debug] [--config <yaml>] [--print-only]
+    fract stream [--debug] [--config <yaml>] [--redis]
     fract trade [--debug] [--config <yaml>]
     fract -h|--help
     fract -v|--version
@@ -13,39 +13,40 @@ Options:
     -h, --help      Print help and exit
     -v, --version   Print version and exit
     --debug         Execute a command with debug messages
-    --config        Set a path to a YAML for configurations (default:a ./fractus.yml)
-    --print-only    Stream prices without storing
+    --config        Set a path to a YAML for configurations [$FRACTUS_YML]
+    --redis         Store streaming data in a Redis server
 
 Commands:
     init            Generate a YAML template for configuration
-    stream          Streming prices and record them to a Redis server
+    stream          Streming prices
     trade           Trade currencies with a simple algorithm
 """
 
 import logging
-import os
 from docopt import docopt
-from .config import set_log_config, read_yaml, write_config_yml
-from ..price.streaming import stream_prices
+from .config import set_log_config, set_config_yml, write_config_yml
+from ..stream.rate import fetch_rates
 from .. import __version__
 
 
 def main():
     args = docopt(__doc__, version='fractus {}'.format(__version__))
     set_log_config(debug=args['--debug'])
+    logging.debug('args: \n{}'.format(args))
 
     if args['--config']:
-        config_yml = os.path.expanduser(args['--config'])
-    elif os.getenv('FRACTUS_YML'):
-        config_yml = os.path.expanduser(os.getenv('FRACTUS_YML'))
+        config_yml = set_config_yml(path=args['<yaml>'])
     else:
-        config_yml = './fractus.yml'
+        config_yml = set_config_yml()
+    logging.debug('config_yml: {}'.format(config_yml))
 
     if args['init']:
+        logging.debug('Initiation')
         write_config_yml(path=config_yml)
     elif args['stream']:
-        stream_prices(config=read_yaml(config_yml),
-                      print_only=args['--print-only'])
+        logging.debug('Streaming')
+        fetch_rates(config_yml=config_yml,
+                    use_redis=args['--redis'])
     elif args['trade']:
-        logging.debug('Trade currencies with a simple algorithm')
+        logging.debug('Trading')
         pass
