@@ -15,17 +15,18 @@ def set_log_config(debug=False):
                         level=lv)
 
 
-def read_yaml(yml):
-    with open(yml) as f:
+def read_yaml(path):
+    with open(path) as f:
         dict = yaml.load(f)
     return dict
 
 
-def write_config_yml(yml):
-    if os.path.exists(yml):
-        print('%s already exists' % yml)
+def write_config_yml(path):
+    if os.path.exists(path):
+        print('%s already exists' % path)
     else:
-        with open(yml, 'w') as f:
+        print('Generate %s for configurations' % path)
+        with open(path, 'w') as f:
             f.write(yaml.dump({
                 'oanda': {
                     'environment': 'live',

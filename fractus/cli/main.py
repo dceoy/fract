@@ -3,42 +3,49 @@
 Stream and trade forex with Oanda API
 
 Usage:
-    fract init [--debug]
-    fract stream [--debug] [--print-only]
-    fract trade [--debug]
+    fract init [--debug] [--config <yaml>]
+    fract stream [--debug] [--config <yaml>] [--print-only]
+    fract trade [--debug] [--config <yaml>]
     fract -h|--help
-    fract --version
+    fract -v|--version
 
 Options:
     -h, --help      Print help and exit
-    --version       Print version and exit
+    -v, --version   Print version and exit
     --debug         Execute a command with debug messages
+    --config        Set a path to a YAML for configurations (default:a ./fractus.yml)
+    --print-only    Stream prices without storing
 
 Commands:
-    init            Generate `config.yml` as a template for configuration
+    init            Generate a YAML template for configuration
     stream          Streming prices and record them to a Redis server
     trade           Trade currencies with a simple algorithm
 """
 
 import logging
-import signal
+import os
 from docopt import docopt
 from .config import set_log_config, read_yaml, write_config_yml
 from ..price.streaming import stream_prices
 from .. import __version__
 
 
-def main(config_yml='config.yml'):
+def main():
     args = docopt(__doc__, version='fractus {}'.format(__version__))
     set_log_config(debug=args['--debug'])
+
+    if args['--config']:
+        config_yml = os.path.expanduser(args['--config'])
+    elif os.getenv('FRACTUS_YML'):
+        config_yml = os.path.expanduser(os.getenv('FRACTUS_YML'))
+    else:
+        config_yml = './fractus.yml'
+
     if args['init']:
-        logging.debug('generate config.yml')
-        write_config_yml(yml=config_yml)
+        write_config_yml(path=config_yml)
     elif args['stream']:
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-        logging.debug('stream prices')
         stream_prices(config=read_yaml(config_yml),
                       print_only=args['--print-only'])
     elif args['trade']:
-        logging.debug('trade currencies with a simple algorithm')
+        logging.debug('Trade currencies with a simple algorithm')
         pass
