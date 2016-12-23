@@ -4,7 +4,8 @@ Stream and trade forex with Oanda API
 
 Usage:
     fract init [--debug] [--config <yaml>]
-    fract stream [--debug] [--config <yaml>] [--redis]
+    fract rate [--debug] [--config <yaml>] [--redis]
+    fract event [--debug] [--config <yaml>] [--redis]
     fract trade [--debug] [--config <yaml>]
     fract -h|--help
     fract -v|--version
@@ -18,14 +19,15 @@ Options:
 
 Commands:
     init            Generate a YAML template for configuration
-    stream          Streming prices
+    rate            Stream market prices
+    event           Stream authorized account's events
     trade           Trade currencies with a simple algorithm
 """
 
 import logging
 from docopt import docopt
 from .config import set_log_config, set_config_yml, write_config_yml
-from ..stream.rate import fetch_rates
+from ..stream import streamer
 from .. import __version__
 
 
@@ -43,10 +45,15 @@ def main():
     if args['init']:
         logging.debug('Initiation')
         write_config_yml(path=config_yml)
-    elif args['stream']:
-        logging.debug('Streaming')
-        fetch_rates(config_yml=config_yml,
-                    use_redis=args['--redis'])
+    elif args['rate']:
+        logging.debug('Rates Streaming')
+        streamer.invoke(stream_type='rate',
+                        config_yml=config_yml,
+                        use_redis=args['--redis'])
+    elif args['event']:
+        logging.debug('Events Streaming')
+        streamer.invoke(stream_type='event',
+                        config_yml=config_yml,
+                        use_redis=args['--redis'])
     elif args['trade']:
-        logging.debug('Trading')
         pass

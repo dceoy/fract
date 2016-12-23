@@ -48,8 +48,11 @@ def write_config_yml(path):
                 'redis': {
                     'host': '127.0.0.1',
                     'port': 6379,
-                    'db': 0,
+                    'db': {
+                        'rate': 0,
+                        'event': 1
+                    },
                     'max_record': 1000
                 }
             }, default_flow_style=False))
-        print('A YAML template for configurations was generated: {}'.format(path))
+        print('A YAML template was generated: {}'.format(path))
