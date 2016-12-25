@@ -5,7 +5,6 @@ import json
 import signal
 import oandapy
 import redis
-from ..cli.config import read_yaml
 
 
 class StreamDriver(oandapy.Streamer):
@@ -46,13 +45,14 @@ class StreamDriver(oandapy.Streamer):
             self.events(**kwargs)
 
 
-def invoke(stream_type, config_yml, use_redis=False):
-    cf = read_yaml(config_yml)
+def invoke(stream_type, config, use_redis=False):
     stream = StreamDriver(stream_type=stream_type,
-                          environment=cf['oanda']['environment'],
-                          access_token=cf['oanda']['access_token'],
+                          environment=config['oanda']['environment'],
+                          access_token=config['oanda']['access_token'],
                           use_redis=use_redis,
-                          config_redis=cf['redis'])
-    stream.fire(account_id=cf['oanda']['account_id'],
-                instruments=str.join(',', cf['oanda']['currency_pair']),
+                          config_redis=config['redis'])
+    stream.fire(account_id=config['oanda']['account_id'],
+                instruments=str.join(',',
+                                     [config['oanda']['currency_pair']['trade']] +
+                                     config['oanda']['currency_pair']['observe']),
                 ignore_heartbeat=True)

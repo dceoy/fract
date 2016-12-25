@@ -28,22 +28,26 @@ def read_yaml(path):
 
 def write_config_yml(path):
     if os.path.exists(path):
+        logging.debug('Do nothing')
         print('The file already exists: {}'.format(path))
     else:
+        logging.debug('Write {}'.format(path))
         with open(path, 'w') as f:
             f.write(yaml.dump({
                 'oanda': {
                     'environment': 'live',
                     'account_id': '',
                     'access_token': '',
-                    'currency_pair': [
-                        'EUR_USD',
-                        'GBP_USD',
-                        'EUR_GBP',
-                        'USD_JPY',
-                        'EUR_JPY',
-                        'GBP_JPY'
-                    ]
+                    'currency_pair': {
+                        'trade': 'EUR_USD',
+                        'observe': [
+                            'GBP_USD',
+                            'EUR_GBP',
+                            'USD_JPY',
+                            'EUR_JPY',
+                            'GBP_JPY'
+                        ]
+                    }
                 },
                 'redis': {
                     'host': '127.0.0.1',

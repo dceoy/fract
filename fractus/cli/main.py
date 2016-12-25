@@ -4,6 +4,7 @@ Stream and trade forex with Oanda API
 
 Usage:
     fract init [--debug] [--config <yaml>]
+    fract account [--debug] [--config <yaml>] [--list]
     fract rate [--debug] [--config <yaml>] [--redis]
     fract event [--debug] [--config <yaml>] [--redis]
     fract trade [--debug] [--config <yaml>]
@@ -15,10 +16,12 @@ Options:
     -v, --version   Print version and exit
     --debug         Execute a command with debug messages
     --config        Set a path to a YAML for configurations [$FRACTUS_YML]
+    --list          List accounts
     --redis         Store streaming data in a Redis server
 
 Commands:
     init            Generate a YAML template for configuration
+    account         Print account's information
     rate            Stream market prices
     event           Stream authorized account's events
     trade           Trade currencies with a simple algorithm
@@ -26,9 +29,10 @@ Commands:
 
 import logging
 from docopt import docopt
-from .config import set_log_config, set_config_yml, write_config_yml
-from ..stream import streamer
 from .. import __version__
+from .config import set_log_config, set_config_yml, read_yaml, write_config_yml
+from .info import print_account
+from ..stream import streamer
 
 
 def main():
@@ -40,20 +44,26 @@ def main():
         config_yml = set_config_yml(path=args['<yaml>'])
     else:
         config_yml = set_config_yml()
-    logging.debug('config_yml: {}'.format(config_yml))
 
     if args['init']:
         logging.debug('Initiation')
         write_config_yml(path=config_yml)
-    elif args['rate']:
-        logging.debug('Rates Streaming')
-        streamer.invoke(stream_type='rate',
-                        config_yml=config_yml,
-                        use_redis=args['--redis'])
-    elif args['event']:
-        logging.debug('Events Streaming')
-        streamer.invoke(stream_type='event',
-                        config_yml=config_yml,
-                        use_redis=args['--redis'])
-    elif args['trade']:
-        pass
+    else:
+        logging.debug('config_yml: {}'.format(config_yml))
+        config = read_yaml(path=config_yml)
+        if args['account']:
+            logging.debug('Account\'s iformation')
+            print_account(config,
+                          list_accounts=args['--list'])
+        elif args['rate']:
+            logging.debug('Rates Streaming')
+            streamer.invoke(stream_type='rate',
+                            config=config,
+                            use_redis=args['--redis'])
+        elif args['event']:
+            logging.debug('Events Streaming')
+            streamer.invoke(stream_type='event',
+                            config=config,
+                            use_redis=args['--redis'])
+        elif args['trade']:
+            logging.debug('Trading')

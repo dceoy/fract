@@ -13,12 +13,16 @@ test:
         code: |
           pip3 install -U pip
           pip3 install -U git+https://github.com/oanda/oandapy.git
-          pip3 install .
+          pip3 install -U .
     - script:
         name: Test base options
         code: |
           fract --version
           fract --help
+    - script:
+        name: Test commands
+        code: |
+          fract init --debug
   after-steps:
     - script:
         code: |
