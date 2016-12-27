@@ -13,6 +13,7 @@ setup(
     author_email='d.narsil@gmail.com',
     url='https://github.com/dceoy/fractus',
     install_requires=[
+        'numpy',
         'pyyaml',
         'docopt',
         'redis',

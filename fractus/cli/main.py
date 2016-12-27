@@ -33,6 +33,7 @@ from .. import __version__
 from .config import set_log_config, set_config_yml, read_yaml, write_config_yml
 from ..order import account
 from ..stream import streamer
+from ..model import double
 
 
 def main():
@@ -67,3 +68,4 @@ def main():
                             use_redis=args['--redis'])
         elif args['trade']:
             logging.debug('Trading')
+            double.play(config=config)
