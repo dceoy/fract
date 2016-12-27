@@ -4,7 +4,7 @@ Stream and trade forex with Oanda API
 
 Usage:
     fract init [--debug] [--config <yaml>]
-    fract account [--debug] [--config <yaml>] [--list]
+    fract info <info_type> [--debug] [--config <yaml>]
     fract rate [--debug] [--config <yaml>] [--redis]
     fract event [--debug] [--config <yaml>] [--redis]
     fract trade [--debug] [--config <yaml>]
@@ -21,7 +21,14 @@ Options:
 
 Commands:
     init            Generate a YAML template for configuration
-    account         Print account's information
+    info            Print information about <info_type>
+                    <info_type>: {
+                        instruments, prices, history, account, accounts,
+                        orders, trades, positions, position, transaction,
+                        transaction_history, eco_calendar,
+                        historical_position_ratios, historical_spreads,
+                        commitments_of_traders, orderbook, autochartists
+                    }
     rate            Stream market prices
     event           Stream authorized account's events
     trade           Trade currencies with a simple algorithm
@@ -31,7 +38,7 @@ import logging
 from docopt import docopt
 from .. import __version__
 from .config import set_log_config, set_config_yml, read_yaml, write_config_yml
-from ..order import account
+from ..oanda import info
 from ..stream import streamer
 from ..model import double
 
@@ -52,10 +59,10 @@ def main():
     else:
         logging.debug('config_yml: {}'.format(config_yml))
         config = read_yaml(path=config_yml)
-        if args['account']:
-            logging.debug('Account\'s iformation')
-            account.print_info(config,
-                               list_accounts=args['--list'])
+        if args['info']:
+            logging.debug('Information')
+            info.print_info(config,
+                            type=args['<info_type>'])
         elif args['rate']:
             logging.debug('Rates Streaming')
             streamer.invoke(stream_type='rate',
