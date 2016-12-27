@@ -31,7 +31,7 @@ import logging
 from docopt import docopt
 from .. import __version__
 from .config import set_log_config, set_config_yml, read_yaml, write_config_yml
-from .info import print_account
+from ..order import account
 from ..stream import streamer
 
 
@@ -53,8 +53,8 @@ def main():
         config = read_yaml(path=config_yml)
         if args['account']:
             logging.debug('Account\'s iformation')
-            print_account(config,
-                          list_accounts=args['--list'])
+            account.print_info(config,
+                               list_accounts=args['--list'])
         elif args['rate']:
             logging.debug('Rates Streaming')
             streamer.invoke(stream_type='rate',
