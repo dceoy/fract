@@ -20,15 +20,8 @@ def set_config_yml(path=None, env='FRACTUS_YML', default='fractus.yml'):
                                            [path, os.getenv(env), default]))[0]))
 
 
-def read_yaml(path):
-    with open(path) as f:
-        dict = yaml.load(f)
-    return dict
-
-
 def write_config_yml(path):
     if os.path.exists(path):
-        logging.debug('Do nothing')
         print('The file already exists: {}'.format(path))
     else:
         logging.debug('Write {}'.format(path))
@@ -38,23 +31,22 @@ def write_config_yml(path):
                     'environment': 'live',
                     'account_id': '',
                     'access_token': '',
-                    'currency_pair': {
-                        'trade': 'EUR_USD',
-                        'observe': [
-                            'GBP_USD',
-                            'EUR_GBP',
-                            'USD_JPY',
-                            'EUR_JPY',
-                            'GBP_JPY'
-                        ]
-                    }
+                    'currency_pair': [
+                        'EUR_USD',
+                        'GBP_USD',
+                        'EUR_GBP',
+                        'USD_JPY',
+                        'EUR_JPY',
+                        'GBP_JPY'
+                    ]
                 },
                 'redis': {
                     'host': '127.0.0.1',
                     'port': 6379,
                     'db': {
                         'rate': 0,
-                        'event': 1
+                        'event': 1,
+                        'trade': 2
                     },
                     'max_record': 1000
                 }

@@ -53,6 +53,5 @@ def invoke(stream_type, config, use_redis=False):
                           config_redis=config['redis'])
     stream.fire(account_id=config['oanda']['account_id'],
                 instruments=str.join(',',
-                                     [config['oanda']['currency_pair']['trade']] +
-                                     config['oanda']['currency_pair']['observe']),
+                                     config['oanda']['currency_pair']),
                 ignore_heartbeat=True)
