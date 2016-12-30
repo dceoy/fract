@@ -8,30 +8,35 @@ from ..cli.yaml import print_as_yaml
 def print_info(config, type='accounts'):
     oanda = oandapy.API(environment=config['oanda']['environment'],
                         access_token=config['oanda']['access_token'])
+    account_id = config['oanda']['account_id']
+    instrument = config['oanda']['currency_pair'][0]
+    instruments = str.join(',', config['oanda']['currency_pair'])
 
     if type == 'instruments':
-        info = oanda.get_instruments(account_id=config['oanda']['account_id'])
+        info = oanda.get_instruments(account_id=account_id)
     elif type == 'prices':
-        info = oanda.get_prices(account_id=config['oanda']['account_id'])
+        info = oanda.get_prices(account_id=account_id,
+                                instruments=instruments)
     elif type == 'history':
-        info = oanda.get_history(account_id=config['oanda']['account_id'])
+        info = oanda.get_history(account_id=account_id,
+                                 instrument=instrument)
     elif type == 'account':
-        info = oanda.get_account(account_id=config['oanda']['account_id'])
+        info = oanda.get_account(account_id=account_id)
     elif type == 'accounts':
         info = oanda.get_accounts()
     elif type == 'orders':
-        info = oanda.get_orders(account_id=config['oanda']['account_id'])
+        info = oanda.get_orders(account_id=account_id)
     elif type == 'trades':
-        info = oanda.get_trades(account_id=config['oanda']['account_id'])
+        info = oanda.get_trades(account_id=account_id)
     elif type == 'positions':
-        info = oanda.get_positions(account_id=config['oanda']['account_id'])
+        info = oanda.get_positions(account_id=account_id)
     elif type == 'position':
-        info = oanda.get_position(account_id=config['oanda']['account_id'],
-                                  instrument=str.join(',', config['oanda']['currency_pair']))
+        info = oanda.get_position(account_id=account_id,
+                                  instruments=instruments)
     elif type == 'transaction':
-        info = oanda.get_transaction(account_id=config['oanda']['account_id'])
+        info = oanda.get_transaction(account_id=account_id)
     elif type == 'transaction_history':
-        info = oanda.get_transaction_history(account_id=config['oanda']['account_id'])
+        info = oanda.get_transaction_history(account_id=account_id)
     elif type == 'eco_calendar':
         info = oanda.get_eco_calendar()
     elif type == 'historical_position_ratios':

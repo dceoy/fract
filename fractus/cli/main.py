@@ -54,7 +54,7 @@ from .. import __version__
 from .config import set_log_config, set_config_yml, write_config_yml
 from .yaml import read_yaml
 from ..trade import info, order, stream
-from ..model import double
+from ..model import increment
 
 
 def main():
@@ -93,4 +93,4 @@ def main():
                                   instruments=args['<instrument>'])
         elif args['auto']:
             logging.debug('Autonomous Trading')
-            double.auto(config=config)
+            increment.auto(config=config)
