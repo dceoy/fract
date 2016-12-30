@@ -11,74 +11,114 @@ from ..cli.yaml import print_as_yaml
 class Increment(oandapy.API):
     RATES = {'buy': 'ask', 'sell': 'bid'}
 
-    def __init__(self, account_id, instrument, units, stops, **kwargs):
+    def __init__(self, account_id, instrument, param, **kwargs):
         super().__init__(**kwargs)
+
         self.account_id = account_id
         self.instrument = instrument
-        self.open_unit = units['opening']
-        self.unit = self.open_unit
-        self.plus_unit = units['increment']
-        self.stop = stops['loss']
-        self.trail = stops['trail']
-
+        self.unit_open = param['unit']['opening']
+        self.unit = self.unit_open
+        self.unit_plus = param['unit']['increment']
+        self.stop = param['stop']['loss']
+        self.trail = param['stop']['trail']
+        self.interval = param['interval']
         self.side = np.random.choice(tuple(self.RATES.keys()))
-        logging.debug('opening side: {}'.format(self.side))
+        self.index = 0
 
         info = self.get_instruments(account_id=account_id,
                                     instruments=self.instrument)
         logging.debug('instrument:\n{}'.format(info))
         self.pip = float(info['instruments'][0]['pip'])
-        self.max_units = info['instruments'][0]['maxTradeUnits']
+        self.unit_max = info['instruments'][0]['maxTradeUnits']
 
     def deal(self):
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-        opened = self._create_market_order(units=self.unit,
-                                           side=self.side)
-        logging.debug('opening:\n{}'.format(opened))
-        print_as_yaml(opened)
-        trade_id = opened['tradeOpened']['id']
-
+        print('model: Increment\n\n<<<<< OPEN DEALS >>>>>')
         while True:
-            time.sleep(5)
-            transaction = self._get_transaction(transaction_id=trade_id)
-            logging.debug('transaction:\n{}'.format(transaction))
-            print_as_yaml(transaction)
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
+            self.index += 1
+            print('\n>>> DEAL #{}'.format(self.index))
 
-    def _create_market_order(self, units, side):
-        price = self.get_prices(instruments=self.instrument)
-        logging.debug('current price:\n{}'.format(price))
+            pr = self.get_prices(instruments=self.instrument)
+            logging.debug('current price:\n{}'.format(pr))
+            sl = self._calc_stop(anchor=pr['prices'][0][self.RATES[self.side]])
 
-        anchor = price['prices'][0][self.RATES[self.side]]
-        logging.debug('anchor price: {}'.format(anchor))
-        stop_prop = {'buy': 1 - self.stop, 'sell': 1 + self.stop}[self.side]
-        stopl = {'loss': int(anchor * stop_prop / self.pip) * self.pip,
-                 'trail': int(anchor * self.trail / self.pip)}
-        logging.debug('stop prices: {}'.format(stopl))
+            opened = self.create_order(self.account_id,
+                                       instrument=self.instrument,
+                                       units=self.unit,
+                                       side=self.side,
+                                       stopLoss=sl['loss'],
+                                       trailingStop=sl['trail'],
+                                       type='market')
+            logging.debug('opening:\n{}'.format(opened))
+            print_as_yaml({'opening': opened})
 
-        return self.create_order(self.account_id,
-                                 instrument=self.instrument,
-                                 units=units,
-                                 side=side,
-                                 stopLoss=stopl['loss'],
-                                 trailingStop=stopl['trail'],
-                                 type='market')
+            trade_id = opened['tradeOpened']['id']
+            trade_is_open = True
 
-    def _get_transaction(self, transaction_id):
-        return self.get_transaction(self.account_id,
-                                    transaction_id=transaction_id)
+            while trade_is_open:
+                time.sleep(self.interval)
 
-    def _get_trade(self, trade_id):
-        return self.get_trade(self.account_id,
-                              instrument=self.instrument,
-                              trade_id=trade_id)
+                trs = self.get_transaction_history(account_id=self.account_id,
+                                                   instrument=self.instrument,
+                                                   minId=trade_id)
+                logging.debug('transactions:\n{}'.format(trs))
+                tr = list(filter(lambda t:
+                                 'tradeId' in t and
+                                 t['tradeId'] == trade_id,
+                                 trs['transactions']))
+
+                if len(tr) == 0:
+                    logging.debug('continue')
+                else:
+                    logging.debug('closing:\n{}'.format(tr))
+                    print_as_yaml({'closing': tr[0]})
+                    tr_type = tr[0]['type']
+                    logging.debug('transaction type: {}'.format(tr_type))
+
+                    if tr_type in ('STOP_LOSS_FILLED', 'TRAILING_STOP_FILLED'):
+                        if self._profit_taken(open=opened['price'],
+                                              close=tr['price'],
+                                              side=self.side):
+                            self.unit = self.unit_open
+                        else:
+                            self.unit += self.unit_plus
+                            self.side = self._reverse_side(side=self.side)
+                    else:
+                        self.unit = self.unit_open
+
+                    trade_is_open = False
+                    logging.debug('break')
+
+    def _calc_stop(self, anchor):
+        prop = {'buy': 1 - self.stop, 'sell': 1 + self.stop}
+        return {
+            'loss': int(anchor * prop[self.side] / self.pip) * self.pip,
+            'trail': int(anchor * self.trail / self.pip)
+        }
+
+    def _profit_taken(open, close, side):
+        if side == 'buy':
+            if open < close:
+                return True
+            else:
+                return False
+        elif side == 'sell':
+            if open > close:
+                return True
+            else:
+                return False
+
+    def _reverse_side(side):
+        if side == 'buy':
+            return 'sell'
+        elif side == 'sell':
+            return 'buy'
 
 
-def auto(config):
+def open_deal(config, instrument):
     ai = Increment(environment=config['oanda']['environment'],
                    access_token=config['oanda']['access_token'],
                    account_id=config['oanda']['account_id'],
-                   instrument=config['oanda']['currency_pair'][0],
-                   units={'opening': 1, 'increment': 1},
-                   stops={'loss': 0.01, 'trail': 0.02})
+                   instrument=instrument,
+                   param=config['model']['increment'])
     ai.deal()

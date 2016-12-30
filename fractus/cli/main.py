@@ -8,7 +8,7 @@ Usage:
     fract rate [--debug] [--config <yaml>] [--redis]
     fract event [--debug] [--config <yaml>] [--redis]
     fract close [<instrument>...] [--debug] [--config <yaml>]
-    fract auto [--debug] [--config <yaml>]
+    fract open <instrument> [--debug] [--config <yaml>]
     fract -h|--help
     fract -v|--version
 
@@ -26,7 +26,7 @@ Commands:
     rate            Stream market prices
     event           Stream authorized account's events
     close           Close the positions (if not <instrument>, close all)
-    auto            Trade currencies autonomously
+    open            Open autonomous trading
 
 Arguments:
     info_type       { instruments, prices, history, account, accounts,
@@ -91,6 +91,7 @@ def main():
             logging.debug('Position Closing')
             order.close_positions(config=config,
                                   instruments=args['<instrument>'])
-        elif args['auto']:
+        elif args['open']:
             logging.debug('Autonomous Trading')
-            increment.auto(config=config)
+            increment.open_deal(config=config,
+                                instrument=args['<instrument>'])

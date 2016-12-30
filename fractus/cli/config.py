@@ -45,10 +45,16 @@ def write_config_yml(path):
                     'port': 6379,
                     'db': {
                         'rate': 0,
-                        'event': 1,
-                        'trade': 2
+                        'event': 1
                     },
                     'max_record': 1000
+                },
+                'model': {
+                    'increment': {
+                        'unit': {'opening': 1, 'increment': 1},
+                        'stop': {'loss': 0.01, 'trail': 0.02},
+                        'interval': 1
+                    }
                 }
             }, default_flow_style=False))
         print('A YAML template was generated: {}'.format(path))
