@@ -6,13 +6,9 @@ import yaml
 
 
 def set_log_config(debug=False):
-    if debug:
-        lv = logging.DEBUG
-    else:
-        lv = logging.WARNING
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
-                        level=lv)
+                        level=logging.DEBUG if debug else logging.WARNING)
 
 
 def set_config_yml(path=None, env='FRACTUS_YML', default='fractus.yml'):

@@ -60,7 +60,7 @@ from ..model import increment
 def main():
     args = docopt(__doc__, version='fractus {}'.format(__version__))
     set_log_config(debug=args['--debug'])
-    logging.debug('args: \n{}'.format(args))
+    logging.debug('args:\n{}'.format(args))
 
     if args['--config']:
         config_yml = set_config_yml(path=args['<yaml>'])

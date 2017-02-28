@@ -5,8 +5,8 @@ import yaml
 
 def read_yaml(path):
     with open(path) as f:
-        dict = yaml.load(f)
-    return dict
+        d = yaml.load(f)
+    return d
 
 
 def print_as_yaml(dict, flow=False):
