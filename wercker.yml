@@ -15,6 +15,10 @@ test:
           pip3 install -U git+https://github.com/oanda/oandapy.git
           pip3 install -U .
     - script:
+        name: Validate the codes using flake8
+        code: |
+          find . -name '*.py' | xargs flake8
+    - script:
         name: Test base options
         code: |
           fract --version
