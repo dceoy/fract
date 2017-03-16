@@ -13,7 +13,7 @@ class StreamDriver(oandapy.Streamer):
         self.type = stream_type
         self.key = {'rate': 'tick', 'event': 'transaction'}[self.type]
         if use_redis:
-            logging.debug('Set a streamer with storing data in the Redis server')
+            logging.debug('Set a streamer with Redis')
             self.redis = redis.StrictRedis(host=config_redis['host'],
                                            port=config_redis['port'],
                                            db=config_redis['db'][self.type])

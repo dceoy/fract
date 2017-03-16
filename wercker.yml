@@ -17,6 +17,7 @@ test:
     - script:
         name: Validate the codes using flake8
         code: |
+          pip3 install -U flake8
           find . -name '*.py' | xargs flake8
     - script:
         name: Test base options

@@ -17,9 +17,11 @@ def close_positions(config, instruments=[]):
 
     if len(insts) > 0:
         logging.debug('instruments: {}'.format(insts))
-        closed = [oanda.close_position(account_id=config['oanda']['account_id'],
-                                       instrument=i)
-                  for i in insts]
+        closed = [
+            oanda.close_position(account_id=config['oanda']['account_id'],
+                                 instrument=i)
+            for i in insts
+        ]
         logging.debug('position closing:\n{}'.format(closed))
         print('All the positions closed: {}'.format(insts))
     else:

@@ -12,8 +12,9 @@ def set_log_config(debug=False):
 
 
 def set_config_yml(path=None, env='FRACTUS_YML', default='fractus.yml'):
-    return(os.path.expanduser(tuple(filter(lambda p: p is not None,
-                                           [path, os.getenv(env), default]))[0]))
+    return(os.path.expanduser(tuple(filter(
+        lambda p: p is not None, [path, os.getenv(env), default]
+    ))[0]))
 
 
 def write_config_yml(path):
