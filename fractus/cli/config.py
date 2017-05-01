@@ -27,15 +27,7 @@ def write_config_yml(path):
                 'oanda': {
                     'environment': 'live',
                     'account_id': '',
-                    'access_token': '',
-                    'currency_pair': [
-                        'EUR_USD',
-                        'GBP_USD',
-                        'EUR_GBP',
-                        'USD_JPY',
-                        'EUR_JPY',
-                        'GBP_JPY'
-                    ]
+                    'access_token': ''
                 },
                 'redis': {
                     'host': '127.0.0.1',

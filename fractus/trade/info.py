@@ -5,21 +5,20 @@ import oandapy
 from ..cli.yaml import print_as_yaml
 
 
-def print_info(config, type='accounts'):
+def print_info(config, type='accounts', instruments=['EUR_USD']):
     oanda = oandapy.API(environment=config['oanda']['environment'],
                         access_token=config['oanda']['access_token'])
     account_id = config['oanda']['account_id']
-    instrument = config['oanda']['currency_pair'][0]
-    instruments = str.join(',', config['oanda']['currency_pair'])
+    cs_instruments = ','.join(instruments)
 
     if type == 'instruments':
         info = oanda.get_instruments(account_id=account_id)
     elif type == 'prices':
         info = oanda.get_prices(account_id=account_id,
-                                instruments=instruments)
+                                instruments=cs_instruments)
     elif type == 'history':
         info = oanda.get_history(account_id=account_id,
-                                 instrument=instrument)
+                                 instrument=instruments[0])
     elif type == 'account':
         info = oanda.get_account(account_id=account_id)
     elif type == 'accounts':
@@ -32,7 +31,7 @@ def print_info(config, type='accounts'):
         info = oanda.get_positions(account_id=account_id)
     elif type == 'position':
         info = oanda.get_position(account_id=account_id,
-                                  instruments=instruments)
+                                  instruments=cs_instruments)
     elif type == 'transaction':
         info = oanda.get_transaction(account_id=account_id)
     elif type == 'transaction_history':

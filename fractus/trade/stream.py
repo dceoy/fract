@@ -45,13 +45,12 @@ class StreamDriver(oandapy.Streamer):
             self.events(**kwargs)
 
 
-def invoke(stream_type, config, use_redis=False):
+def invoke(stream_type, instruments, config, use_redis=False):
     stream = StreamDriver(stream_type=stream_type,
                           environment=config['oanda']['environment'],
                           access_token=config['oanda']['access_token'],
                           use_redis=use_redis,
                           config_redis=config['redis'])
     stream.fire(account_id=config['oanda']['account_id'],
-                instruments=str.join(',',
-                                     config['oanda']['currency_pair']),
+                instruments=','.join(instruments),
                 ignore_heartbeat=True)

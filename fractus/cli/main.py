@@ -3,12 +3,12 @@
 Stream and trade forex with Oanda API
 
 Usage:
-    fract init [--debug] [--config <yaml>]
-    fract info <info_type> [--debug] [--config <yaml>]
-    fract rate [--debug] [--config <yaml>] [--redis]
-    fract event [--debug] [--config <yaml>] [--redis]
-    fract close [<instrument>...] [--debug] [--config <yaml>]
-    fract open <instrument> [--debug] [--config <yaml>]
+    fract init [--debug] [--config=<yaml>]
+    fract info [--debug] [--config=<yaml>] <info_type>
+    fract rate [--debug] [--config=<yaml>] [--redis] <instrument>...
+    fract event [--debug] [--config=<yaml>] [--redis]
+    fract close [--debug] [--config=<yaml>] [<instrument>...]
+    fract open [--debug] [--config=<yaml>] <instrument>
     fract -h|--help
     fract -v|--version
 
@@ -16,7 +16,7 @@ Options:
     -h, --help      Print help and exit
     -v, --version   Print version and exit
     --debug         Execute a command with debug messages
-    --config        Set a path to a YAML for configurations [$FRACTUS_YML]
+    --config=<yaml> Set a path to a YAML for configurations [$FRACTUS_YML]
     --list          List accounts
     --redis         Store streaming data in a Redis server
 
@@ -29,12 +29,12 @@ Commands:
     open            Open autonomous trading
 
 Arguments:
-    info_type       { instruments, prices, history, account, accounts,
+    <info_type>     { instruments, prices, history, account, accounts,
                       orders, trades, positions, position, transaction,
                       transaction_history, eco_calendar,
                       historical_position_ratios, historical_spreads,
                       commitments_of_traders, orderbook, autochartists }
-    instrument      { AUD_CAD, AUD_CHF, AUD_HKD, AUD_JPY, AUD_NZD, AUD_SGD,
+    <instrument>    { AUD_CAD, AUD_CHF, AUD_HKD, AUD_JPY, AUD_NZD, AUD_SGD,
                       AUD_USD, CAD_CHF, CAD_HKD, CAD_JPY, CAD_SGD, CHF_HKD,
                       CHF_JPY, CHF_ZAR, EUR_AUD, EUR_CAD, EUR_CHF, EUR_CZK,
                       EUR_DKK, EUR_GBP, EUR_HKD, EUR_HUF, EUR_JPY, EUR_NOK,
@@ -61,11 +61,7 @@ def main():
     args = docopt(__doc__, version='fractus {}'.format(__version__))
     set_log_config(debug=args['--debug'])
     logging.debug('args:\n{}'.format(args))
-
-    if args['--config']:
-        config_yml = set_config_yml(path=args['<yaml>'])
-    else:
-        config_yml = set_config_yml()
+    config_yml = set_config_yml(path=args['--config'])
 
     if args['init']:
         logging.debug('Initiation')
@@ -80,6 +76,7 @@ def main():
         elif args['rate']:
             logging.debug('Rates Streaming')
             stream.invoke(stream_type='rate',
+                          instruments=args['<instrument>'],
                           config=config,
                           use_redis=args['--redis'])
         elif args['event']:
