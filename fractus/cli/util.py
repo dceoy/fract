@@ -11,6 +11,16 @@ def set_log_config(debug=False):
                         level=logging.DEBUG if debug else logging.WARNING)
 
 
+def read_yaml(path):
+    with open(path) as f:
+        d = yaml.load(f)
+    return d
+
+
+def dump_yaml(dict, flow=False):
+    return yaml.dump(dict, default_flow_style=flow)
+
+
 def set_config_yml(path=None, env='FRACTUS_YML', default='fractus.yml'):
     return(os.path.expanduser(tuple(filter(
         lambda p: p is not None, [path, os.getenv(env), default]
@@ -23,7 +33,7 @@ def write_config_yml(path):
     else:
         logging.debug('Write {}'.format(path))
         with open(path, 'w') as f:
-            f.write(yaml.dump({
+            f.write(dump_yaml({
                 'oanda': {
                     'environment': 'live',
                     'account_id': '',
@@ -45,5 +55,5 @@ def write_config_yml(path):
                         'interval': 1
                     }
                 }
-            }, default_flow_style=False))
+            }))
         print('A YAML template was generated: {}'.format(path))

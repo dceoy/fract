@@ -2,7 +2,7 @@
 
 import logging
 import oandapy
-from ..cli.yaml import print_as_yaml
+from ..cli.util import dump_yaml
 
 
 def print_info(config, type='accounts', instruments=['EUR_USD']):
@@ -50,4 +50,4 @@ def print_info(config, type='accounts', instruments=['EUR_USD']):
         info = oanda.get_autochartist()
 
     logging.debug('Print information: {}'.format(type))
-    print_as_yaml(info)
+    print(dump_yaml(info))

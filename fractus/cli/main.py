@@ -51,8 +51,7 @@ Arguments:
 import logging
 from docopt import docopt
 from .. import __version__
-from .config import set_log_config, set_config_yml, write_config_yml
-from .yaml import read_yaml
+from .util import set_log_config, set_config_yml, write_config_yml, read_yaml
 from ..trade import info, order, stream
 from ..model import increment
 

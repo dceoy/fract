@@ -13,11 +13,12 @@ setup(
     author_email='d.narsil@gmail.com',
     url='https://github.com/dceoy/fractus',
     install_requires=[
-        'numpy',
-        'pyyaml',
         'docopt',
+        'numpy',
+        'pandas',
+        'pyyaml',
         'redis',
-        'oandapy'
+        'oandapy',
     ],
     dependency_links=[
         'git+https://github.com/oanda/oandapy.git#egg=oandapy'

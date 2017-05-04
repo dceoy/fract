@@ -5,7 +5,7 @@ import numpy as np
 import signal
 import time
 import oandapy
-from ..cli.yaml import print_as_yaml
+from ..cli.util import dump_yaml
 
 
 class Increment(oandapy.API):
@@ -50,7 +50,7 @@ class Increment(oandapy.API):
                                        trailingStop=sl['trail'],
                                        type='market')
             logging.debug('opening:\n{}'.format(opened))
-            print_as_yaml({'opening': opened})
+            print(dump_yaml({'opening': opened}))
 
             trade_id = opened['tradeOpened']['id']
             trade_is_open = True
@@ -71,7 +71,7 @@ class Increment(oandapy.API):
                     logging.debug('continue')
                 else:
                     logging.debug('closing:\n{}'.format(tr))
-                    print_as_yaml({'closing': tr[0]})
+                    print(dump_yaml({'closing': tr[0]}))
                     tr_type = tr[0]['type']
                     logging.debug('transaction type: {}'.format(tr_type))
 
