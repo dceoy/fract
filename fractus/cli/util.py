@@ -5,6 +5,10 @@ import os
 import yaml
 
 
+class FractError(Exception):
+    pass
+
+
 def set_log_config(debug=False):
     logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
                         datefmt='%Y-%m-%d %H:%M:%S',
@@ -48,11 +52,26 @@ def write_config_yml(path):
                     },
                     'max_record': 1000
                 },
-                'model': {
-                    'increment': {
-                        'unit': {'opening': 1, 'increment': 1},
-                        'stop': {'loss': 0.01, 'trail': 0.02},
-                        'interval': 1
+                'trade': {
+                    'instrument': 'USD_JPY',
+                    'margin_ratio': 0.95,
+                    'model': {
+                        'bollinger': {
+                            'band': {
+                                'granularity': 'M1',
+                                'window': 100
+                            },
+                            'order_sigma': {
+                                'entry': 3,
+                                'stop_loss': 1,
+                                'trailing_stop': 2
+                            }
+                        },
+                        'increment': {
+                            'unit': {'opening': 1, 'increment': 1},
+                            'stop': {'loss': 0.01, 'trail': 0.02},
+                            'interval': 1
+                        }
                     }
                 }
             }))

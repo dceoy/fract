@@ -8,7 +8,7 @@ Usage:
     fract rate [--debug] [--config=<yaml>] [--redis] <instrument>...
     fract event [--debug] [--config=<yaml>] [--redis]
     fract close [--debug] [--config=<yaml>] [<instrument>...]
-    fract open [--debug] [--config=<yaml>] <instrument>
+    fract open [--debug] [--config=<yaml>]
     fract -h|--help
     fract -v|--version
 
@@ -53,7 +53,7 @@ from docopt import docopt
 from .. import __version__
 from .util import set_log_config, set_config_yml, write_config_yml, read_yaml
 from ..trade import info, order, stream
-from ..model import increment
+from ..model import bollinger
 
 
 def main():
@@ -89,5 +89,4 @@ def main():
                                   instruments=args['<instrument>'])
         elif args['open']:
             logging.debug('Autonomous Trading')
-            increment.open_deal(config=config,
-                                instrument=args['<instrument>'])
+            bollinger.invoke(config=config)

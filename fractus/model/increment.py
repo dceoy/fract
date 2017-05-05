@@ -119,6 +119,6 @@ def open_deal(config, instrument):
     ai = Increment(environment=config['oanda']['environment'],
                    access_token=config['oanda']['access_token'],
                    account_id=config['oanda']['account_id'],
-                   instrument=instrument,
-                   param=config['model']['increment'])
+                   instrument=config['trade']['instrument'],
+                   param=config['trade']['model']['increment'])
     ai.deal()
