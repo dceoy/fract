@@ -3,12 +3,12 @@
 Stream and trade forex with Oanda API
 
 Usage:
-    fract init [--debug] [--config=<yaml>]
-    fract info [--debug] [--config=<yaml>] <info_type>
-    fract rate [--debug] [--config=<yaml>] [--redis] <instrument>...
-    fract event [--debug] [--config=<yaml>] [--redis]
-    fract close [--debug] [--config=<yaml>] [<instrument>...]
-    fract open [--debug] [--config=<yaml>]
+    fract init [--debug] [--file=<yaml>]
+    fract info [--debug] [--file=<yaml>] <info_type>
+    fract rate [--debug] [--file=<yaml>] [--redis] <instrument>...
+    fract event [--debug] [--file=<yaml>] [--redis]
+    fract close [--debug] [--file=<yaml>] [<instrument>...]
+    fract open [--debug] [--file=<yaml>] [--inter=<sec>] [--count=<times>]
     fract -h|--help
     fract -v|--version
 
@@ -16,8 +16,9 @@ Options:
     -h, --help      Print help and exit
     -v, --version   Print version and exit
     --debug         Execute a command with debug messages
-    --config=<yaml> Set a path to a YAML for configurations [$FRACTUS_YML]
-    --list          List accounts
+    --file=<yaml>   Set a path to a YAML for configurations [$FRACTUS_YML]
+    --inter=<sec>   Wait seconds between orders [default: 0]
+    --count=<times> Limit a number of executions
     --redis         Store streaming data in a Redis server
 
 Commands:
@@ -25,7 +26,7 @@ Commands:
     info            Print information about <info_type>
     rate            Stream market prices
     event           Stream authorized account's events
-    close           Close the positions (if not <instrument>, close all)
+    close           Close positions (if not <instrument>, close all)
     open            Open autonomous trading
 
 Arguments:
@@ -60,7 +61,7 @@ def main():
     args = docopt(__doc__, version='fractus {}'.format(__version__))
     set_log_config(debug=args['--debug'])
     logging.debug('args:\n{}'.format(args))
-    config_yml = set_config_yml(path=args['--config'])
+    config_yml = set_config_yml(path=args['--file'])
 
     if args['init']:
         logging.debug('Initiation')
@@ -89,4 +90,6 @@ def main():
                                   instruments=args['<instrument>'])
         elif args['open']:
             logging.debug('Autonomous Trading')
-            bollinger.invoke(config=config)
+            bollinger.open_deals(config=config,
+                                 interval=args['--inter'],
+                                 counts=args['--count'])

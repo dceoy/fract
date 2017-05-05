@@ -15,7 +15,6 @@ setup(
     install_requires=[
         'docopt',
         'numpy',
-        'pandas',
         'pyyaml',
         'redis',
         'oandapy',

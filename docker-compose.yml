@@ -5,11 +5,13 @@ services:
     container_name: fract
     build:
       context: .
-    depends_on:
-      - redis
-    command: '--version'
-  redis:
-    container_name: redis
-    image: redis
-    ports:
-      - "6379:6379"
+    restart: always
+    entrypoint:
+      - /bin/bash
+      - -lc
+    environment:
+      FRACTUS_YML: /host/fractus.yml
+    volumes:
+      - ${HOME}:/host
+    command: >
+      'fract open --inter=2'

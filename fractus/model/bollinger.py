@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-from datetime import datetime
 import logging
 import numpy as np
+import signal
+import time
 import oandapy
 from ..cli.util import dump_yaml, FractError
 
@@ -22,16 +23,16 @@ class Bollinger(oandapy.API):
             'self.model': self.model
         })))
 
-    def open(self):
+    def order(self):
         st = self._fetch_state()
         logging.debug('st:\n{}'.format(dump_yaml(st)))
         if st['instrument']['halted']:
-            _print('{} is halted.'.format(self.instrument))
+            self._print('Trading of {} is halted.'.format(self.instrument))
         else:
             units = self._calc_units(state=st)
             logging.debug('units: {}'.format(units))
             if units == 0:
-                _print('Skip ordering for margin.')
+                self._print('Skip ordering for lack of margin.')
             else:
                 wi = self._calc_window()
                 logging.debug('wi: {}'.format(wi))
@@ -39,33 +40,38 @@ class Bollinger(oandapy.API):
                     logging.debug('current({0}) >= upper({1})'.format(
                         wi['last'], wi['upper_bound']
                     ))
-                    _print('Buy {} units with a market order.'.format(units))
                     sl = self._calc_stop_loss(window=wi, state=st)
                     logging.debug('sl: {}'.format(sl))
                     long = self._create_order(units=units,
                                               side='buy',
                                               stopLoss=sl['lower_stop'],
                                               trailingStop=sl['trailing_pip'])
-                    print(dump_yaml(long))
+                    self._print('Buy {0} units of {1}.\n{2}'.format(
+                        units, self.instrument, dump_yaml(long)
+                    ))
                 elif wi['last'] <= wi['lower_bound']:
                     logging.debug('current({0}) <= lower({1})'.format(
                         wi['last'], wi['lower_bound']
                     ))
-                    _print('Sell {} units with a market order.'.format(units))
                     sl = self._calc_stop_loss(window=wi, state=st)
                     logging.debug('sl: {}'.format(sl))
                     short = self._create_order(units=units,
-                                               side='short',
+                                               side='sell',
                                                stopLoss=sl['upper_stop'],
                                                trailingStop=sl['trailing_pip'])
-                    print(dump_yaml(short))
+                    self._print('Sell {0} units of {1}.\n{2}'.format(
+                        units, self.instrument, dump_yaml(short)
+                    ))
                 else:
                     logging.debug(
                         'lower ({0}) < current ({1}) < upper ({2})'.format(
                             wi['lower_bound'], wi['last'], wi['upper_bound']
                         )
                     )
-                    _print('Skip ordering by the criteria.')
+                    self._print('Skip ordering for {} by the criteria.'.format(
+                        self.instrument
+                    ))
+        return st
 
     def _fetch_state(self):
         return {
@@ -121,13 +127,17 @@ class Bollinger(oandapy.API):
         logging.debug('margin_required: {}'.format(margin_required))
 
         if margin_required < margin_avail:
-            return np.int32(np.floor(margin_required / unit_margin))
+            units = np.int32(np.floor(margin_required / unit_margin))
+            if units <= state['instrument']['maxTradeUnits']:
+                return units
+            else:
+                return state['instrument']['maxTradeUnits']
         else:
             return 0
 
     def _calc_window(self):
         arr = self._fetch_window()
-        logging.debug('arr:\n{}'.format(arr))
+        logging.debug('arr.shape: {}'.format(arr.shape))
         m = arr.mean()
         s = arr.std()
         return {
@@ -139,17 +149,20 @@ class Bollinger(oandapy.API):
         }
 
     def _calc_stop_loss(self, window, state):
+        n_sigma = window['std'] * self.model['sigma']['stop_loss']
+        tp = np.ceil(window['std'] *
+                     self.model['sigma']['trailing_stop'] /
+                     np.float32(state['instrument']['pip']))
+        if tp > state['instrument']['maxTrailingStop']:
+            trailing_pip = state['instrument']['maxTrailingStop']
+        elif tp < state['instrument']['minTrailingStop']:
+            trailing_pip = state['instrument']['minTrailingStop']
+        else:
+            trailing_pip = tp
         return {
-            'upper_stop':
-            np.float32(window['last'] +
-                       window['std'] * self.model['sigma']['stop_loss']),
-            'lower_stop':
-            np.float32(window['last'] -
-                       window['std'] * self.model['sigma']['stop_loss']),
-            'tailing_pip':
-            np.ceil(window['std'] *
-                    self.model['sigma']['trailing_stop'] /
-                    np.float32(state['instrument']['pip'])).astype('int32')
+            'upper_stop': np.float32(window['last'] + n_sigma),
+            'lower_stop': np.float32(window['last'] - n_sigma),
+            'trailing_pip': np.int32(trailing_pip)
         }
 
     def _create_order(self, **kwargs):
@@ -181,13 +194,21 @@ class Bollinger(oandapy.API):
             )['candles']
         ])
 
+    def _print(self, message):
+        print('[ {0} - {1} ]\t>>>>>>\t{2}'.format(
+            __package__,
+            self.__class__.__name__,
+            message
+        ))
 
-def _print(message):
-    print('[{0}]\tBollinger\t>>\t{1}'.format(
-        datetime.now().strftime('%Y-%m-%d %H:%M:%S'), message
-    ))
 
-
-def invoke(config):
+def open_deals(config, interval=0, counts=None):
     deal = Bollinger(config=config)
-    deal.open()
+    deal._print('!!! OPEN DEALS !!!')
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    for i in (range(int(counts)) if counts else iter(int, 1)):
+        st = deal.order()
+        if st['instrument']['halted']:
+            break
+        else:
+            time.sleep(int(interval))
