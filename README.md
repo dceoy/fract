@@ -9,5 +9,6 @@ Installation
 ------------
 
 ```sh
-$ pip install -U git+https://github.com/dceoy/fractus.git
+$ pip install -U git+https://github.com/oanda/oandapy.git \
+                 git+https://github.com/dceoy/fractus.git
 ```

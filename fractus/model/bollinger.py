@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from datetime import datetime
 import logging
 import numpy as np
 import oandapy
@@ -14,31 +15,57 @@ class Bollinger(oandapy.API):
         self.instrument = config['trade']['instrument']
         self.margin_ratio = config['trade']['margin_ratio']
         self.model = config['trade']['model']['bollinger']
+        logging.debug('Bollinger:\n{}'.format(dump_yaml({
+            'self.account_id': self.account_id,
+            'self.instrument': self.instrument,
+            'self.margin_ratio': self.margin_ratio,
+            'self.model': self.model
+        })))
 
     def open(self):
         st = self._fetch_state()
+        logging.debug('st:\n{}'.format(dump_yaml(st)))
         if st['instrument']['halted']:
-            logging.debug('{} is halted.'.format(self.instrument))
+            _print('{} is halted.'.format(self.instrument))
         else:
             units = self._calc_units(state=st)
+            logging.debug('units: {}'.format(units))
             if units == 0:
-                logging.debug('Skip ordering for margin.')
+                _print('Skip ordering for margin.')
             else:
-                wo = self._calc_window_orders(state=st)
-                if wo['last'] > wo['upper_band']:
+                wi = self._calc_window()
+                logging.debug('wi: {}'.format(wi))
+                if wi['last'] >= wi['upper_bound']:
+                    logging.debug('current({0}) >= upper({1})'.format(
+                        wi['last'], wi['upper_bound']
+                    ))
+                    _print('Buy {} units with a market order.'.format(units))
+                    sl = self._calc_stop_loss(window=wi, state=st)
+                    logging.debug('sl: {}'.format(sl))
                     long = self._create_order(units=units,
                                               side='buy',
-                                              stopLoss=wo['lower_stop'],
-                                              trailingStop=wo['trail_pip'])
-                    logging.debug('long:\n{}'.format(long))
-                elif wo['last'] < wo['lower_band']:
+                                              stopLoss=sl['lower_stop'],
+                                              trailingStop=sl['trailing_pip'])
+                    print(dump_yaml(long))
+                elif wi['last'] <= wi['lower_bound']:
+                    logging.debug('current({0}) <= lower({1})'.format(
+                        wi['last'], wi['lower_bound']
+                    ))
+                    _print('Sell {} units with a market order.'.format(units))
+                    sl = self._calc_stop_loss(window=wi, state=st)
+                    logging.debug('sl: {}'.format(sl))
                     short = self._create_order(units=units,
                                                side='short',
-                                               stopLoss=wo['upper_stop'],
-                                               trailingStop=wo['trail_pip'])
-                    logging.debug('short:\n{}'.format(short))
+                                               stopLoss=sl['upper_stop'],
+                                               trailingStop=sl['trailing_pip'])
+                    print(dump_yaml(short))
                 else:
-                    logging.debug('Skip ordering by the criteria.')
+                    logging.debug(
+                        'lower ({0}) < current ({1}) < upper ({2})'.format(
+                            wi['lower_bound'], wi['last'], wi['upper_bound']
+                        )
+                    )
+                    _print('Skip ordering by the criteria.')
 
     def _fetch_state(self):
         return {
@@ -50,63 +77,86 @@ class Bollinger(oandapy.API):
             self.get_instruments(
                 account_id=self.account_id,
                 instruments=self.instrument,
-                fields='%2C'.join(['displayName',
-                                   'pip',
-                                   'maxTradeUnits',
-                                   'precision',
-                                   'maxTrailingStop',
-                                   'minTrailingStop',
-                                   'marginRate',
-                                   'halted'])
+                fields=','.join(['displayName',
+                                 'pip',
+                                 'maxTradeUnits',
+                                 'precision',
+                                 'maxTrailingStop',
+                                 'minTrailingStop',
+                                 'marginRate',
+                                 'halted'])
             )['instruments'][0]
         }
 
     def _calc_units(self, state):
         price = self._fetch_ask_price(instrument=self.instrument)
-        base_cur = self.instrument.split('_')[1]
-        if base_cur == 'JPY':
+        logging.debug('price: {}'.format(price))
+
+        acc_cur = state['account']['accountCurrency']
+        cur_pair = self.instrument.split('_')
+        logging.debug('cur_pair: {}'.format(cur_pair))
+        if cur_pair[0] == acc_cur:
+            price_j = 1 / price
+        elif cur_pair[1] == acc_cur:
             price_j = price
         else:
-            inst_j = list(filter(lambda c:
-                                 set(c.split('_')) == {base_cur, 'JPY'},
-                                 self._fetch_instrument_list()))[0]
-            if inst_j == (base_cur + '_JPY'):
+            il = self._fetch_instrument_list()
+            inst_j = [(p if p in il else None) for p in
+                      [(cur_pair[1], acc_cur), (acc_cur, cur_pair[1])]]
+            logging.debug('inst_j: {}'.format(inst_j))
+            if inst_j[0]:
                 price_j = price * self._fetch_ask_price(instrument=inst_j)
-            elif inst_j == ('JPY_' + base_cur):
+            elif inst_j[1]:
                 price_j = price / self._fetch_ask_price(instrument=inst_j)
             else:
                 raise FractError('invalid instruments')
+        logging.debug('price_j: {}'.format(price))
+
         unit_margin = price_j * state['instrument']['marginRate']
+        logging.debug('unit_margin: {}'.format(unit_margin))
         margin_avail = state['account']['marginAvail']
+        logging.debug('margin_avail: {}'.format(margin_avail))
         margin_required = (margin_avail +
                            state['account']['marginUsed']) * self.margin_ratio
+        logging.debug('margin_required: {}'.format(margin_required))
+
         if margin_required < margin_avail:
-            return np.floor(margin_required / unit_margin)
+            return np.int32(np.floor(margin_required / unit_margin))
         else:
             return 0
 
-    def _calc_window_orders(self, state):
+    def _calc_window(self):
         arr = self._fetch_window()
-        l = arr[-1]
+        logging.debug('arr:\n{}'.format(arr))
         m = arr.mean()
         s = arr.std()
-        os = self.model['order_sigma']
         return {
-            'last': l,
-            'mean': m,
-            'std': s,
-            'upper_band': m + s * os['entry'],
-            'lower_band': m - s * os['entry'],
-            'upper_stop': l + s * os['stop_loss'],
-            'lower_stop': l - s * os['stop_loss'],
-            'trail_pip': s * os['trailing_stop'] / state['instrument']['pip']
+            'last': np.float32(arr[-1]),
+            'mean': np.float32(m),
+            'std': np.float32(s),
+            'upper_bound': np.float32(m + s * self.model['sigma']['entry']),
+            'lower_bound': np.float32(m - s * self.model['sigma']['entry'])
+        }
+
+    def _calc_stop_loss(self, window, state):
+        return {
+            'upper_stop':
+            np.float32(window['last'] +
+                       window['std'] * self.model['sigma']['stop_loss']),
+            'lower_stop':
+            np.float32(window['last'] -
+                       window['std'] * self.model['sigma']['stop_loss']),
+            'tailing_pip':
+            np.ceil(window['std'] *
+                    self.model['sigma']['trailing_stop'] /
+                    np.float32(state['instrument']['pip'])).astype('int32')
         }
 
     def _create_order(self, **kwargs):
-        self.create_order(account_id=self.account_id,
-                          instrument=self.instrument,
-                          type='market',
-                          **kwargs)
+        return self.create_order(account_id=self.account_id,
+                                 instrument=self.instrument,
+                                 type='market',
+                                 **kwargs)
 
     def _fetch_instrument_list(self):
         return [
@@ -126,13 +176,18 @@ class Bollinger(oandapy.API):
                 account_id=self.account_id,
                 candleFormat='midpoint',
                 instrument=self.instrument,
-                granularity=self.model['band']['granularity'],
-                count=self.model['band']['windows']
+                granularity=self.model['window']['granularity'],
+                count=self.model['window']['size']
             )['candles']
         ])
 
 
+def _print(message):
+    print('[{0}]\tBollinger\t>>\t{1}'.format(
+        datetime.now().strftime('%Y-%m-%d %H:%M:%S'), message
+    ))
+
+
 def invoke(config):
     deal = Bollinger(config=config)
-    logging.debug('deal:\n{}'.format(dump_yaml(vars(deal))))
     deal.open()

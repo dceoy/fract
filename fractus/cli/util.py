@@ -57,11 +57,11 @@ def write_config_yml(path):
                     'margin_ratio': 0.95,
                     'model': {
                         'bollinger': {
-                            'band': {
+                            'window': {
                                 'granularity': 'M1',
-                                'window': 100
+                                'size': 100
                             },
-                            'order_sigma': {
+                            'order': {
                                 'entry': 3,
                                 'stop_loss': 1,
                                 'trailing_stop': 2
