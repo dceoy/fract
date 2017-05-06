@@ -9,14 +9,16 @@ from ..cli.util import dump_yaml, FractError
 
 
 class Bollinger(oandapy.API):
-    def __init__(self, config):
+    def __init__(self, config, quiet=False):
         super().__init__(environment=config['oanda']['environment'],
                          access_token=config['oanda']['access_token'])
+        self.quiet = quiet
         self.account_id = config['oanda']['account_id']
         self.instrument = config['trade']['instrument']
         self.margin_ratio = config['trade']['margin_ratio']
         self.model = config['trade']['model']['bollinger']
         logging.debug('Bollinger:\n{}'.format(dump_yaml({
+            'self.quiet': self.quiet,
             'self.account_id': self.account_id,
             'self.instrument': self.instrument,
             'self.margin_ratio': self.margin_ratio,
@@ -195,20 +197,21 @@ class Bollinger(oandapy.API):
         ])
 
     def _print(self, message):
-        print('[ {0} - {1} ]\t>>>>>>\t{2}'.format(
+        text = '[ {0} - {1} ]\t>>>>>>\t{2}'.format(
             __package__,
             self.__class__.__name__,
             message
-        ))
+        )
+        logging.debug(text) if self.quiet else print(text)
 
 
-def open_deals(config, interval=0, counts=None):
-    deal = Bollinger(config=config)
-    deal._print('!!! OPEN DEALS !!!')
+def open_deals(config, n=10, interval=2, quiet=False):
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    for i in (range(int(counts)) if counts else iter(int, 1)):
+    deal = Bollinger(config=config, quiet=quiet)
+    deal._print('!!! OPEN DEALS !!!')
+    for i in range(n):
         st = deal.order()
-        if st['instrument']['halted']:
+        if st['instrument']['halted'] or i == n - 1:
             break
         else:
-            time.sleep(int(interval))
+            time.sleep(interval)

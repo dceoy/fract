@@ -8,7 +8,8 @@ Usage:
     fract rate [--debug] [--file=<yaml>] [--redis] <instrument>...
     fract event [--debug] [--file=<yaml>] [--redis]
     fract close [--debug] [--file=<yaml>] [<instrument>...]
-    fract open [--debug] [--file=<yaml>] [--inter=<sec>] [--count=<times>]
+    fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<num>]
+               [--quiet]
     fract -h|--help
     fract -v|--version
 
@@ -17,8 +18,9 @@ Options:
     -v, --version   Print version and exit
     --debug         Execute a command with debug messages
     --file=<yaml>   Set a path to a YAML for configurations [$FRACTUS_YML]
-    --inter=<sec>   Wait seconds between orders [default: 0]
-    --count=<times> Limit a number of executions
+    --wait=<sec>    Wait seconds between orders [default: 2]
+    --iter=<num>    Limit a number of executions
+    --quiet         Suppress messages
     --redis         Store streaming data in a Redis server
 
 Commands:
@@ -50,6 +52,7 @@ Arguments:
 """
 
 import logging
+import sys
 from docopt import docopt
 from .. import __version__
 from .util import set_log_config, set_config_yml, write_config_yml, read_yaml
@@ -71,25 +74,36 @@ def main():
         config = read_yaml(path=config_yml)
         if args['info']:
             logging.debug('Information')
-            info.print_info(config,
-                            type=args['<info_type>'])
+            info.print_info(
+                config,
+                type=args['<info_type>']
+            )
         elif args['rate']:
             logging.debug('Rates Streaming')
-            stream.invoke(stream_type='rate',
-                          instruments=args['<instrument>'],
-                          config=config,
-                          use_redis=args['--redis'])
+            stream.invoke(
+                stream_type='rate',
+                instruments=args['<instrument>'],
+                config=config,
+                use_redis=args['--redis']
+            )
         elif args['event']:
             logging.debug('Events Streaming')
-            stream.invoke(stream_type='event',
-                          config=config,
-                          use_redis=args['--redis'])
+            stream.invoke(
+                stream_type='event',
+                config=config,
+                use_redis=args['--redis']
+            )
         elif args['close']:
             logging.debug('Position Closing')
-            order.close_positions(config=config,
-                                  instruments=args['<instrument>'])
+            order.close_positions(
+                config=config,
+                instruments=args['<instrument>']
+            )
         elif args['open']:
             logging.debug('Autonomous Trading')
-            bollinger.open_deals(config=config,
-                                 interval=args['--inter'],
-                                 counts=args['--count'])
+            bollinger.open_deals(
+                config=config,
+                n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
+                interval=int(args['--wait']),
+                quiet=args['--quiet']
+            )

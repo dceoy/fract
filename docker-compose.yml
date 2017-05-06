@@ -14,4 +14,4 @@ services:
     volumes:
       - ${HOME}:/host
     command: >
-      'fract open --inter=2'
+      'fract open'
