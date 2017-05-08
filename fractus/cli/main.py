@@ -9,7 +9,7 @@ Usage:
     fract event [--debug] [--file=<yaml>] [--redis]
     fract close [--debug] [--file=<yaml>] [<instrument>...]
     fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<num>]
-               [--quiet]
+               [--quiet] <instrument>...
     fract -h|--help
     fract -v|--version
 
@@ -18,7 +18,7 @@ Options:
     -v, --version   Print version and exit
     --debug         Execute a command with debug messages
     --file=<yaml>   Set a path to a YAML for configurations [$FRACTUS_YML]
-    --wait=<sec>    Wait seconds between orders [default: 2]
+    --wait=<sec>    Wait seconds between orders [default: 0]
     --iter=<num>    Limit a number of executions
     --quiet         Suppress messages
     --redis         Store streaming data in a Redis server
@@ -103,6 +103,7 @@ def main():
             logging.debug('Autonomous Trading')
             bollinger.open_deals(
                 config=config,
+                instruments=args['<instrument>'],
                 n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
                 interval=int(args['--wait']),
                 quiet=args['--quiet']

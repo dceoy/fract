@@ -6,12 +6,12 @@ services:
     build:
       context: .
     restart: always
-    entrypoint:
-      - /bin/bash
-      - -lc
     environment:
       FRACTUS_YML: /host/fractus.yml
     volumes:
       - ${HOME}:/host
-    command: >
-      'fract open'
+    command:
+      - open
+      - USD_JPY
+      - EUR_USD
+      - EUR_JPY

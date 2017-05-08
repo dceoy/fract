@@ -53,7 +53,6 @@ def write_config_yml(path):
                     'max_record': 1000
                 },
                 'trade': {
-                    'instrument': 'USD_JPY',
                     'margin_ratio': 0.95,
                     'model': {
                         'bollinger': {
@@ -63,7 +62,7 @@ def write_config_yml(path):
                             },
                             'order': {
                                 'entry': 3,
-                                'stop_loss': 1,
+                                'stop_loss': 2,
                                 'trailing_stop': 2
                             }
                         },
