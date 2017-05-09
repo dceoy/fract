@@ -105,6 +105,6 @@ def main():
                 config=config,
                 instruments=args['<instrument>'],
                 n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
-                interval=int(args['--wait']),
+                interval=float(args['--wait']),
                 quiet=args['--quiet']
             )
