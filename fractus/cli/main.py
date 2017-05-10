@@ -9,7 +9,7 @@ Usage:
     fract event [--debug] [--file=<yaml>] [--redis]
     fract close [--debug] [--file=<yaml>] [<instrument>...]
     fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<num>]
-               [--quiet] <instrument>...
+               [--quiet] [<instrument>...]
     fract -h|--help
     fract -v|--version
 

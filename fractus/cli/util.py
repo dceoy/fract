@@ -53,6 +53,12 @@ def write_config_yml(path):
                     'max_record': 1000
                 },
                 'trade': {
+                    'instruments': [
+                        'USD_JPY', 'EUR_USD', 'EUR_JPY',
+                        'GBP_JPY', 'GBP_USD', 'EUR_GBP',
+                        'AUD_JPY', 'AUD_USD', 'EUR_AUD',
+                        'GBP_AUD'
+                    ],
                     'margin_ratio': 0.95,
                     'model': {
                         'bollinger': {
@@ -60,16 +66,12 @@ def write_config_yml(path):
                                 'granularity': 'M1',
                                 'size': 100
                             },
-                            'order': {
-                                'entry': 3,
+                            'sigma': {
+                                'entry': 4,
                                 'stop_loss': 2,
-                                'trailing_stop': 2
+                                'trailing_stop': 2,
+                                'max_spread': 1
                             }
-                        },
-                        'increment': {
-                            'unit': {'opening': 1, 'increment': 1},
-                            'stop': {'loss': 0.01, 'trail': 0.02},
-                            'interval': 1
                         }
                     }
                 }

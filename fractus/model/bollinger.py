@@ -33,35 +33,42 @@ class Bollinger(oandapy.API):
         logging.debug('self.instrument_list: {}'.format(self.instrument_list))
 
     def auto(self, instrument):
-        rate = self._fetch_rate(instrument=instrument)
+        time.sleep(0.2)
+        rate = self._get_rate(instrument=instrument)
         logging.debug('rate: {}'.format(rate))
         if rate['halted']:
             self._print('Skip for trading halted.', instrument=instrument)
         else:
             time.sleep(0.2)
-            units = self._calc_units(rate=rate)
+            price = self._get_price(instrument=rate['instrument'])
+            logging.debug('price: {}'.format(price))
+            units = self._calc_units(price=price, rate=rate)
             logging.debug('units: {}'.format(units))
-            time.sleep(0.2)
             if units == 0:
                 self._print('Skip for lack of margin.', instrument=instrument)
             else:
                 wi = self._calc_window(instrument=instrument)
                 logging.debug('wi: {}'.format(wi))
-                if wi['last'] >= wi['up_bound']:
+                max_spread = wi['std'] * self.model['sigma']['max_spread']
+                if price['spread'] > max_spread:
+                    self._print('Skip for spread.', instrument=instrument)
+                elif wi['last'] > wi['up_bound']:
                     od = self._place_order(instrument=instrument,
                                            units=units,
                                            side='buy',
                                            sd=wi['std'],
+                                           price=price,
                                            rate=rate)
                     self._print(
                         'Buy {1} units.\n{2}'.format(units, dump_yaml(od)),
                         instrument=instrument
                     )
-                elif wi['last'] <= wi['low_bound']:
+                elif wi['last'] < wi['low_bound']:
                     od = self._place_order(instrument=instrument,
                                            units=units,
                                            side='sell',
                                            sd=wi['std'],
+                                           price=price,
                                            rate=rate)
                     self._print(
                         'Sell {1} units.\n{2}'.format(units, dump_yaml(od)),
@@ -71,7 +78,7 @@ class Bollinger(oandapy.API):
                     self._print('Skip by the criteria.', instrument=instrument)
         return rate
 
-    def _fetch_rate(self, instrument):
+    def _get_rate(self, instrument):
         return self.get_instruments(
             account_id=self.account_id,
             instruments=instrument,
@@ -85,15 +92,13 @@ class Bollinger(oandapy.API):
                              'halted'])
         )['instruments'][0]
 
-    def _calc_units(self, rate):
-        ask = self._fetch_price(instrument=rate['instrument'])['ask']
-        logging.debug('ask: {}'.format(ask))
+    def _calc_units(self, rate, price):
         cur_pair = rate['instrument'].split('_')
         logging.debug('cur_pair: {}'.format(cur_pair))
         if cur_pair[0] == self.account_currency:
-            price_bp = 1 / ask
+            bp = 1 / price['ask']
         elif cur_pair[1] == self.account_currency:
-            price_bp = ask
+            bp = price['ask']
         else:
             inst_bp = [
                 (inst if inst in self.instrument_list else None)
@@ -104,18 +109,18 @@ class Bollinger(oandapy.API):
             ]
             logging.debug('inst_bp: {}'.format(inst_bp))
             if inst_bp[0]:
-                price_bp = ask * self._fetch_price(instrument=inst_bp)['ask']
+                bp = price['ask'] * self._get_price(instrument=inst_bp)['ask']
             elif inst_bp[1]:
-                price_bp = ask / self._fetch_price(instrument=inst_bp)['ask']
+                bp = price['ask'] / self._get_price(instrument=inst_bp)['ask']
             else:
                 raise FractError('invalid instruments')
-        logging.debug('price_bp: {}'.format(price_bp))
+        logging.debug('bp: {}'.format(bp))
 
         ac = self.get_account(account_id=self.account_id)
         logging.debug('ac: {}'.format(ac))
         margin_req = (ac['marginAvail'] + ac['marginUsed']) * self.margin_ratio
         logging.debug('margin_req: {}'.format(margin_req))
-        unit_margin = price_bp * rate['marginRate']
+        unit_margin = bp * rate['marginRate']
         logging.debug('unit_margin: {}'.format(unit_margin))
 
         if margin_req < ac['marginAvail']:
@@ -151,11 +156,10 @@ class Bollinger(oandapy.API):
             'low_bound': np.float32(m - s * self.model['sigma']['entry'])
         }
 
-    def _place_order(self, instrument, units, side, sd, rate):
-        p = self._fetch_price(instrument=instrument)
+    def _place_order(self, instrument, units, side, sd, price, rate):
+        trail_p = sd * self.model['sigma']['trailing_stop']
         ts = np.int32(np.ceil(
-            (sd * self.model['sigma']['trailing_stop'] + p['ask'] - p['bid']) /
-            np.float32(rate['pip'])
+            (trail_p + price['spread']) / np.float32(rate['pip'])
         ))
         if ts > rate['maxTrailingStop']:
             trailing_stop = np.int32(rate['maxTrailingStop'])
@@ -164,24 +168,28 @@ class Bollinger(oandapy.API):
         else:
             trailing_stop = ts
         logging.debug('trailing_stop: {}'.format(trailing_stop))
+
+        stop_p = sd * self.model['sigma']['stop_loss']
         if side == 'buy':
-            stop = np.float32(p['bid'] - sd * self.model['sigma']['stop_loss'])
+            stop_loss = np.float32(price['ask'] - stop_p)
         elif side == 'sell':
-            stop = np.float32(p['ask'] + sd * self.model['sigma']['stop_loss'])
+            stop_loss = np.float32(price['bid'] + stop_p)
         else:
             raise FractError('invalid side')
-        logging.debug('stop: {}'.format(stop))
+        logging.debug('stop_loss: {}'.format(stop_loss))
+
         return self.create_order(account_id=self.account_id,
                                  units=units,
                                  instrument=instrument,
                                  side=side,
-                                 stopLoss=stop,
+                                 stopLoss=stop_loss,
                                  trailingStop=trailing_stop,
                                  type='market')
 
-    def _fetch_price(self, instrument):
-        return self.get_prices(account_id=self.account_id,
-                               instruments=instrument)['prices'][0]
+    def _get_price(self, instrument):
+        p = self.get_prices(account_id=self.account_id,
+                            instruments=instrument)['prices'][0]
+        return dict(list(p.items()) + [('spread', p['ask'] - p['bid'])])
 
     def _print(self, message, instrument=None):
         text = '[ {0} - {1} ]\t{2}{3}'.format(
@@ -197,6 +205,7 @@ class Bollinger(oandapy.API):
 
 
 def open_deals(config, instruments, n=10, interval=2, quiet=False):
+    insts = (instruments if instruments else config['trade']['instruments'])
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     deal = Bollinger(oanda=config['oanda'],
                      model=config['trade']['model'],
@@ -206,7 +215,7 @@ def open_deals(config, instruments, n=10, interval=2, quiet=False):
     for i in range(n):
         halted = all([
             deal.auto(instrument=inst)['halted']
-            for inst in instruments
+            for inst in insts
         ])
         if halted or i == n - 1:
             break
