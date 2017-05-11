@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from datetime import datetime
 import logging
 import signal
 import time
@@ -33,7 +34,7 @@ class Bollinger(oandapy.API):
         logging.debug('self.instrument_list: {}'.format(self.instrument_list))
 
     def auto(self, instrument):
-        time.sleep(0.2)
+        t0 = datetime.now()
         rate = self._get_rate(instrument=instrument)
         logging.debug('rate: {}'.format(rate))
 
@@ -41,16 +42,18 @@ class Bollinger(oandapy.API):
             self._print(
                 'Skip for trading halted.', instrument=instrument
             )
+            self._sleep(last=t0, sec=0.5)
         else:
-            time.sleep(0.2)
             prices = self._get_prices()
             logging.debug('prices: {}'.format(prices))
 
+            self._sleep(last=t0, sec=0.5)
             units = self._calc_units(
                 rate=rate, prices=prices, margin=self._get_margin()
             )
             logging.debug('units: {}'.format(units))
 
+            self._sleep(last=t0, sec=1)
             if units == 0:
                 self._print(
                     'Skip for lack of margin.', instrument=instrument
@@ -240,6 +243,11 @@ class Bollinger(oandapy.API):
             logging.debug(text)
         else:
             print(text, flush=True)
+
+    def _sleep(self, last, sec=0.5):
+        rest = sec - (datetime.now() - last).total_seconds()
+        if rest > 0:
+            time.sleep(rest)
 
 
 def open_deals(config, instruments, n=10, interval=2, quiet=False):
