@@ -189,23 +189,26 @@ class Bollinger(oandapy.API):
             return 0
 
     def _calc_window_stat(self, window):
-        return (
-            lambda i, l, m, s, t:
-            {
-                'instrument': i,
-                'last': np.float32(l),
-                'mean': np.float32(m),
-                'std': np.float32(s),
-                'up_bound': np.float32(m + s * t),
-                'low_bound': np.float32(m - s * t)
-            }
-        )(
-            i=window['instrument'],
-            l=window['midpoints'][-1],
-            m=window['midpoints'].mean(),
-            s=window['midpoints'].std(),
-            t=self.model['sigma']['entry_trigger']
-        )
+        if window['midpoints'].shape[0] == self.model['window']['size']:
+            return (
+                lambda i, l, m, s, t:
+                {
+                    'instrument': i,
+                    'last': np.float32(l),
+                    'mean': np.float32(m),
+                    'std': np.float32(s),
+                    'up_bound': np.float32(m + s * t),
+                    'low_bound': np.float32(m - s * t)
+                }
+            )(
+                i=window['instrument'],
+                l=window['midpoints'][-1],
+                m=window['midpoints'].mean(),
+                s=window['midpoints'].std(),
+                t=self.model['sigma']['entry_trigger']
+            )
+        else:
+            raise FractError('window size not matched')
 
     def _place_order(self, sd, prices, rate, side, units):
         trail_p = sd * self.model['sigma']['trailing_stop']
