@@ -12,6 +12,7 @@ setup(
     author='Daichi Narushima',
     author_email='d.narsil@gmail.com',
     url='https://github.com/dceoy/fract',
+    include_package_data=True,
     install_requires=[
         'docopt',
         'numpy',
