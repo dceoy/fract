@@ -25,5 +25,28 @@ setup(
     ],
     entry_points={
         'console_scripts': ['fract=fract.cli.main:main'],
-    }
+    },
+    classifiers=[
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 3',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: POSIX :: Linux',
+        'Operating System :: MacOS',
+        'Environment :: Console',
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Developers',
+        'Intended Audience :: Financial and Insurance Industry',
+        'Topic :: Internet',
+        'Topic :: Office/Business',
+        'Topic :: Office/Business :: Financial',
+        'Topic :: Office/Business :: Financial :: Investment'
+    ],
+    long_description="""\
+fract
+-----
+
+Automated Trading Framework using Oanda API
+
+This version requires Python 3 or later.
+    """
 )

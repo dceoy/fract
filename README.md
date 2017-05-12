@@ -3,7 +3,7 @@ fract
 
 Automated Trading Framework using Oanda API
 
-[![wercker status](https://app.wercker.com/status/23c1d6dc1e7fe266c576593800694793/m/master "wercker status")](https://app.wercker.com/project/byKey/23c1d6dc1e7fe266c576593800694793)
+[![wercker status](https://app.wercker.com/status/cd7eaa54e3874264bb4745dc0d3b7484/m/master "wercker status")](https://app.wercker.com/project/byKey/cd7eaa54e3874264bb4745dc0d3b7484)
 
 Installation
 ------------
