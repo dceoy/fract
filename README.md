@@ -1,5 +1,5 @@
-fractus
-=======
+fract
+=====
 
 Automated Trading Framework using Oanda API
 
@@ -10,5 +10,5 @@ Installation
 
 ```sh
 $ pip install -U git+https://github.com/oanda/oandapy.git \
-                 git+https://github.com/dceoy/fractus.git
+                 git+https://github.com/dceoy/fract.git
 ```

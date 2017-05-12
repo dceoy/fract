@@ -7,14 +7,8 @@ services:
       context: .
     restart: always
     environment:
-      FRACTUS_YML: /host/fractus.yml
+      FRACT_YML: /host/fract.yml
     volumes:
       - ${HOME}:/host
     command:
       - open
-      - USD_JPY
-      - EUR_USD
-      - EUR_JPY
-      - GBP_JPY
-      - GBP_USD
-      - EUR_GBP

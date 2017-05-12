@@ -25,7 +25,7 @@ def dump_yaml(dict, flow=False):
     return yaml.dump(dict, default_flow_style=flow)
 
 
-def set_config_yml(path=None, env='FRACTUS_YML', default='fractus.yml'):
+def set_config_yml(path=None, env='FRACT_YML', default='fract.yml'):
     return(os.path.expanduser(tuple(filter(
         lambda p: p is not None, [path, os.getenv(env), default]
     ))[0]))

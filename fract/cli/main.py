@@ -17,7 +17,7 @@ Options:
     -h, --help      Print help and exit
     -v, --version   Print version and exit
     --debug         Execute a command with debug messages
-    --file=<yaml>   Set a path to a YAML for configurations [$FRACTUS_YML]
+    --file=<yaml>   Set a path to a YAML for configurations [$FRACT_YML]
     --wait=<sec>    Wait seconds between orders [default: 0]
     --iter=<num>    Limit a number of executions
     --quiet         Suppress messages
@@ -61,7 +61,7 @@ from ..model import bollinger
 
 
 def main():
-    args = docopt(__doc__, version='fractus {}'.format(__version__))
+    args = docopt(__doc__, version='fract {}'.format(__version__))
     set_log_config(debug=args['--debug'])
     logging.debug('args:\n{}'.format(args))
     config_yml = set_config_yml(path=args['--file'])
