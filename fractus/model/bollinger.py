@@ -135,7 +135,7 @@ class Bollinger(oandapy.API):
     def _get_window(self, instrument):
         return {
             'instrument': instrument,
-            'midpoint': [
+            'midpoints': np.array([
                 d['closeMid']
                 for d in
                 self.get_history(
@@ -145,7 +145,7 @@ class Bollinger(oandapy.API):
                     granularity=self.model['window']['granularity'],
                     count=self.model['window']['size']
                 )['candles']
-            ]
+            ])
         }
 
     def _calc_units(self, rate, prices, margin):
@@ -173,13 +173,14 @@ class Bollinger(oandapy.API):
                 raise FractError('invalid instruments')
         logging.debug('bp: {}'.format(bp))
 
-        margin_req = (margin['avail'] + margin['used']) * self.margin_ratio
-        logging.debug('margin_req: {}'.format(margin_req))
-        unit_margin = bp * rate['marginRate']
-        logging.debug('unit_margin: {}'.format(unit_margin))
+        mg = dict([(k, v * (margin['avail'] + margin['used']))
+                   for k, v in self.margin_ratio.items()])
+        logging.debug('mg: {}'.format(mg))
+        mg_per_unit = bp * rate['marginRate']
+        logging.debug('mg_per_unit: {}'.format(mg_per_unit))
 
-        if margin_req < margin['avail']:
-            units = np.int32(np.floor(margin_req / unit_margin))
+        if mg['ticket'] < (margin['avail'] - mg['preserve']):
+            units = np.int32(np.floor(mg['ticket'] / mg_per_unit))
             if units <= rate['maxTradeUnits']:
                 return units
             else:
@@ -188,18 +189,23 @@ class Bollinger(oandapy.API):
             return 0
 
     def _calc_window_stat(self, window):
-        arr = np.array(window['midpoint'])
-        logging.debug('arr.shape: {}'.format(arr.shape))
-        m = arr.mean()
-        s = arr.std()
-        return {
-            'instrument': window['instrument'],
-            'last': np.float32(arr[-1]),
-            'mean': np.float32(m),
-            'std': np.float32(s),
-            'up_bound': np.float32(m + s * self.model['sigma']['entry']),
-            'low_bound': np.float32(m - s * self.model['sigma']['entry'])
-        }
+        return (
+            lambda i, l, m, s, t:
+            {
+                'instrument': i,
+                'last': np.float32(l),
+                'mean': np.float32(m),
+                'std': np.float32(s),
+                'up_bound': np.float32(m + s * t),
+                'low_bound': np.float32(m - s * t)
+            }
+        )(
+            i=window['instrument'],
+            l=window['midpoints'][-1],
+            m=window['midpoints'].mean(),
+            s=window['midpoints'].std(),
+            t=self.model['sigma']['entry_trigger']
+        )
 
     def _place_order(self, sd, prices, rate, side, units):
         trail_p = sd * self.model['sigma']['trailing_stop']
@@ -216,18 +222,25 @@ class Bollinger(oandapy.API):
         logging.debug('trailing_stop: {}'.format(trailing_stop))
 
         stop_p = sd * self.model['sigma']['stop_loss']
+        profit_p = sd * self.model['sigma']['take_profit']
         if side == 'buy':
             stop_loss = np.float32(pr['ask'] - stop_p)
+            take_profit = np.float32(pr['ask'] + profit_p)
+
         elif side == 'sell':
             stop_loss = np.float32(pr['bid'] + stop_p)
+            take_profit = np.float32(pr['bid'] - profit_p)
         else:
             raise FractError('invalid side')
-        logging.debug('stop_loss: {}'.format(stop_loss))
+        logging.debug(
+            'take_profit: {0}, stop_loss: {1}'.format(take_profit, stop_loss)
+        )
 
         return self.create_order(account_id=self.account_id,
                                  units=units,
                                  instrument=rate['instrument'],
                                  side=side,
+                                 takeProfit=take_profit,
                                  stopLoss=stop_loss,
                                  trailingStop=trailing_stop,
                                  type='market')

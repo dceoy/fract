@@ -59,15 +59,19 @@ def write_config_yml(path):
                         'AUD_JPY', 'AUD_USD', 'EUR_AUD',
                         'GBP_AUD'
                     ],
-                    'margin_ratio': 0.95,
+                    'margin_ratio': {
+                        'ticket': 0.10,
+                        'preserve': 0.05,
+                    },
                     'model': {
                         'bollinger': {
                             'window': {
-                                'granularity': 'M1',
-                                'size': 100
+                                'granularity': 'S5',
+                                'size': 360
                             },
                             'sigma': {
-                                'entry': 4,
+                                'entry_trigger': 3,
+                                'take_profit': 1000,
                                 'stop_loss': 2,
                                 'trailing_stop': 2,
                                 'max_spread': 1
