@@ -213,13 +213,13 @@ class Bollinger(oandapy.API):
     def _place_order(self, sd, prices, rate, side, units):
         trail_p = sd * self.model['sigma']['trailing_stop']
         pr = prices[rate['instrument']]
-        ts = np.int32(np.ceil(
+        ts = np.int16(np.ceil(
             (trail_p + pr['spread']) / np.float32(rate['pip'])
         ))
         if ts > rate['maxTrailingStop']:
-            trailing_stop = np.int32(rate['maxTrailingStop'])
+            trailing_stop = np.int16(rate['maxTrailingStop'])
         elif ts < rate['minTrailingStop']:
-            trailing_stop = np.int32(rate['minTrailingStop'])
+            trailing_stop = np.int16(rate['minTrailingStop'])
         else:
             trailing_stop = ts
         logging.debug('trailing_stop: {}'.format(trailing_stop))
@@ -227,12 +227,12 @@ class Bollinger(oandapy.API):
         stop_p = sd * self.model['sigma']['stop_loss']
         profit_p = sd * self.model['sigma']['take_profit']
         if side == 'buy':
-            stop_loss = np.float32(pr['ask'] - stop_p)
-            take_profit = np.float32(pr['ask'] + profit_p)
+            stop_loss = np.float16(pr['ask'] - stop_p)
+            take_profit = np.float16(pr['ask'] + profit_p)
 
         elif side == 'sell':
-            stop_loss = np.float32(pr['bid'] + stop_p)
-            take_profit = np.float32(pr['bid'] - profit_p)
+            stop_loss = np.float16(pr['bid'] + stop_p)
+            take_profit = np.float16(pr['bid'] - profit_p)
         else:
             raise FractError('invalid side')
         logging.debug(
