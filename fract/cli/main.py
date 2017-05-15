@@ -52,6 +52,7 @@ Arguments:
 """
 
 import logging
+import os
 import sys
 from docopt import docopt
 from .. import __version__
@@ -63,7 +64,7 @@ from ..model import bollinger
 def main():
     args = docopt(__doc__, version='fract {}'.format(__version__))
     set_log_config(debug=args['--debug'])
-    logging.debug('args:\n{}'.format(args))
+    logging.debug('args:{0}{1}'.format(os.linesep, args))
     config_yml = set_config_yml(path=args['--file'])
 
     if args['init']:

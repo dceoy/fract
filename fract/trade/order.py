@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+import os
 import oandapy
 
 
@@ -10,7 +11,7 @@ def close_positions(config, instruments=[]):
 
     if len(instruments) == 0:
         pos = oanda.get_positions(account_id=config['oanda']['account_id'])
-        logging.debug('pos:\n{}'.format(pos))
+        logging.debug('pos:{0}{1}'.format(os.linesep, pos))
         insts = set(map(lambda p: p['instrument'], pos['positions']))
     else:
         insts = set(instruments)
@@ -22,7 +23,7 @@ def close_positions(config, instruments=[]):
                                  instrument=i)
             for i in insts
         ]
-        logging.debug('closed:\n{}'.format(closed))
+        logging.debug('closed:{0}{1}'.format(os.linesep, closed))
         print('All the positions closed.')
     else:
         print('No positions to close.')

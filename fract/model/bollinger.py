@@ -2,6 +2,7 @@
 
 from datetime import datetime
 import logging
+import os
 import signal
 import time
 import numpy as np
@@ -20,13 +21,16 @@ class Bollinger(oandapy.API):
         self.margin_ratio = margin_ratio
         self.model = model['bollinger']
         self.quiet = quiet
-        logging.debug('Bollinger:\n{}'.format(dump_yaml({
-            'self.account_id': self.account_id,
-            'self.account_currency': self.account_currency,
-            'self.margin_ratio': self.margin_ratio,
-            'self.model': self.model,
-            'self.quiet': self.quiet
-        })))
+        logging.debug(
+            'Bollinger:{0}{1}'.format(
+                os.linesep,
+                dump_yaml({'self.account_id': self.account_id,
+                           'self.account_currency': self.account_currency,
+                           'self.margin_ratio': self.margin_ratio,
+                           'self.model': self.model,
+                           'self.quiet': self.quiet})
+            )
+        )
         self.instrument_list = [
             d['instrument'] for d in
             self.get_instruments(account_id=self.account_id)['instruments']
@@ -39,25 +43,21 @@ class Bollinger(oandapy.API):
         logging.debug('rate: {}'.format(rate))
 
         if rate['halted']:
-            self._print(
-                'Skip for trading halted.', instrument=instrument
-            )
+            self._print('Skip for trading halted.', instrument=instrument)
             self._sleep(last=t0, sec=0.5)
         else:
             prices = self._get_prices()
             logging.debug('prices: {}'.format(prices))
 
             self._sleep(last=t0, sec=0.5)
-            units = self._calc_units(
-                rate=rate, prices=prices, margin=self._get_margin()
-            )
+            units = self._calc_units(rate=rate,
+                                     prices=prices,
+                                     margin=self._get_margin())
             logging.debug('units: {}'.format(units))
 
             self._sleep(last=t0, sec=1)
             if units == 0:
-                self._print(
-                    'Skip for lack of margin.', instrument=instrument
-                )
+                self._print('Skip for lack of margin.', instrument=instrument)
             else:
                 ws = self._calc_window_stat(
                     window=self._get_window(instrument=instrument)
@@ -68,33 +68,30 @@ class Bollinger(oandapy.API):
                 logging.debug('max_spread: {}'.format(max_spread))
 
                 if prices[instrument]['spread'] > max_spread:
-                    self._print(
-                        'Skip for large spread.', instrument=instrument
-                    )
+                    self._print('Skip for large spread.',
+                                instrument=instrument)
                 elif ws['last'] > ws['up_bound']:
                     od = self._place_order(sd=ws['std'],
                                            prices=prices,
                                            rate=rate,
                                            side='buy',
                                            units=units)
-                    self._print(
-                        'Buy {0} units.\n{1}'.format(units, dump_yaml(od)),
-                        instrument=instrument
-                    )
+                    self._print('Buy {0} units.{1}{2}'.format(units,
+                                                              os.linesep,
+                                                              dump_yaml(od)),
+                                instrument=instrument)
                 elif ws['last'] < ws['low_bound']:
                     od = self._place_order(sd=ws['std'],
                                            prices=prices,
                                            rate=rate,
                                            side='sell',
                                            units=units)
-                    self._print(
-                        'Sell {0} units.\n{1}'.format(units, dump_yaml(od)),
-                        instrument=instrument
-                    )
+                    self._print('Sell {0} units.{1}{2}'.format(units,
+                                                               os.linesep,
+                                                               dump_yaml(od)),
+                                instrument=instrument)
                 else:
-                    self._print(
-                        'Skip by the criteria.', instrument=instrument
-                    )
+                    self._print('Skip by the criteria.', instrument=instrument)
         return rate
 
     def _get_rate(self, instrument):
@@ -192,14 +189,12 @@ class Bollinger(oandapy.API):
         if window['midpoints'].shape[0] == self.model['window']['size']:
             return (
                 lambda i, l, m, s, t:
-                {
-                    'instrument': i,
-                    'last': np.float32(l),
-                    'mean': np.float32(m),
-                    'std': np.float32(s),
-                    'up_bound': np.float32(m + s * t),
-                    'low_bound': np.float32(m - s * t)
-                }
+                {'instrument': i,
+                 'last': np.float32(l),
+                 'mean': np.float32(m),
+                 'std': np.float32(s),
+                 'up_bound': np.float32(m + s * t),
+                 'low_bound': np.float32(m - s * t)}
             )(
                 i=window['instrument'],
                 l=window['midpoints'][-1],
@@ -235,9 +230,8 @@ class Bollinger(oandapy.API):
             take_profit = np.float16(pr['bid'] - profit_p)
         else:
             raise FractError('invalid side')
-        logging.debug(
-            'take_profit: {0}, stop_loss: {1}'.format(take_profit, stop_loss)
-        )
+        logging.debug('take_profit: {0}, stop_loss: {1}'.format(take_profit,
+                                                                stop_loss))
 
         return self.create_order(account_id=self.account_id,
                                  units=units,
@@ -273,11 +267,10 @@ def open_deals(config, instruments, n=10, interval=2, quiet=False):
                      model=config['trade']['model'],
                      margin_ratio=config['trade']['margin_ratio'],
                      quiet=quiet)
-    deal._print('!!! OPEN DEALS !!!')
+    print('!!! OPEN DEALS !!!')
     for i in range(n):
         halted = all([
-            deal.auto(instrument=inst)['halted']
-            for inst in insts
+            deal.auto(instrument=inst)['halted'] for inst in insts
         ])
         if halted or i == n - 1:
             break
