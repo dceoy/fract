@@ -57,8 +57,7 @@ import sys
 from docopt import docopt
 from .. import __version__
 from .util import set_log_config, set_config_yml, write_config_yml, read_yaml
-from ..trade import info, order, stream
-from ..model import bollinger
+from ..trade import info, order, stream, auto
 
 
 def main():
@@ -102,7 +101,7 @@ def main():
             )
         elif args['open']:
             logging.debug('Autonomous Trading')
-            bollinger.open_deals(
+            auto.open_deals(
                 config=config,
                 instruments=args['<instrument>'],
                 n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
