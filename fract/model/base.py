@@ -9,7 +9,7 @@ import oandapy
 from ..cli.util import dump_yaml, FractError
 
 
-class FractBaseModel(oandapy.API):
+class FractTrader(oandapy.API):
     def __init__(self, oanda, margin_ratio, model, quiet=False):
         super().__init__(environment=oanda['environment'],
                          access_token=oanda['access_token'])
@@ -186,7 +186,7 @@ class FractBaseModel(oandapy.API):
                                  type='market')
 
 
-class FractModelHelper(object):
+class FractTradeHelper(object):
     def __init__(self, instrument, name, quiet):
         self.instrument = instrument
         self.name = name

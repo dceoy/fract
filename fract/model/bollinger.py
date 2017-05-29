@@ -2,10 +2,10 @@
 
 from datetime import datetime
 import logging
-from .base import FractBaseModel, FractModelHelper
+from .base import FractTrader, FractTradeHelper
 
 
-class Bollinger(FractBaseModel):
+class Bollinger(FractTrader):
     def __init__(self, oanda, margin_ratio, model, quiet=False):
         super().__init__(oanda=oanda,
                          margin_ratio=margin_ratio,
@@ -16,7 +16,7 @@ class Bollinger(FractBaseModel):
         t0 = datetime.now()
         rate = self._get_rate(instrument=instrument)
         logging.debug('rate: {}'.format(rate))
-        helper = FractModelHelper(name=self.__class__.__name__,
+        helper = FractTradeHelper(name=self.__class__.__name__,
                                   instrument=instrument,
                                   quiet=self.quiet)
 
