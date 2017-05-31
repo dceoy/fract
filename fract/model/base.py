@@ -131,19 +131,20 @@ class FractTrader(oandapy.API):
     def _calc_window_stat(self, window):
         if window['midpoints'].shape[0] == self.model['window']['size']:
             return (
-                lambda i, l, m, s, t:
+                lambda i, f, l, m, s, v:
                 {'instrument': i,
+                 'first': np.float32(f),
                  'last': np.float32(l),
                  'mean': np.float32(m),
                  'std': np.float32(s),
-                 'up_bound': np.float32(m + s * t),
-                 'low_bound': np.float32(m - s * t)}
+                 'var': np.float32(v)}
             )(
                 i=window['instrument'],
+                f=window['midpoints'][0],
                 l=window['midpoints'][-1],
                 m=window['midpoints'].mean(),
-                s=window['midpoints'].std(),
-                t=self.model['sigma']['entry_trigger']
+                s=window['midpoints'].std(ddof=1),
+                v=window['midpoints'].var(ddof=1)
             )
         else:
             raise FractError('window size not matched')

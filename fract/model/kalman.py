@@ -6,7 +6,26 @@ import numpy as np
 from .base import FractTrader, FractTradeHelper
 
 
-class Bollinger(FractTrader):
+class KalmanFilter:
+    def __init__(self, x_hat0, v_hat0, v_sys, v_obs):
+        self.x_hat = x_hat0     # a posteri estimate of x
+        self.v_hat = v_hat0     # a posteri error estimate
+        self.v_sys = v_sys      # process variance
+        self.v_obs = v_obs      # estimate of measurement variance
+
+    def update(self, x):
+        x_hat_m = self.x_hat                    # a priori estimate of x
+        v_hat_m = self.v_hat + self.v_sys       # a priori error estimate
+        k = v_hat_m / (v_hat_m + self.v_obs)    # gain or blending factor
+        self.x_hat = x_hat_m + k * (x - x_hat_m)
+        self.v_hat = (1 - k) * v_hat_m
+        return self.x_hat
+
+    def update_offline(self, x_array):
+        return np.array([self.update(x=x) for x in x_array])
+
+
+class Kalman(FractTrader):
     def __init__(self, oanda, margin_ratio, model, quiet=False):
         super().__init__(oanda=oanda,
                          margin_ratio=margin_ratio,
@@ -38,9 +57,8 @@ class Bollinger(FractTrader):
             if units == 0:
                 helper.print_log('Skip for lack of margin.')
             else:
-                ws = self._calc_window_stat(
-                    window=self._get_window(instrument=instrument)
-                )
+                wi = self._get_window(instrument=instrument)
+                ws = self._calc_window_stat(window=wi)
                 logging.debug('ws: {}'.format(ws))
 
                 max_spread = ws['std'] * self.model['sigma']['max_spread']
@@ -53,9 +71,16 @@ class Bollinger(FractTrader):
                         ws['std'] * self.model['sigma']['entry_trigger']
                     )
                     logging.debug('threshold: {}'.format(threshold))
-                    dv = ws['last'] - ws['mean']
 
-                    if dv - threshold > 0:
+                    k = KalmanFilter(x_hat0=ws['first'],
+                                     v_hat0=ws['var'],
+                                     v_sys=ws['var'],
+                                     v_obs=ws['var'])
+                    x_hat = k.update_offline(x_array=wi['midpoints'])[-1]
+                    logging.debug('x_hat: {}'.format(x_hat))
+                    x_delta = x_hat - ws['last']
+
+                    if x_delta - threshold > 0:
                         helper.print_order_log(
                             response=self._place_order(sd=ws['std'],
                                                        prices=prices,
@@ -63,7 +88,7 @@ class Bollinger(FractTrader):
                                                        side='buy',
                                                        units=units)
                         )
-                    elif dv + threshold < 0:
+                    elif x_delta + threshold < 0:
                         helper.print_order_log(
                             response=self._place_order(sd=ws['std'],
                                                        prices=prices,
