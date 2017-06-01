@@ -42,8 +42,10 @@ trade:
         stop_loss: 2
         trailing_stop: 2
         max_spread: 1
-        sys_error: 0.1
-        obs_error: 0.1
+      error:
+        sys_var: 0.25
+        obs_var: 0.25
+        ref_window: 30
       window:
         granularity: M1   # 1 min
         size: 1440        # 24 hr

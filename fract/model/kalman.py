@@ -33,6 +33,21 @@ class Kalman(FractTrader):
                          model=model,
                          quiet=quiet)
 
+    def _kalman_filter(self, window):
+        return (
+            lambda v0:
+            KalmanFilter(
+                x_hat0=window['midpoints'][0],
+                v_err0=v0,
+                v_sys_err=v0 * self.model['error']['sys_var'],
+                v_obs_err=v0 * self.model['error']['obs_var']
+            )
+        )(
+            v0=window['midpoints'][
+                -int(self.model['error']['ref_window']):
+            ].var(ddof=1)
+        )
+
     def fire(self, instrument):
         t0 = datetime.now()
         rate = self._get_rate(instrument=instrument)
@@ -68,12 +83,7 @@ class Kalman(FractTrader):
                 if prices[instrument]['spread'] > max_spread:
                     helper.print_log('Skip for large spread.')
                 else:
-                    kf = KalmanFilter(
-                        x_hat0=ws['first'],
-                        v_err0=ws['var'],
-                        v_sys_err=ws['var'] * self.model['sigma']['sys_error'],
-                        v_obs_err=ws['var'] * self.model['sigma']['obs_error']
-                    )
+                    kf = self._kalman_filter(window=wi)
                     kf.update_offline(x_array=wi['midpoints'])
                     logging.debug('kf.x_hat: {}'.format(kf.x_hat))
 
