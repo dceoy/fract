@@ -22,12 +22,12 @@ trade:
     - EUR_AUD
     - GBP_AUD
   margin_ratio:
-    preserve: 0.04
-    ticket: 0.24
+    preserve: 0.05
+    ticket: 0.1
   model:
     bollinger:
       sigma:
-        entry_trigger: 5
+        entry_trigger: 4
         take_profit: 1000
         stop_loss: 2
         trailing_stop: 2
