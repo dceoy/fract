@@ -7,22 +7,23 @@ from .base import FractTrader, FractTradeHelper
 
 
 class KalmanFilter:
-    def __init__(self, x_hat0, v_hat0, v_sys, v_obs):
-        self.x_hat = x_hat0     # a posteri estimate of x
-        self.v_hat = v_hat0     # a posteri error estimate
-        self.v_sys = v_sys      # process variance
-        self.v_obs = v_obs      # estimate of measurement variance
+    def __init__(self, x_hat0, v_err0, v_sys_err, v_obs_err):
+        self.x_hat = np.array([x_hat0])     # a posteri estimate of x
+        self.v_err = np.array([v_err0])     # a posteri error estimate
+        self.v_sys_err = v_sys_err          # process variance
+        self.v_obs_err = v_obs_err          # estimate of measurement variance
 
     def update(self, x):
-        x_hat_m = self.x_hat                    # a priori estimate of x
-        v_hat_m = self.v_hat + self.v_sys       # a priori error estimate
-        k = v_hat_m / (v_hat_m + self.v_obs)    # gain or blending factor
-        self.x_hat = x_hat_m + k * (x - x_hat_m)
-        self.v_hat = (1 - k) * v_hat_m
-        return self.x_hat
+        x_hat_m = self.x_hat[-1]                    # a priori estimate of x
+        v_err_m = self.v_err[-1] + self.v_sys_err   # a priori error estimate
+        k = v_err_m / (v_err_m + self.v_obs_err)    # gain or blending factor
+        self.x_hat = np.append(self.x_hat, x_hat_m + k * (x - x_hat_m))
+        self.v_err = np.append(self.v_err, (1 - k) * v_err_m)
+        return self.x_hat[-1]
 
     def update_offline(self, x_array):
-        return np.array([self.update(x=x) for x in x_array])
+        [self.update(x=x) for x in x_array]
+        return self.x_hat[-1]
 
 
 class Kalman(FractTrader):
@@ -67,18 +68,22 @@ class Kalman(FractTrader):
                 if prices[instrument]['spread'] > max_spread:
                     helper.print_log('Skip for large spread.')
                 else:
+                    kf = KalmanFilter(
+                        x_hat0=ws['first'],
+                        v_err0=ws['var'],
+                        v_sys_err=ws['var'] * self.model['sigma']['sys_error'],
+                        v_obs_err=ws['var'] * self.model['sigma']['obs_error']
+                    )
+                    kf.update_offline(x_array=wi['midpoints'])
+                    logging.debug('kf.x_hat: {}'.format(kf.x_hat))
+
+                    x_delta = np.float32(kf.x_hat[-1] - kf.x_hat[-2])
                     threshold = np.float32(
                         ws['std'] * self.model['sigma']['entry_trigger']
                     )
-                    logging.debug('threshold: {}'.format(threshold))
-
-                    k = KalmanFilter(x_hat0=ws['first'],
-                                     v_hat0=ws['var'],
-                                     v_sys=ws['var'],
-                                     v_obs=ws['var'])
-                    x_hat = k.update_offline(x_array=wi['midpoints'])[-1]
-                    logging.debug('x_hat: {}'.format(x_hat))
-                    x_delta = x_hat - ws['last']
+                    logging.debug('x_delta: {0}, threshold: {1}'.format(
+                        x_delta, threshold
+                    ))
 
                     if x_delta - threshold > 0:
                         helper.print_order_log(
