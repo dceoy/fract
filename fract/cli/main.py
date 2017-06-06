@@ -20,7 +20,7 @@ Options:
     --file=<yaml>   Set a path to a YAML for configurations [$FRACT_YML]
     --wait=<sec>    Wait seconds between orders [default: 0]
     --iter=<num>    Limit a number of executions
-    --model=<mod>   Set a trading model [default: kalman]
+    --model=<mod>   Set a trading model [default: bollinger]
     --quiet         Suppress messages
     --redis         Store streaming data in a Redis server
 
