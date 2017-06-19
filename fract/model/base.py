@@ -194,8 +194,12 @@ class FractTradeHelper(object):
         self.quiet = quiet
 
     def print_log(self, message):
-        text = '[ {0} - {1} ]\t{2}\t>>>>>>\t{3}'.format(
-            __package__, self.name, self.instrument, message
+        text = '[ {0} - {1}{2}]\t{3}\t>>>>>>\t{4}'.format(
+            __package__,
+            self.name,
+            ' ' * (10 - len(self.name)),
+            self.instrument,
+            message
         )
         if self.quiet:
             logging.debug(text)

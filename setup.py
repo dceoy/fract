@@ -18,6 +18,7 @@ setup(
         'numpy',
         'pyyaml',
         'redis',
+        'scipy',
         'oandapy',
     ],
     dependency_links=[
