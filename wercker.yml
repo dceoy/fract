@@ -6,6 +6,7 @@ test:
     - script:
         name: Install requirements
         code: |
+          apt-get -y update
           apt-get -y install redis-server
     - script:
          name: Install fract

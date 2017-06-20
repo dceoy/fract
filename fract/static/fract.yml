@@ -17,35 +17,31 @@ trade:
     - GBP_JPY
     - GBP_USD
     - EUR_GBP
-    - AUD_JPY
-    - AUD_USD
-    - EUR_AUD
-    - GBP_AUD
   margin_ratio:
-    preserve: 0.05
-    ticket: 0.1
+    preserve: 0.04
+    ticket: 0.24
   model:
     bollinger:
       sigma:
-        entry_trigger: 5
+        entry_trigger: 4
         take_profit: 1000
         stop_loss: 1
         trailing_stop: 1
         max_spread: 1
       window:
         granularity: S5   # 5 sec
-        size: 1440        # 2 hr
+        size: 4320        # 6 hr
     delta:
       sigma:
         take_profit: 1000
-        stop_loss: 1
-        trailing_stop: 1
-        max_spread: 1
-      pdf:
-        interval: 0.95
+        stop_loss: 2
+        trailing_stop: 2
+        max_spread: 2
+      ci:
+        alpha: 0.99
       window:
         granularity: S5   # 5 sec
-        size: 360         # 30 min
+        size: 120         # 10 min
     kalman:
       sigma:
         entry_trigger: 1
