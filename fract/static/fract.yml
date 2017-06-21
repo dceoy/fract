@@ -21,27 +21,28 @@ trade:
     preserve: 0.04
     ticket: 0.24
   model:
+    delta:
+      sigma:
+        take_profit: 100
+        stop_loss: 0.5
+        trailing_stop: 0.5
+        max_spread: 0.5
+      ci:
+        level: 0.99
+        sample: 60          # 5 min
+      window:
+        granularity: S5     # 5 sec
+        size: 4320          # 6 hr
     bollinger:
       sigma:
         entry_trigger: 4
-        take_profit: 1000
-        stop_loss: 1
-        trailing_stop: 1
-        max_spread: 1
+        take_profit: 100
+        stop_loss: 0.5
+        trailing_stop: 0.5
+        max_spread: 0.5
       window:
-        granularity: S5   # 5 sec
-        size: 4320        # 6 hr
-    delta:
-      sigma:
-        take_profit: 1000
-        stop_loss: 2
-        trailing_stop: 2
-        max_spread: 2
-      ci:
-        alpha: 0.99
-      window:
-        granularity: S5   # 5 sec
-        size: 120         # 10 min
+        granularity: S5     # 5 sec
+        size: 4320          # 6 hr
     kalman:
       sigma:
         entry_trigger: 1
@@ -54,5 +55,5 @@ trade:
         obs_var: 0.5
         ref_window: 30
       window:
-        granularity: M1   # 1 min
-        size: 1440        # 24 hr
+        granularity: M1     # 1 min
+        size: 1440          # 24 hr

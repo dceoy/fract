@@ -7,14 +7,14 @@ from scipy import stats
 from .base import FractTrader, FractTradeHelper
 
 
-def _calc_delta_ci(x_array, alpha=0.95):
+def _calc_delta_ci(array, level=0.95):
     return (
         lambda d:
         np.asarray(
-            stats.t.interval(alpha=alpha, df=len(d) - 1)
+            stats.t.interval(alpha=level, df=len(d) - 1)
         ) * stats.sem(d) + np.mean(d)
     )(
-        d=x_array[1:-1] - x_array[0:-2]
+        d=array[1:-1] - array[0:-2]
     )
 
 
@@ -60,8 +60,10 @@ class Delta(FractTrader):
                 if prices[instrument]['spread'] > max_spread:
                     helper.print_log('Skip for large spread.')
                 else:
-                    delta_ci = _calc_delta_ci(x_array=wi['midpoints'],
-                                              alpha=self.model['ci']['alpha'])
+                    delta_ci = _calc_delta_ci(
+                        array=wi['midpoints'][-self.model['ci']['sample']:],
+                        level=self.model['ci']['level']
+                    )
                     logging.debug('delta_ci: {}'.format(np.float32(delta_ci)))
 
                     if delta_ci[0] > 0:
