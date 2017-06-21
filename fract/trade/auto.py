@@ -8,52 +8,15 @@ from ..model.kalman import Kalman
 from ..model.delta import Delta
 
 
-def open_deals(config, instruments, model, n=10, interval=2, quiet=False):
+def open_deals(config, instruments, models, n=10, interval=2, quiet=False):
     insts = (instruments if instruments else config['trade']['instruments'])
-    if model not in ['bollinger', 'delta', 'delta_bollinger', 'kalman']:
-        raise FractError('invalid trading model')
-    else:
-        for m in model.split('_'):
-            if m not in config['trade']['model']:
-                raise FractError('`{}` not in config'.format(m))
-
+    traders = [
+        _generate_trader(model=m, config=config, quiet=quiet)
+        for m in models.split(',')
+    ]
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     if not quiet:
         print('!!! OPEN DEALS !!!')
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-    if model == 'delta':
-        traders = [
-            Delta(oanda=config['oanda'],
-                  model=config['trade']['model']['delta'],
-                  margin_ratio=config['trade']['margin_ratio'],
-                  quiet=quiet)
-        ]
-    elif model == 'bollinger':
-        traders = [
-            Bollinger(oanda=config['oanda'],
-                      model=config['trade']['model']['bollinger'],
-                      margin_ratio=config['trade']['margin_ratio'],
-                      quiet=quiet)
-        ]
-    elif model == 'delta_bollinger':
-        traders = [
-            Delta(oanda=config['oanda'],
-                  model=config['trade']['model']['delta'],
-                  margin_ratio=config['trade']['margin_ratio'],
-                  quiet=quiet),
-            Bollinger(oanda=config['oanda'],
-                      model=config['trade']['model']['bollinger'],
-                      margin_ratio=config['trade']['margin_ratio'],
-                      quiet=quiet)
-        ]
-    elif model == 'kalman':
-        traders = [
-            Kalman(oanda=config['oanda'],
-                   model=config['trade']['model']['kalman'],
-                   margin_ratio=config['trade']['margin_ratio'],
-                   quiet=quiet)
-        ]
-
     for i in range(n):
         halted = all([
             all([
@@ -66,3 +29,25 @@ def open_deals(config, instruments, model, n=10, interval=2, quiet=False):
             break
         else:
             time.sleep(interval)
+
+
+def _generate_trader(model, config, quiet=False):
+    if model not in config['trade']['model']:
+        raise FractError('`{}` not in config'.format(model))
+    elif model == 'delta':
+        return Delta(oanda=config['oanda'],
+                     model=config['trade']['model']['delta'],
+                     margin_ratio=config['trade']['margin_ratio'],
+                     quiet=quiet)
+    elif model == 'bollinger':
+        return Bollinger(oanda=config['oanda'],
+                         model=config['trade']['model']['bollinger'],
+                         margin_ratio=config['trade']['margin_ratio'],
+                         quiet=quiet)
+    elif model == 'kalman':
+        return Kalman(oanda=config['oanda'],
+                      model=config['trade']['model']['kalman'],
+                      margin_ratio=config['trade']['margin_ratio'],
+                      quiet=quiet)
+    else:
+        raise FractError('invalid trading model')

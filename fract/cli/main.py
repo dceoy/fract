@@ -9,7 +9,7 @@ Usage:
     fract event [--debug] [--file=<yaml>] [--redis]
     fract close [--debug] [--file=<yaml>] [<instrument>...]
     fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<num>]
-               [--model=<mod>] [--quiet] [<instrument>...]
+               [--models=<mod>] [--quiet] [<instrument>...]
     fract -h|--help
     fract -v|--version
 
@@ -20,7 +20,7 @@ Options:
     --file=<yaml>   Set a path to a YAML for configurations [$FRACT_YML]
     --wait=<sec>    Wait seconds between orders [default: 0]
     --iter=<num>    Limit a number of executions
-    --model=<mod>   Set a trading model [default: delta]
+    --models=<mod>  Set trading models (comma-separated) [default: delta]
     --quiet         Suppress messages
     --redis         Store streaming data in a Redis server
 
@@ -105,7 +105,7 @@ def main():
             auto.open_deals(
                 config=config,
                 instruments=args['<instrument>'],
-                model=args['--model'],
+                models=args['--models'],
                 n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
                 interval=float(args['--wait']),
                 quiet=args['--quiet']
