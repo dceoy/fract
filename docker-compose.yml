@@ -5,6 +5,7 @@ services:
     container_name: fract
     build:
       context: .
+    image: dceoy/fract:latest
     restart: always
     environment:
       FRACT_YML: /host/fract.yml

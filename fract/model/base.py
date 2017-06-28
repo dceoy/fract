@@ -197,7 +197,7 @@ class FractTradeHelper(object):
         text = '[ {0} - {1}{2}]\t{3}\t>>>>>>\t{4}'.format(
             __package__,
             self.name,
-            ' ' * (10 - len(self.name)),
+            (lambda l: ' ' * (10 - l) if l < 10 else ' ')(l=len(self.name)),
             self.instrument,
             message
         )

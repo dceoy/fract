@@ -6,6 +6,7 @@ from ..cli.util import FractError
 from ..model.bollinger import Bollinger
 from ..model.kalman import Kalman
 from ..model.delta import Delta
+from ..model.volatility import Volatility
 
 
 def open_deals(config, instruments, models, n=10, interval=2, quiet=False):
@@ -34,6 +35,11 @@ def open_deals(config, instruments, models, n=10, interval=2, quiet=False):
 def _generate_trader(model, config, quiet=False):
     if model not in config['trade']['model']:
         raise FractError('`{}` not in config'.format(model))
+    elif model == 'volatility':
+        return Volatility(oanda=config['oanda'],
+                          model=config['trade']['model']['volatility'],
+                          margin_ratio=config['trade']['margin_ratio'],
+                          quiet=quiet)
     elif model == 'delta':
         return Delta(oanda=config['oanda'],
                      model=config['trade']['model']['delta'],
