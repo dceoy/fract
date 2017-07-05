@@ -74,13 +74,19 @@ class Volatility(FractTrader):
                     )
                     logging.debug('ld_ci: {}'.format(np.float32(ld_ci)))
 
+                    target = wi['midpoints'][-1] * np.exp(
+                        np.mean(ld_ci) * self.model['hv']['take_profit']
+                    )
+                    logging.debug('target: {}'.format(np.float32(target)))
+
                     if ld_ci[0] > 0 and hv > self.model['hv']['min']:
                             helper.print_order_log(
                                 response=self._place_order(sd=ws['std'],
                                                            prices=prices,
                                                            rate=rate,
                                                            side='buy',
-                                                           units=units)
+                                                           units=units,
+                                                           target=target)
                             )
                     elif ld_ci[1] < 0 and hv > self.model['hv']['min']:
                             helper.print_order_log(
@@ -88,7 +94,8 @@ class Volatility(FractTrader):
                                                            prices=prices,
                                                            rate=rate,
                                                            side='sell',
-                                                           units=units)
+                                                           units=units,
+                                                           target=target)
                             )
                     else:
                         helper.print_log('Skip by the criteria.')

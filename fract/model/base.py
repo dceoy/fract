@@ -149,11 +149,11 @@ class FractTrader(oandapy.API):
         else:
             raise FractError('window size not matched')
 
-    def _place_order(self, sd, prices, rate, side, units):
-        trail_p = sd * self.model['sigma']['trailing_stop']
+    def _place_order(self, sd, prices, rate, side, units, target=None):
         pr = prices[rate['instrument']]
         ts = np.int16(np.ceil(
-            (trail_p + pr['spread']) / np.float32(rate['pip'])
+            (sd * self.model['sigma']['trailing_stop'] + pr['spread']) /
+            np.float32(rate['pip'])
         ))
         if ts > rate['maxTrailingStop']:
             trailing_stop = np.int16(rate['maxTrailingStop'])
@@ -163,15 +163,24 @@ class FractTrader(oandapy.API):
             trailing_stop = ts
         logging.debug('trailing_stop: {}'.format(trailing_stop))
 
-        stop_p = sd * self.model['sigma']['stop_loss']
-        profit_p = sd * self.model['sigma']['take_profit']
         if side == 'buy':
-            stop_loss = np.float16(pr['ask'] - stop_p)
-            take_profit = np.float16(pr['ask'] + profit_p)
-
+            stop_loss = np.float16(
+                pr['ask'] - sd * self.model['sigma']['stop_loss']
+            )
+            take_profit = np.float16(
+                pr['ask'] + sd * self.model['sigma']['take_profit']
+                if target is None else
+                target
+            )
         elif side == 'sell':
-            stop_loss = np.float16(pr['bid'] + stop_p)
-            take_profit = np.float16(pr['bid'] - profit_p)
+            stop_loss = np.float16(
+                pr['bid'] + sd * self.model['sigma']['stop_loss']
+            )
+            take_profit = np.float16(
+                pr['bid'] - sd * self.model['sigma']['take_profit']
+                if target is None else
+                target
+            )
         else:
             raise FractError('invalid side')
         logging.debug('take_profit: {0}, stop_loss: {1}'.format(take_profit,
