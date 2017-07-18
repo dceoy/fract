@@ -149,11 +149,23 @@ class FractTrader(oandapy.API):
         else:
             raise FractError('window size not matched')
 
-    def _place_order(self, sd, prices, rate, side, units, target=None):
+    def _place_order(self, prices, rate, side, units, ld=None, sd=None):
         pr = prices[rate['instrument']]
+        if side in {'buy', 'sell'}:
+            sp = {'buy': pr['ask'], 'sell': pr['bid']}[side]
+            if sd is not None:
+                signed_sd = {'buy': sd, 'sell': - sd}[side]
+            elif ld is None:
+                raise FractError('ld or sd required')
+        else:
+            raise FractError('invalid side')
+
         ts = np.int16(np.ceil(
-            (sd * self.model['sigma']['trailing_stop'] + pr['spread']) /
-            np.float32(rate['pip'])
+            (
+                sp * (np.exp(ld * self.model['hv']['trailing_stop']) - 1)
+                if ld is not None else
+                sd * self.model['sigma']['trailing_stop'] + pr['spread']
+            ) / np.float32(rate['pip'])
         ))
         if ts > rate['maxTrailingStop']:
             trailing_stop = np.int16(rate['maxTrailingStop'])
@@ -163,28 +175,19 @@ class FractTrader(oandapy.API):
             trailing_stop = ts
         logging.debug('trailing_stop: {}'.format(trailing_stop))
 
-        if side == 'buy':
-            stop_loss = np.float16(
-                pr['ask'] - sd * self.model['sigma']['stop_loss']
-            )
-            take_profit = np.float16(
-                pr['ask'] + sd * self.model['sigma']['take_profit']
-                if target is None else
-                target
-            )
-        elif side == 'sell':
-            stop_loss = np.float16(
-                pr['bid'] + sd * self.model['sigma']['stop_loss']
-            )
-            take_profit = np.float16(
-                pr['bid'] - sd * self.model['sigma']['take_profit']
-                if target is None else
-                target
-            )
-        else:
-            raise FractError('invalid side')
-        logging.debug('take_profit: {0}, stop_loss: {1}'.format(take_profit,
-                                                                stop_loss))
+        stop_loss = np.float16(
+            sp * np.exp(- ld * self.model['hv']['stop_loss'])
+            if ld is not None else
+            sp - signed_sd * self.model['sigma']['stop_loss']
+        )
+        logging.debug('stop_loss: {}'.format(stop_loss))
+
+        take_profit = np.float16(
+            sp * np.exp(ld * self.model['hv']['take_profit'])
+            if ld is not None else
+            sp + signed_sd * self.model['sigma']['take_profit']
+        )
+        logging.debug('take_profit: {}'.format(take_profit))
 
         return self.create_order(account_id=self.account_id,
                                  units=units,

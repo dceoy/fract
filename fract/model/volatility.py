@@ -54,48 +54,41 @@ class Volatility(FractTrader):
                 helper.print_log('Skip for lack of margin.')
             else:
                 wi = self._get_window(instrument=instrument)
-                ws = self._calc_window_stat(window=wi)
-                logging.debug('ws: {}'.format(ws))
+                hv = _calc_hv(
+                    array=wi['midpoints'][-self.model['hv']['sample']:]
+                )
+                logging.debug('hv: {}'.format(np.float32(hv)))
 
-                max_spread = ws['std'] * self.model['sigma']['max_spread']
+                max_spread = (
+                    wi['midpoints'][-1] *
+                    (np.exp(hv * self.model['hv']['max_spread']) - 1)
+                )
                 logging.debug('max_spread: {}'.format(max_spread))
 
                 if prices[instrument]['spread'] > max_spread:
                     helper.print_log('Skip for large spread.')
                 else:
-                    hv = _calc_hv(
-                        array=wi['midpoints'][-self.model['hv']['sample']:]
-                    )
-                    logging.debug('hv: {}'.format(np.float32(hv)))
-
                     ld_ci = _calc_log_diff_ci(
                         array=wi['midpoints'][-self.model['ci']['sample']:],
                         level=self.model['ci']['level']
                     )
                     logging.debug('ld_ci: {}'.format(np.float32(ld_ci)))
 
-                    target = wi['midpoints'][-1] * np.exp(
-                        np.mean(ld_ci) * self.model['hv']['take_profit']
-                    )
-                    logging.debug('target: {}'.format(np.float32(target)))
-
                     if ld_ci[0] > 0 and hv > self.model['hv']['min']:
                             helper.print_order_log(
-                                response=self._place_order(sd=ws['std'],
+                                response=self._place_order(ld=np.mean(ld_ci),
                                                            prices=prices,
                                                            rate=rate,
                                                            side='buy',
-                                                           units=units,
-                                                           target=target)
+                                                           units=units)
                             )
                     elif ld_ci[1] < 0 and hv > self.model['hv']['min']:
                             helper.print_order_log(
-                                response=self._place_order(sd=ws['std'],
+                                response=self._place_order(ld=np.mean(ld_ci),
                                                            prices=prices,
                                                            rate=rate,
                                                            side='sell',
-                                                           units=units,
-                                                           target=target)
+                                                           units=units)
                             )
                     else:
                         helper.print_log('Skip by the criteria.')

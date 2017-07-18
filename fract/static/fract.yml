@@ -23,19 +23,18 @@ trade:
   model:
     volatility:
       hv:
-        take_profit: 1000
-        min: 0.0001
-        sample: 12          # 1 min
+        take_profit: 240
+        trailing_stop: 48
+        stop_loss: 24
+        max_spread: 12
+        min: 0.0002
+        sample: 6           # 30 sec
       ci:
-        level: 0.9
+        level: 0.8
         sample: 12          # 1 min
       window:
         granularity: S5     # 5 sec
         size: 4320          # 6 hr
-      sigma:
-        stop_loss: 0.5
-        trailing_stop: 1
-        max_spread: 0.5
     delta:
       ci:
         level: 0.99
