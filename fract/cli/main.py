@@ -5,8 +5,12 @@ Stream and trade forex with Oanda API
 Usage:
     fract init [--debug] [--file=<yaml>]
     fract info [--debug] [--file=<yaml>] <info_type>
-    fract rate [--debug] [--file=<yaml>] [--redis] <instrument>...
-    fract event [--debug] [--file=<yaml>] [--redis]
+    fract rate [--debug] [--file=<yaml>] [--use-redis] [--redis-db=<int>]
+               [--redis-host=<ip_port>] [--redis-maxl=<int>]
+               [<instrument>...]
+    fract event [--debug] [--file=<yaml>] [--use-redis] [--redis-db=<int>]
+                [--redis-host=<ip:port>] [--redis-maxl=<int>]
+                [<instrument>...]
     fract close [--debug] [--file=<yaml>] [<instrument>...]
     fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<num>]
                [--models=<mod>] [--quiet] [<instrument>...]
@@ -22,7 +26,13 @@ Options:
     --iter=<num>    Limit a number of executions
     --models=<mod>  Set trading models (comma-separated) [default: volatility]
     --quiet         Suppress messages
-    --redis         Store streaming data in a Redis server
+    --use-redis     Store streaming data in a Redis server
+    --redis-host=<ip:port>
+                    Set a Redis server host [default: 127.0.0.1:6379]
+    --redis-db=<int>
+                    Set a Redis database [default: 0]
+    --redis-maxl=<int>
+                    Limit max length for records in Redis [default: 1000]
 
 Commands:
     init            Generate a YAML template for configuration
@@ -57,7 +67,8 @@ import os
 import sys
 from docopt import docopt
 from .. import __version__
-from .util import set_log_config, set_config_yml, write_config_yml, read_yaml
+from .util import set_log_config, set_config_yml, write_config_yml, read_yaml, \
+                  set_redis_config
 from ..trade import info, order, stream, auto
 
 
@@ -66,6 +77,12 @@ def main():
     set_log_config(debug=args['--debug'])
     logging.debug('args:{0}{1}'.format(os.linesep, args))
     config_yml = set_config_yml(path=args['--file'])
+    redis_config = (
+        set_redis_config(host=args['--redis-host'],
+                         db=args['--redis-db'],
+                         maxl=args['--redis-maxl'])
+        if args['--use-redis'] else None
+    )
 
     if args['init']:
         logging.debug('Initiation')
@@ -85,14 +102,15 @@ def main():
                 stream_type='rate',
                 instruments=args['<instrument>'],
                 config=config,
-                use_redis=args['--redis']
+                redis_config=redis_config
             )
         elif args['event']:
             logging.debug('Events Streaming')
             stream.invoke(
                 stream_type='event',
+                instruments=args['<instrument>'],
                 config=config,
-                use_redis=args['--redis']
+                redis_config=redis_config
             )
         elif args['close']:
             logging.debug('Position Closing')

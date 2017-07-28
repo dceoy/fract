@@ -27,9 +27,11 @@ def dump_yaml(dict, flow=False):
 
 
 def set_config_yml(path=None, env='FRACT_YML', default='fract.yml'):
-    return(os.path.expanduser(tuple(filter(
-        lambda p: p is not None, [path, os.getenv(env), default]
-    ))[0]))
+    return os.path.expanduser(
+        tuple(filter(
+            lambda p: p is not None, [path, os.getenv(env), default]
+        ))[0]
+    )
 
 
 def write_config_yml(path):
@@ -41,3 +43,15 @@ def write_config_yml(path):
                                      '../static/fract.yml'),
                         path)
         print('A YAML template was generated: {}'.format(path))
+
+
+def set_redis_config(host, db, maxl, default_port=6379):
+    ipp = host.split(':')
+    redis_config = {
+        'ip': ipp[0],
+        'port': (ipp[1] if len(ipp) > 1 else default_port),
+        'db': db,
+        'max_llen': maxl
+    }
+    logging.debug('redis_config: {}'.format(redis_config))
+    return redis_config

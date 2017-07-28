@@ -8,20 +8,20 @@ import redis
 
 
 class StreamDriver(oandapy.Streamer):
-    def __init__(self, stream_type, use_redis, config_redis, **kwargs):
+    def __init__(self, stream_type, redis_config, **kwargs):
         super().__init__(**kwargs)
         self.type = stream_type
         self.key = {'rate': 'tick', 'event': 'transaction'}[self.type]
-        if use_redis:
-            logging.debug('Set a streamer with Redis')
-            self.redis = redis.StrictRedis(host=config_redis['host'],
-                                           port=config_redis['port'],
-                                           db=config_redis['db'][self.type])
-            self.redis_max = config_redis['max_llen']
-            self.redis.flushdb()
-        else:
+        if redis_config is None:
             logging.debug('Set a streamer')
             self.redis = None
+        else:
+            logging.debug('Set a streamer with Redis')
+            self.redis = redis.StrictRedis(host=redis_config['ip'],
+                                           port=redis_config['port'],
+                                           db=redis_config['db'])
+            self.redis_max = redis_config['max_llen']
+            self.redis.flushdb()
 
     def on_success(self, data):
         print(data)
@@ -45,12 +45,12 @@ class StreamDriver(oandapy.Streamer):
             self.events(**kwargs)
 
 
-def invoke(stream_type, instruments, config, use_redis=False):
+def invoke(stream_type, instruments, config, redis_config):
+    insts = (instruments if instruments else config['trade']['instruments'])
     stream = StreamDriver(stream_type=stream_type,
                           environment=config['oanda']['environment'],
                           access_token=config['oanda']['access_token'],
-                          use_redis=use_redis,
-                          config_redis=config['redis'])
+                          redis_config=redis_config)
     stream.fire(account_id=config['oanda']['account_id'],
-                instruments=','.join(instruments),
+                instruments=','.join(insts),
                 ignore_heartbeat=True)

@@ -2,13 +2,6 @@ oanda:
   access_token: ''
   account_id: ''
   environment: live
-redis:
-  db:
-    event: 1
-    rate: 0
-  host: 127.0.0.1
-  max_llen: 1000
-  port: 6379
 trade:
   instruments:
     - USD_JPY
