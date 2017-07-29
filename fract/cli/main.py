@@ -5,6 +5,8 @@ Stream and trade forex with Oanda API
 Usage:
     fract init [--debug] [--file=<yaml>]
     fract info [--debug] [--file=<yaml>] <info_type>
+    fract track [--debug] [--file=<yaml>] [--save=<json>]
+                [--granularity=<code>] [--count=<int>] [<instrument>...]
     fract rate [--debug] [--file=<yaml>] [--use-redis] [--redis-db=<int>]
                [--redis-host=<ip_port>] [--redis-maxl=<int>]
                [<instrument>...]
@@ -26,6 +28,10 @@ Options:
     --iter=<num>    Limit a number of executions
     --models=<mod>  Set trading models (comma-separated) [default: volatility]
     --quiet         Suppress messages
+    --save=<json>   Save data as JSON file
+    --count=<int>   Set a size for rate tracking (max: 5000) [default: 12]
+    --granularity=<code>
+                    Set a granularity for rate tracking [default: S5]
     --use-redis     Store streaming data in a Redis server
     --redis-host=<ip:port>
                     Set a Redis server host [default: 127.0.0.1:6379]
@@ -37,17 +43,18 @@ Options:
 Commands:
     init            Generate a YAML template for configuration
     info            Print information about <info_type>
+    track           Fetch past rates
     rate            Stream market prices
     event           Stream authorized account's events
     close           Close positions (if not <instrument>, close all)
     open            Open autonomous trading
 
 Arguments:
-    <info_type>     { instruments, prices, history, account, accounts,
-                      orders, trades, positions, position, transaction,
-                      transaction_history, eco_calendar,
-                      historical_position_ratios, historical_spreads,
-                      commitments_of_traders, orderbook, autochartists }
+    <info_type>     { instruments, prices, account, accounts, orders, trades,
+                      positions, position, transaction, transaction_history,
+                      eco_calendar, historical_position_ratios,
+                      historical_spreads, commitments_of_traders, orderbook,
+                      autochartists }
     <instrument>    { AUD_CAD, AUD_CHF, AUD_HKD, AUD_JPY, AUD_NZD, AUD_SGD,
                       AUD_USD, CAD_CHF, CAD_HKD, CAD_JPY, CAD_SGD, CHF_HKD,
                       CHF_JPY, CHF_ZAR, EUR_AUD, EUR_CAD, EUR_CHF, EUR_CZK,
@@ -93,33 +100,42 @@ def main():
         if args['info']:
             logging.debug('Information')
             info.print_info(
-                config,
+                config=config,
                 type=args['<info_type>']
             )
+        elif args['track']:
+            logging.debug('Rate tracking')
+            info.track_rate(
+                config=config,
+                instruments=args['<instrument>'],
+                granularity=args['--granularity'],
+                count=args['--count'],
+                json_path=args['--save']
+            )
         elif args['rate']:
-            logging.debug('Rates Streaming')
+            logging.debug('Rates streaming')
             stream.invoke(
                 stream_type='rate',
-                instruments=args['<instrument>'],
                 config=config,
+                instruments=args['<instrument>'],
                 redis_config=redis_config
             )
         elif args['event']:
-            logging.debug('Events Streaming')
+            logging.debug('Events streaming')
             stream.invoke(
                 stream_type='event',
-                instruments=args['<instrument>'],
                 config=config,
+                instruments=args['<instrument>'],
                 redis_config=redis_config
             )
         elif args['close']:
-            logging.debug('Position Closing')
+            logging.debug('Position closing')
             order.close_positions(
                 config=config,
                 instruments=args['<instrument>']
             )
         elif args['open']:
-            logging.debug('Autonomous Trading')
+            logging.debug('Autonomous trading')
             auto.open_deals(
                 config=config,
                 instruments=args['<instrument>'],

@@ -1,11 +1,70 @@
 #!/usr/bin/env python
 
+import json
+import gzip
+import os
 import logging
 import oandapy
-from ..cli.util import dump_yaml
+from ..cli.util import dump_yaml, FractError
 
 
-def print_info(config, type='accounts', instruments=['EUR_USD']):
+def track_rate(config, instruments, granularity, count, json_path=None):
+    oanda = oandapy.API(environment=config['oanda']['environment'],
+                        access_token=config['oanda']['access_token'])
+    candles = {
+        inst: [
+            d for d in
+            oanda.get_history(account_id=config['oanda']['account_id'],
+                              instrument=inst,
+                              candleFormat='bidask',
+                              granularity=granularity,
+                              count=count)['candles']
+            if d['complete']
+        ]
+        for inst
+        in (
+            instruments if len(instruments) > 0
+            else config['trade']['instruments']
+        )
+    }
+
+    if json_path is None:
+        print(json.dumps(candles))
+    else:
+        ext = json_path.split('.')
+        if ext[-1] == 'json':
+            if os.path.isfile(json_path):
+                with open(json_path, 'r') as f:
+                    j = json.load(f)
+                with open(json_path, 'w') as f:
+                    json.dump(_merge_candles(j, candles), f)
+            else:
+                with open(json_path, 'w') as f:
+                    json.dump(candles, f)
+        elif ext[-1] == 'gz' and ext[-2] == 'json':
+            if os.path.isfile(json_path):
+                with gzip.open(json_path, 'rb') as f:
+                    j = json.load(f)
+                with gzip.open(json_path, 'wb') as f:
+                    f.write(
+                        json.dumps(_merge_candles(j, candles)).encode('utf-8')
+                    )
+            else:
+                with gzip.open(json_path, 'wb') as f:
+                    f.write(json.dumps(candles).encode('utf-8'))
+        else:
+            raise FractError('invalid json name')
+
+
+def _merge_candles(dict_old, dict_new):
+    d = dict_new
+    for k in dict_old.keys():
+        nt = [l['time'] for l in dict_new[k]]
+        d[k] = [v for v in dict_old[k] if v['time'] not in nt] + d[k]
+    return d
+
+
+def print_info(config, instruments, type='accounts'):
     oanda = oandapy.API(environment=config['oanda']['environment'],
                         access_token=config['oanda']['access_token'])
     account_id = config['oanda']['account_id']
@@ -16,9 +75,6 @@ def print_info(config, type='accounts', instruments=['EUR_USD']):
     elif type == 'prices':
         info = oanda.get_prices(account_id=account_id,
                                 instruments=cs_instruments)
-    elif type == 'history':
-        info = oanda.get_history(account_id=account_id,
-                                 instrument=instruments[0])
     elif type == 'account':
         info = oanda.get_account(account_id=account_id)
     elif type == 'accounts':
