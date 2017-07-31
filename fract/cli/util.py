@@ -45,6 +45,16 @@ def write_config_yml(path):
         print('A YAML template was generated: {}'.format(path))
 
 
+def fetch_executable(cmd):
+    executables = tuple(filter(lambda cp: os.access(cp, os.X_OK),
+                               map(lambda p: os.path.join(p, cmd),
+                                   str.split(os.environ['PATH'], ':'))))
+    if len(executables) == 0:
+        return None
+    else:
+        return executables[0]
+
+
 def set_redis_config(host, db, maxl, default_port=6379):
     ipp = host.split(':')
     redis_config = {

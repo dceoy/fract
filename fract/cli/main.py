@@ -5,7 +5,7 @@ Stream and trade forex with Oanda API
 Usage:
     fract init [--debug] [--file=<yaml>]
     fract info [--debug] [--file=<yaml>] <info_type>
-    fract track [--debug] [--file=<yaml>] [--save=<json>]
+    fract track [--debug] [--file=<yaml>] [--sqlite=<db>] [--json=<name>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
     fract rate [--debug] [--file=<yaml>] [--use-redis] [--redis-db=<int>]
                [--redis-host=<ip_port>] [--redis-maxl=<int>]
@@ -28,7 +28,8 @@ Options:
     --iter=<num>    Limit a number of executions
     --models=<mod>  Set trading models (comma-separated) [default: volatility]
     --quiet         Suppress messages
-    --save=<json>   Save data as JSON file
+    --sqlite=<db>   Save data in an SQLite3 database
+    --json=<name>   Save data as a JSON file
     --count=<int>   Set a size for rate tracking (max: 5000) [default: 12]
     --granularity=<code>
                     Set a granularity for rate tracking [default: S5]
@@ -74,8 +75,8 @@ import os
 import sys
 from docopt import docopt
 from .. import __version__
-from .util import set_log_config, set_config_yml, write_config_yml, read_yaml, \
-                  set_redis_config
+from .util import set_log_config, set_config_yml, write_config_yml, \
+                  read_yaml, set_redis_config
 from ..trade import info, order, stream, auto
 
 
@@ -110,7 +111,8 @@ def main():
                 instruments=args['<instrument>'],
                 granularity=args['--granularity'],
                 count=args['--count'],
-                json_path=args['--save']
+                sqlite_path=args['--sqlite'],
+                json_path=args['--json']
             )
         elif args['rate']:
             logging.debug('Rates streaming')

@@ -4,11 +4,16 @@ import json
 import gzip
 import os
 import logging
+import sqlite3
+import subprocess
 import oandapy
-from ..cli.util import dump_yaml, FractError
+import pandas as pd
+import pandas.io.sql as pdsql
+from ..cli.util import dump_yaml, FractError, fetch_executable
 
 
-def track_rate(config, instruments, granularity, count, json_path=None):
+def track_rate(config, instruments, granularity, count, sqlite_path=None,
+               json_path=None):
     oanda = oandapy.API(environment=config['oanda']['environment'],
                         access_token=config['oanda']['access_token'])
     candles = {
@@ -28,9 +33,52 @@ def track_rate(config, instruments, granularity, count, json_path=None):
         )
     }
 
-    if json_path is None:
-        print(json.dumps(candles))
-    else:
+    if sqlite_path is not None:
+        df = pd.concat([
+            pd.DataFrame.from_dict(
+                d
+            ).drop(
+                ['complete'], axis=1
+            ).assign(
+                instrument=i
+            )
+            for i, d in candles.items()
+        ]).reset_index(
+            drop=True
+        )
+        logging.debug('df.shape: {}'.format(df.shape))
+        with sqlite3.connect(sqlite_path) as con:
+            if os.path.isfile(sqlite_path):
+                df_diff = df.merge(
+                    pdsql.read_sql(
+                        'SELECT instrument, time FROM candle;', con
+                    ).assign(
+                        in_db=True
+                    ),
+                    on=['instrument', 'time'],
+                    how='left'
+                ).pipe(
+                    lambda d: d[d['in_db'].isnull()].drop(['in_db'], axis=1)
+                ).reset_index(
+                    drop=True
+                )
+                logging.debug('df_diff:{0}{1}'.format(os.linesep, df_diff))
+                pdsql.to_sql(
+                    df_diff, 'candle', con, index=False, if_exists='append'
+                )
+            else:
+                subprocess.run(
+                    '{0} {1} ".read {2}"'.format(
+                        fetch_executable('sqlite3'),
+                        sqlite_path,
+                        os.path.join(os.path.dirname(__file__),
+                                     '../static/create_tables.sql')
+                    ),
+                    shell=True
+                )
+                logging.debug('df:{0}{1}'.format(os.linesep, df))
+                pdsql.to_sql(df, 'candle', con, index=False)
+    elif json_path is not None:
         ext = json_path.split('.')
         if ext[-1] == 'json':
             if os.path.isfile(json_path):
@@ -54,6 +102,8 @@ def track_rate(config, instruments, granularity, count, json_path=None):
                     f.write(json.dumps(candles).encode('utf-8'))
         else:
             raise FractError('invalid json name')
+    else:
+        print(json.dumps(candles))
 
 
 def _merge_candles(dict_old, dict_new):
