@@ -8,20 +8,20 @@ import redis
 
 
 class StreamDriver(oandapy.Streamer):
-    def __init__(self, stream_type, redis_config, **kwargs):
+    def __init__(self, stream_type, redis_config=None, **kwargs):
         super().__init__(**kwargs)
         self.type = stream_type
         self.key = {'rate': 'tick', 'event': 'transaction'}[self.type]
-        if redis_config is None:
-            logging.debug('Set a streamer')
-            self.redis = None
-        else:
+        if redis_config:
             logging.debug('Set a streamer with Redis')
             self.redis = redis.StrictRedis(host=redis_config['ip'],
                                            port=redis_config['port'],
                                            db=redis_config['db'])
             self.redis_max = redis_config['max_llen']
             self.redis.flushdb()
+        else:
+            logging.debug('Set a streamer')
+            self.redis = None
 
     def on_success(self, data):
         print(data)

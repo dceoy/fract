@@ -152,7 +152,7 @@ class FractTrader(oandapy.API):
     def _place_order(self, prices, rate, side, units, ld=None, sd=None):
         pr = prices[rate['instrument']]
         if side in {'buy', 'sell'}:
-            sp = {'buy': pr['ask'], 'sell': pr['bid']}[side]
+            spr = {'buy': pr['ask'], 'sell': pr['bid']}[side]
             if sd is not None:
                 signed_sd = {'buy': sd, 'sell': - sd}[side]
             elif ld is None:
@@ -162,9 +162,9 @@ class FractTrader(oandapy.API):
 
         ts = np.int16(np.ceil(
             (
-                sp * (np.exp(ld * self.model['hv']['trailing_stop']) - 1)
-                if ld is not None else
                 sd * self.model['sigma']['trailing_stop'] + pr['spread']
+                if ld is None else
+                spr * abs(np.exp(ld * self.model['hv']['trailing_stop']) - 1)
             ) / np.float32(rate['pip'])
         ))
         if ts > rate['maxTrailingStop']:
@@ -176,16 +176,16 @@ class FractTrader(oandapy.API):
         logging.debug('trailing_stop: {}'.format(trailing_stop))
 
         stop_loss = np.float16(
-            sp * np.exp(- ld * self.model['hv']['stop_loss'])
-            if ld is not None else
-            sp - signed_sd * self.model['sigma']['stop_loss']
+            spr - signed_sd * self.model['sigma']['stop_loss']
+            if ld is None else
+            spr * np.exp(- ld * self.model['hv']['stop_loss'])
         )
         logging.debug('stop_loss: {}'.format(stop_loss))
 
         take_profit = np.float16(
-            sp * np.exp(ld * self.model['hv']['take_profit'])
-            if ld is not None else
-            sp + signed_sd * self.model['sigma']['take_profit']
+            spr + signed_sd * self.model['sigma']['take_profit']
+            if ld is None else
+            spr * np.exp(ld * self.model['hv']['take_profit'])
         )
         logging.debug('take_profit: {}'.format(take_profit))
 

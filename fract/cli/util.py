@@ -49,10 +49,10 @@ def fetch_executable(cmd):
     executables = tuple(filter(lambda cp: os.access(cp, os.X_OK),
                                map(lambda p: os.path.join(p, cmd),
                                    str.split(os.environ['PATH'], ':'))))
-    if len(executables) == 0:
-        return None
-    else:
+    if executables:
         return executables[0]
+    else:
+        return None
 
 
 def set_redis_config(host, db, maxl, default_port=6379):

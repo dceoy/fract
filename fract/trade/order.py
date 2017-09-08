@@ -9,14 +9,14 @@ def close_positions(config, instruments=[]):
     oanda = oandapy.API(environment=config['oanda']['environment'],
                         access_token=config['oanda']['access_token'])
 
-    if len(instruments) == 0:
+    if instruments:
+        insts = set(instruments)
+    else:
         pos = oanda.get_positions(account_id=config['oanda']['account_id'])
         logging.debug('pos:{0}{1}'.format(os.linesep, pos))
         insts = set(map(lambda p: p['instrument'], pos['positions']))
-    else:
-        insts = set(instruments)
 
-    if len(insts) > 0:
+    if insts:
         logging.debug('insts: {}'.format(insts))
         closed = [
             oanda.close_position(account_id=config['oanda']['account_id'],

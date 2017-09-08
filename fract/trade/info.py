@@ -27,10 +27,7 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
             if d['complete']
         ]
         for inst
-        in (
-            instruments if len(instruments) > 0
-            else config['trade']['instruments']
-        )
+        in (instruments or config['trade']['instruments'])
     }
 
     if sqlite_path is not None:
