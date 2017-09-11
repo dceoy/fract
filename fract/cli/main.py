@@ -46,7 +46,7 @@ Commands:
     info            Print information about <info_type>
     track           Fetch past rates
     rate            Stream market prices
-    event           Stream authorized account's events
+    event           Stream events for an authorized account
     close           Close positions (if not <instrument>, close all)
     open            Open autonomous trading
 
