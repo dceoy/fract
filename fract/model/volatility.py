@@ -41,7 +41,9 @@ class Volatility(FractTrader):
             helper.sleep(last=t0, sec=0.5)
         else:
             prices = self._get_prices()
-            logging.debug('prices: {}'.format(prices))
+            logging.debug(
+                'prices[\'{0}\']: {1}'.format(instrument, prices[instrument])
+            )
             helper.sleep(last=t0, sec=0.5)
 
             units = self._calc_units(rate=rate,
@@ -66,7 +68,19 @@ class Volatility(FractTrader):
                 logging.debug('max_spread: {}'.format(max_spread))
 
                 if prices[instrument]['spread'] > max_spread:
+                    logging.debug(
+                        'skip-by-spread: {0} > {1}'.format(
+                            prices[instrument]['spread'], max_spread
+                        )
+                    )
                     helper.print_log('Skip for large spread.')
+                elif hv < self.model['hv']['min']:
+                    logging.debug(
+                        'skip-by-hv: {0} < {1}'.format(
+                            hv, self.model['hv']['min']
+                        )
+                    )
+                    helper.print_log('Skip for lack of volartility.')
                 else:
                     ld_ci = _calc_log_diff_ci(
                         array=wi['midpoints'][-self.model['ci']['sample']:],
@@ -74,7 +88,7 @@ class Volatility(FractTrader):
                     )
                     logging.debug('ld_ci: {}'.format(np.float32(ld_ci)))
 
-                    if ld_ci[0] > 0 and hv > self.model['hv']['min']:
+                    if ld_ci[0] > 0:
                             helper.print_order_log(
                                 response=self._place_order(ld=np.mean(ld_ci),
                                                            prices=prices,
@@ -82,7 +96,7 @@ class Volatility(FractTrader):
                                                            side='buy',
                                                            units=units)
                             )
-                    elif ld_ci[1] < 0 and hv > self.model['hv']['min']:
+                    elif ld_ci[1] < 0:
                             helper.print_order_log(
                                 response=self._place_order(ld=np.mean(ld_ci),
                                                            prices=prices,
@@ -91,6 +105,11 @@ class Volatility(FractTrader):
                                                            units=units)
                             )
                     else:
-                        helper.print_log('Skip by the criteria.')
+                        logging.debug(
+                            'skip-by-ci: {0} < 0 < {1} && '.format(
+                                ld_ci[0], ld_ci[1]
+                            )
+                        )
+                        helper.print_log('Skip by confidence interval.')
 
         return rate
