@@ -15,12 +15,13 @@ setup(
     include_package_data=True,
     install_requires=[
         'docopt',
+        'fbprophet',
         'numpy',
         'pandas',
         'pyyaml',
         'redis',
         'scipy',
-        'oandapy',
+        'oandapy'
     ],
     dependency_links=[
         'git+https://github.com/oanda/oandapy.git#egg=oandapy'
