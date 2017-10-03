@@ -6,6 +6,7 @@ import os
 import time
 import numpy as np
 import oandapy
+import pandas as pd
 from ..cli.util import dump_yaml, FractError
 
 
@@ -86,6 +87,20 @@ class FractTrader(oandapy.API):
                     count=self.model['window']['size']
                 )['candles']
             ])
+        }
+
+    def _get_window_df(self, instrument, candle_format):
+        return {
+            'instrument': instrument,
+            'df': pd.DataFrame.from_dict(
+                self.get_history(
+                    account_id=self.account_id,
+                    candleFormat=candle_format,
+                    instrument=instrument,
+                    granularity=self.model['window']['granularity'],
+                    count=self.model['window']['size']
+                )['candles']
+            ).pipe(lambda d: d.assign(time=pd.to_datetime(d.time)))
         }
 
     def _calc_units(self, rate, prices, margin):
