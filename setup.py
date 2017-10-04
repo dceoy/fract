@@ -15,7 +15,6 @@ setup(
     include_package_data=True,
     install_requires=[
         'docopt',
-        'fbprophet',
         'numpy',
         'pandas',
         'pyyaml',

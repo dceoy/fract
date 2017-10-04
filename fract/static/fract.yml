@@ -15,6 +15,7 @@ trade:
     ticket: 0.24
   model:
     volatility:
+      reverse: true
       hv:
         take_profit: 1000
         trailing_stop: 100

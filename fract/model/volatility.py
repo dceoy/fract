@@ -89,24 +89,24 @@ class Volatility(FractTrader):
                     logging.debug('ld_ci: {}'.format(np.float32(ld_ci)))
 
                     if ld_ci[0] > 0:
-                            helper.print_order_log(
-                                response=self._place_order(ld=np.mean(ld_ci),
-                                                           prices=prices,
-                                                           rate=rate,
-                                                           side='buy',
-                                                           units=units)
-                            )
+                        side = 'sell' if self.model['reverse'] else 'buy'
                     elif ld_ci[1] < 0:
-                            helper.print_order_log(
-                                response=self._place_order(ld=np.mean(ld_ci),
-                                                           prices=prices,
-                                                           rate=rate,
-                                                           side='sell',
-                                                           units=units)
-                            )
+                        side = 'buy' if self.model['reverse'] else 'sell'
+                    else:
+                        side = None
+                    logging.debug('side: {}'.format(side))
+
+                    if side:
+                        helper.print_order_log(
+                            response=self._place_order(ld=np.mean(ld_ci),
+                                                       prices=prices,
+                                                       rate=rate,
+                                                       side=side,
+                                                       units=units)
+                        )
                     else:
                         logging.debug(
-                            'skip-by-ci: {0} < 0 < {1} && '.format(
+                            'skip-by-ci: {0} < 0 < {1}'.format(
                                 ld_ci[0], ld_ci[1]
                             )
                         )

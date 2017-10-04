@@ -170,16 +170,19 @@ class FractTrader(oandapy.API):
             spr = {'buy': pr['ask'], 'sell': pr['bid']}[side]
             if sd is not None:
                 signed_sd = {'buy': sd, 'sell': - sd}[side]
-            elif ld is None:
+            elif ld is not None:
+                signed_ld = abs(ld) * {'buy': 1, 'sell': - 1}[side]
+            else:
                 raise FractError('ld or sd required')
         else:
             raise FractError('invalid side')
 
         ts = np.int16(np.ceil(
             (
+                spr * abs(np.exp(signed_ld *
+                                 self.model['hv']['trailing_stop']) - 1)
+                if signed_ld else
                 sd * self.model['sigma']['trailing_stop'] + pr['spread']
-                if ld is None else
-                spr * abs(np.exp(ld * self.model['hv']['trailing_stop']) - 1)
             ) / np.float32(rate['pip'])
         ))
         if ts > rate['maxTrailingStop']:
@@ -191,16 +194,16 @@ class FractTrader(oandapy.API):
         logging.debug('trailing_stop: {}'.format(trailing_stop))
 
         stop_loss = np.float16(
+            spr * np.exp(- signed_ld * self.model['hv']['stop_loss'])
+            if signed_ld else
             spr - signed_sd * self.model['sigma']['stop_loss']
-            if ld is None else
-            spr * np.exp(- ld * self.model['hv']['stop_loss'])
         )
         logging.debug('stop_loss: {}'.format(stop_loss))
 
         take_profit = np.float16(
+            spr * np.exp(signed_ld * self.model['hv']['take_profit'])
+            if signed_ld else
             spr + signed_sd * self.model['sigma']['take_profit']
-            if ld is None else
-            spr * np.exp(ld * self.model['hv']['take_profit'])
         )
         logging.debug('take_profit: {}'.format(take_profit))
 
