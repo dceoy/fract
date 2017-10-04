@@ -12,8 +12,8 @@ RUN set -e \
       && apt-get clean
 
 RUN set -e \
-      && pip install -U pip pystan \
-      && pip install -U /tmp/oandapy.tar.gz /tmp/fract \
+      && pip install -U --no-cache-dir pip pystan \
+      && pip install -U --no-cache-dir /tmp/oandapy.tar.gz /tmp/fract \
       && rm -rf /tmp/*
 
 ENTRYPOINT ["fract"]
