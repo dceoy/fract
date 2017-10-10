@@ -19,14 +19,10 @@ def open_deals(config, instruments, models, n=10, interval=2, quiet=False):
     if not quiet:
         print('!!! OPEN DEALS !!!')
     for i in range(n):
-        halted = all([
-            all([
-                t.fire(instrument=inst)['halted']
-                for t in traders
-            ])
-            for inst in insts
-        ])
-        if halted or i == n - 1:
+        res = traders[i % len(traders)].fire(
+            instrument=insts[i % (len(traders) * len(insts)) // len(traders)]
+        )
+        if res['halted'] or i == n - 1:
             break
         else:
             time.sleep(interval)
