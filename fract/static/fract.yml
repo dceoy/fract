@@ -15,17 +15,17 @@ trade:
     ticket: 0.24
   model:
     volatility:
-      reverse: true
+      reverse: false
       hv:
-        take_profit: 1000
-        trailing_stop: 100
-        stop_loss: 100
+        take_profit: 80
+        trailing_stop: 20
+        stop_loss: 20
         max_spread: 10
         min: 0.0001
-        sample: 60          # 5 min
+        sample: 12          # 1 min
       ci:
-        level: 0.8
-        sample: 60          # 5 min
+        level: 0.95
+        sample: 12          # 1 min
       window:
         granularity: S5     # 5 sec
         size: 4320          # 6 hr
