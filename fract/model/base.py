@@ -146,17 +146,17 @@ class FractTrader(oandapy.API):
     def _calc_window_stat(self, window):
         if window['midpoints'].shape[0] == self.model['window']['size']:
             return (
-                lambda i, f, l, m, s, v:
+                lambda i, f, r, m, s, v:
                 {'instrument': i,
                  'first': np.float32(f),
-                 'last': np.float32(l),
+                 'last': np.float32(r),
                  'mean': np.float32(m),
                  'std': np.float32(s),
                  'var': np.float32(v)}
             )(
                 i=window['instrument'],
                 f=window['midpoints'][0],
-                l=window['midpoints'][-1],
+                r=window['midpoints'][-1],
                 m=window['midpoints'].mean(),
                 s=window['midpoints'].std(ddof=1),
                 v=window['midpoints'].var(ddof=1)
@@ -227,7 +227,7 @@ class FractTradeHelper(object):
         text = '[ {0} - {1}{2}]\t{3}\t>>>>>>\t{4}'.format(
             __package__,
             self.name,
-            (lambda l: ' ' * (10 - l) if l < 10 else ' ')(l=len(self.name)),
+            (lambda n: ' ' * (10 - n) if n < 10 else ' ')(n=len(self.name)),
             self.instrument,
             message
         )
