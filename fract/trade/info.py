@@ -5,11 +5,10 @@ import gzip
 import os
 import logging
 import sqlite3
-import subprocess
 import oandapy
 import pandas as pd
 import pandas.io.sql as pdsql
-from ..cli.util import dump_yaml, FractError, fetch_executable
+from ..cli.util import dump_yaml, FractError
 
 
 def track_rate(config, instruments, granularity, count, sqlite_path=None,
@@ -44,8 +43,8 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
             drop=True
         )
         logging.debug('df.shape: {}'.format(df.shape))
-        with sqlite3.connect(sqlite_path) as con:
-            if os.path.isfile(sqlite_path):
+        if os.path.isfile(sqlite_path):
+            with sqlite3.connect(sqlite_path) as con:
                 df_diff = df.merge(
                     pdsql.read_sql(
                         'SELECT instrument, time FROM candle;', con
@@ -63,18 +62,17 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
                 pdsql.to_sql(
                     df_diff, 'candle', con, index=False, if_exists='append'
                 )
-            else:
-                subprocess.run(
-                    '{0} {1} ".read {2}"'.format(
-                        fetch_executable('sqlite3'),
-                        sqlite_path,
-                        os.path.join(os.path.dirname(__file__),
-                                     '../static/create_tables.sql')
-                    ),
-                    shell=True
-                )
+        else:
+            with open(os.path.join(os.path.dirname(__file__),
+                                   '../static/create_tables.sql'),
+                      'r') as f:
+                sql = f.read()
+            with sqlite3.connect(sqlite_path) as con:
+                con.executescript(sql)
                 logging.debug('df:{0}{1}'.format(os.linesep, df))
-                pdsql.to_sql(df, 'candle', con, index=False)
+                pdsql.to_sql(
+                    df, 'candle', con, index=False, if_exists='append'
+                )
 
     if json_path:
         ext = json_path.split('.')

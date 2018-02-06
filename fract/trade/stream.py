@@ -5,10 +5,8 @@ import json
 import os
 import signal
 import sqlite3
-import subprocess
 import oandapy
 import redis
-from ..cli.util import fetch_executable
 
 
 class StreamDriver(oandapy.Streamer):
@@ -18,19 +16,15 @@ class StreamDriver(oandapy.Streamer):
         self.key = {'rate': 'tick', 'event': 'transaction'}[self.target]
         if sqlite_path:
             logging.debug('Set a streamer with SQLite')
-            if not os.path.isfile(sqlite_path):
-                subprocess.run(
-                    '{0} {1} ".read {2}"'.format(
-                        fetch_executable('sqlite3'),
-                        sqlite_path,
-                        os.path.join(
-                            os.path.dirname(__file__),
-                            '../static/create_tables.sql'
-                        )
-                    ),
-                    shell=True
-                )
-            self.sqlite = sqlite3.connect(sqlite_path)
+            if os.path.isfile(sqlite_path):
+                self.sqlite = sqlite3.connect(sqlite_path)
+            else:
+                with open(os.path.join(os.path.dirname(__file__),
+                                       '../static/create_tables.sql'),
+                          'r') as f:
+                    sql = f.read()
+                self.sqlite = sqlite3.connect(sqlite_path)
+                self.sqlite.executescript(sql)
         else:
             self.sqlite = None
         if redis_config:

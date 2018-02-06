@@ -4,8 +4,7 @@ CREATE TABLE tick (
   instrument VARCHAR(7),
   time VARCHAR(30),
   bid DOUBLE PRECISION,
-  ask DOUBLE PRECISION,
-  PRIMARY KEY(instrument, time)
+  ask DOUBLE PRECISION
 );
 
 CREATE INDEX ix_tick_inst ON tick (instrument);
@@ -32,8 +31,7 @@ CREATE INDEX ix_candle_time ON candle (time);
 CREATE TABLE event (
   instrument VARCHAR(7),
   time VARCHAR(30),
-  json TEXT,
-  PRIMARY KEY(instrument, time)
+  json TEXT
 );
 
 CREATE INDEX ix_event_inst ON event (instrument);
