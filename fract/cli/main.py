@@ -4,15 +4,15 @@ Stream and trade forex with Oanda API
 
 Usage:
     fract init [--debug] [--file=<yaml>]
-    fract info [--debug] [--file=<yaml>] <info_type>
+    fract info [--debug] [--file=<yaml>] <info_target>
     fract track [--debug] [--file=<yaml>] [--sqlite=<db>] [--json=<name>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
-    fract rate [--debug] [--file=<yaml>] [--use-redis] [--redis-db=<int>]
-               [--redis-host=<ip_port>] [--redis-maxl=<int>]
+    fract rate [--debug] [--file=<yaml>] [--sqlite=<db>]
+               [--redis-host=<ip_port>] [--redis-db=<int>] [--redis-maxl=<int>]
                [<instrument>...]
-    fract event [--debug] [--file=<yaml>] [--use-redis] [--redis-db=<int>]
-                [--redis-host=<ip:port>] [--redis-maxl=<int>]
-                [<instrument>...]
+    fract event [--debug] [--file=<yaml>] [--sqlite=<db>]
+                [--redis-host=<ip_port>] [--redis-db=<int>]
+                [--redis-maxl=<int>] [<instrument>...]
     fract close [--debug] [--file=<yaml>] [<instrument>...]
     fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<num>]
                [--models=<mod>] [--quiet] [<instrument>...]
@@ -33,9 +33,8 @@ Options:
     --count=<int>   Set a size for rate tracking (max: 5000) [default: 12]
     --granularity=<code>
                     Set a granularity for rate tracking [default: S5]
-    --use-redis     Store streaming data in a Redis server
     --redis-host=<ip:port>
-                    Set a Redis server host [default: 127.0.0.1:6379]
+                    Set a Redis server host
     --redis-db=<int>
                     Set a Redis database [default: 0]
     --redis-maxl=<int>
@@ -43,7 +42,7 @@ Options:
 
 Commands:
     init            Generate a YAML template for configuration
-    info            Print information about <info_type>
+    info            Print information about <info_target>
     track           Fetch past rates
     rate            Stream market prices
     event           Stream events for an authorized account
@@ -51,7 +50,7 @@ Commands:
     open            Open autonomous trading
 
 Arguments:
-    <info_type>     { instruments, prices, account, accounts, orders, trades,
+    <info_target>   { instruments, prices, account, accounts, orders, trades,
                       positions, position, transaction, transaction_history,
                       eco_calendar, historical_position_ratios,
                       historical_spreads, commitments_of_traders, orderbook,
@@ -89,7 +88,7 @@ def main():
         set_redis_config(host=args['--redis-host'],
                          db=args['--redis-db'],
                          maxl=args['--redis-maxl'])
-        if args['--use-redis'] else None
+        if args['--redis-host'] else None
     )
 
     if args['init']:
@@ -102,7 +101,7 @@ def main():
             logging.debug('Information')
             info.print_info(
                 config=config,
-                type=args['<info_type>']
+                type=args['<info_target>']
             )
         elif args['track']:
             logging.debug('Rate tracking')
@@ -117,15 +116,16 @@ def main():
         elif args['rate']:
             logging.debug('Rates streaming')
             stream.invoke(
-                stream_type='rate',
+                target='rate',
                 config=config,
                 instruments=args['<instrument>'],
+                sqlite_path=args['--sqlite'],
                 redis_config=redis_config
             )
         elif args['event']:
             logging.debug('Events streaming')
             stream.invoke(
-                stream_type='event',
+                target='event',
                 config=config,
                 instruments=args['<instrument>'],
                 redis_config=redis_config

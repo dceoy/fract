@@ -22,15 +22,15 @@ Stream and trade forex with Oanda API
 
 Usage:
     fract init [--debug] [--file=<yaml>]
-    fract info [--debug] [--file=<yaml>] <info_type>
+    fract info [--debug] [--file=<yaml>] <info_target>
     fract track [--debug] [--file=<yaml>] [--sqlite=<db>] [--json=<name>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
-    fract rate [--debug] [--file=<yaml>] [--use-redis] [--redis-db=<int>]
-               [--redis-host=<ip_port>] [--redis-maxl=<int>]
+    fract rate [--debug] [--file=<yaml>] [--sqlite=<db>]
+               [--redis-host=<ip_port>] [--redis-db=<int>] [--redis-maxl=<int>]
                [<instrument>...]
-    fract event [--debug] [--file=<yaml>] [--use-redis] [--redis-db=<int>]
-                [--redis-host=<ip:port>] [--redis-maxl=<int>]
-                [<instrument>...]
+    fract event [--debug] [--file=<yaml>] [--sqlite=<db>]
+                [--redis-host=<ip_port>] [--redis-db=<int>]
+                [--redis-maxl=<int>] [<instrument>...]
     fract close [--debug] [--file=<yaml>] [<instrument>...]
     fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<num>]
                [--models=<mod>] [--quiet] [<instrument>...]
@@ -51,9 +51,8 @@ Options:
     --count=<int>   Set a size for rate tracking (max: 5000) [default: 12]
     --granularity=<code>
                     Set a granularity for rate tracking [default: S5]
-    --use-redis     Store streaming data in a Redis server
     --redis-host=<ip:port>
-                    Set a Redis server host [default: 127.0.0.1:6379]
+                    Set a Redis server host
     --redis-db=<int>
                     Set a Redis database [default: 0]
     --redis-maxl=<int>
@@ -61,7 +60,7 @@ Options:
 
 Commands:
     init            Generate a YAML template for configuration
-    info            Print information about <info_type>
+    info            Print information about <info_target>
     track           Fetch past rates
     rate            Stream market prices
     event           Stream events for an authorized account
@@ -69,7 +68,7 @@ Commands:
     open            Open autonomous trading
 
 Arguments:
-    <info_type>     { instruments, prices, account, accounts, orders, trades,
+    <info_target>   { instruments, prices, account, accounts, orders, trades,
                       positions, position, transaction, transaction_history,
                       eco_calendar, historical_position_ratios,
                       historical_spreads, commitments_of_traders, orderbook,

@@ -30,7 +30,7 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
         in (instruments or config['trade']['instruments'])
     }
 
-    if sqlite_path is not None:
+    if sqlite_path:
         df = pd.concat([
             pd.DataFrame.from_dict(
                 d
@@ -75,7 +75,8 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
                 )
                 logging.debug('df:{0}{1}'.format(os.linesep, df))
                 pdsql.to_sql(df, 'candle', con, index=False)
-    elif json_path is not None:
+
+    if json_path:
         ext = json_path.split('.')
         if ext[-1] == 'json':
             if os.path.isfile(json_path):
@@ -99,7 +100,8 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
                     f.write(json.dumps(candles).encode('utf-8'))
         else:
             raise FractError('invalid json name')
-    else:
+
+    if not any([sqlite_path, json_path]):
         print(json.dumps(candles))
 
 
