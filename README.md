@@ -25,14 +25,11 @@ Usage:
     fract info [--debug] [--file=<yaml>] <info_target>
     fract track [--debug] [--file=<yaml>] [--sqlite=<db>] [--json=<name>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
-    fract rate [--debug] [--file=<yaml>] [--sqlite=<db>]
-               [--redis-host=<ip_port>] [--redis-db=<int>] [--redis-maxl=<int>]
-               [<instrument>...]
-    fract event [--debug] [--file=<yaml>] [--sqlite=<db>]
-                [--redis-host=<ip_port>] [--redis-db=<int>]
-                [--redis-maxl=<int>] [<instrument>...]
+    fract stream [--debug] [--file=<yaml>] [--target=<str>] [--sqlite=<db>]
+                 [--redis-host=<ip_port>] [--redis-db=<int>]
+                 [--redis-maxl=<int>] [<instrument>...]
     fract close [--debug] [--file=<yaml>] [<instrument>...]
-    fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<num>]
+    fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<int>]
                [--models=<mod>] [--quiet] [<instrument>...]
     fract -h|--help
     fract -v|--version
@@ -43,9 +40,10 @@ Options:
     --debug         Execute a command with debug messages
     --file=<yaml>   Set a path to a YAML for configurations [$FRACT_YML]
     --wait=<sec>    Wait seconds between orders [default: 0]
-    --iter=<num>    Limit a number of executions
+    --iter=<int>    Limit a number of executions
     --models=<mod>  Set trading models (comma-separated) [default: volatility]
     --quiet         Suppress messages
+    --target=<str>  Set a streaming target { rate, event } [default: rate]
     --sqlite=<db>   Save data in an SQLite3 database
     --json=<name>   Save data as a JSON file
     --count=<int>   Set a size for rate tracking (max: 5000) [default: 12]
@@ -62,8 +60,7 @@ Commands:
     init            Generate a YAML template for configuration
     info            Print information about <info_target>
     track           Fetch past rates
-    rate            Stream market prices
-    event           Stream events for an authorized account
+    stream          Stream market prices or events for an authorized account
     close           Close positions (if not <instrument>, close all)
     open            Open autonomous trading
 
