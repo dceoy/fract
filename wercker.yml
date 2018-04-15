@@ -9,8 +9,8 @@ test:
           apt-get -y update
           apt-get -y install redis-server
     - script:
-         name: Install fract
-         code: |
+        name: Install fract
+        code: |
           pip install -U git+https://github.com/oanda/oandapy.git
           pip install -U .
     - script:

@@ -13,8 +13,7 @@ RUN set -e \
       && apt-get clean
 
 RUN set -e \
-      && pip install -U --no-cache-dir pip \
-      && pip install -U --no-cache-dir /tmp/oandapy.tar.gz /tmp/fract \
-      && rm -rf /tmp/*
+      && pip install -U --no-cache-dir pip /tmp/oandapy.tar.gz /tmp/fract \
+      && rm -rf /tmp/oandapy.tar.gz /tmp/fract
 
 ENTRYPOINT ["fract"]
