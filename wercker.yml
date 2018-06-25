@@ -1,3 +1,4 @@
+---
 box:
   id: dceoy/wercker-base:python
   entrypoint: /bin/bash -c

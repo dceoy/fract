@@ -10,7 +10,7 @@ setup(
     description='Automated Trading Framework using Oanda API',
     packages=find_packages(),
     author='Daichi Narushima',
-    author_email='d.narsil@gmail.com',
+    author_email='dnarsil+github@gmail.com',
     url='https://github.com/dceoy/fract',
     include_package_data=True,
     install_requires=[
