@@ -1,3 +1,4 @@
+---
 version: '3'
 
 services:
@@ -5,11 +6,38 @@ services:
     container_name: fract
     build:
       context: .
+      dockerfile: Dockerfile
     image: dceoy/fract:latest
-    restart: always
-    environment:
-      FRACT_YML: /host/fract.yml
+    networks:
+      - fract-db
+    depends_on:
+      - redis
     volumes:
-      - ${HOME}:/host
+      - .:/host
+    working_dir: /host
+    entrypoint:
+      - fract
     command:
-      - open
+      - stream
+      - --debug
+      - --file=/host/fract.yml
+      - --target=rate
+      - --redis-host=redis:6379
+      - --redis-db=0
+    restart: always
+  redis:
+    container_name: redis
+    image: redis:latest
+    networks:
+      - fract-db
+    ports:
+      - 6379:6379
+    volumes:
+      - redis-data:/data
+    restart: always
+
+networks:
+  fract-db:
+
+volumes:
+  redis-data:

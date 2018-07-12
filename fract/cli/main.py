@@ -28,7 +28,7 @@ Options:
     --target=<str>  Set a streaming target { rate, event } [default: rate]
     --sqlite=<db>   Save data in an SQLite3 database
     --json=<name>   Save data as a JSON file
-    --count=<int>   Set a size for rate tracking (max: 5000) [default: 12]
+    --count=<int>   Set a size for rate tracking (max: 5000) [default: 60]
     --granularity=<code>
                     Set a granularity for rate tracking [default: S5]
     --redis-host=<ip:port>
@@ -81,12 +81,10 @@ def main():
     set_log_config(debug=args['--debug'])
     logging.debug('args:{0}{1}'.format(os.linesep, args))
     config_yml = set_config_yml(path=args['--file'])
-    redis_config = (
-        set_redis_config(host=args['--redis-host'],
-                         db=args['--redis-db'],
-                         maxl=args['--redis-maxl'])
-        if args['--redis-host'] else None
-    )
+    redis_config = set_redis_config(
+        host=args['--redis-host'], db=int(args['--redis-db']),
+        maxl=int(args['--redis-maxl'])
+    ) if args['--redis-host'] else None
 
     if args['init']:
         logging.debug('Initiation')
@@ -106,7 +104,7 @@ def main():
                 config=config,
                 instruments=args['<instrument>'],
                 granularity=args['--granularity'],
-                count=args['--count'],
+                count=int(args['--count']),
                 sqlite_path=args['--sqlite'],
                 json_path=args['--json']
             )

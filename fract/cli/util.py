@@ -39,9 +39,12 @@ def write_config_yml(path):
         print('The file already exists: {}'.format(path))
     else:
         logging.debug('Write {}'.format(path))
-        shutil.copyfile(os.path.join(os.path.dirname(__file__),
-                                     '../static/fract.yml'),
-                        path)
+        shutil.copyfile(
+            os.path.join(
+                os.path.dirname(__file__), '../static/default_fract.yml'
+            ),
+            path
+        )
         print('A YAML template was generated: {}'.format(path))
 
 
