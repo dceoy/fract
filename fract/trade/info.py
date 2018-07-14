@@ -8,11 +8,14 @@ import sqlite3
 import oandapy
 import pandas as pd
 import pandas.io.sql as pdsql
-from ..cli.util import dump_yaml, FractError
+import yaml
+from ..cli.util import FractError
 
 
 def track_rate(config, instruments, granularity, count, sqlite_path=None,
                json_path=None):
+    logger = logging.getLogger(__name__)
+    logger.info('Rate tracking')
     oanda = oandapy.API(environment=config['oanda']['environment'],
                         access_token=config['oanda']['access_token'])
     candles = {
@@ -42,7 +45,7 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
         ]).reset_index(
             drop=True
         )
-        logging.debug('df.shape: {}'.format(df.shape))
+        logger.debug('df.shape: {}'.format(df.shape))
         if os.path.isfile(sqlite_path):
             with sqlite3.connect(sqlite_path) as con:
                 df_diff = df.merge(
@@ -58,7 +61,7 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
                 ).reset_index(
                     drop=True
                 )
-                logging.debug('df_diff:{0}{1}'.format(os.linesep, df_diff))
+                logger.debug('df_diff:{0}{1}'.format(os.linesep, df_diff))
                 pdsql.to_sql(
                     df_diff, 'candle', con, index=False, if_exists='append'
                 )
@@ -69,7 +72,7 @@ def track_rate(config, instruments, granularity, count, sqlite_path=None,
                 sql = f.read()
             with sqlite3.connect(sqlite_path) as con:
                 con.executescript(sql)
-                logging.debug('df:{0}{1}'.format(os.linesep, df))
+                logger.debug('df:{0}{1}'.format(os.linesep, df))
                 pdsql.to_sql(
                     df, 'candle', con, index=False, if_exists='append'
                 )
@@ -112,6 +115,8 @@ def _merge_candles(dict_old, dict_new):
 
 
 def print_info(config, instruments, type='accounts'):
+    logger = logging.getLogger(__name__)
+    logger.info('Information')
     oanda = oandapy.API(environment=config['oanda']['environment'],
                         access_token=config['oanda']['access_token'])
     account_id = config['oanda']['account_id']
@@ -152,5 +157,5 @@ def print_info(config, instruments, type='accounts'):
     elif type == 'autochartist':
         info = oanda.get_autochartist()
 
-    logging.debug('Print information: {}'.format(type))
-    print(dump_yaml(info))
+    logger.debug('Print information: {}'.format(type))
+    print(yaml.dump(info, default_flow_style=False))

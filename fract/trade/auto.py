@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import logging
 import signal
 import time
 from ..cli.util import FractError
@@ -10,6 +11,8 @@ from ..model.volatility import Volatility
 
 
 def open_deals(config, instruments, models, n=10, interval=2, quiet=False):
+    logger = logging.getLogger(__name__)
+    logger.info('Autonomous trading')
     insts = (instruments if instruments else config['trade']['instruments'])
     traders = [
         _generate_trader(model=m, config=config, quiet=quiet)
