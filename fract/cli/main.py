@@ -3,17 +3,17 @@
 Stream and trade forex with Oanda API
 
 Usage:
-    fract init [--debug] [--file=<yaml>]
-    fract info [--debug] [--file=<yaml>] <info_target>
-    fract track [--debug] [--file=<yaml>] [--sqlite=<db>]
+    fract init [--debug|--info] [--file=<yaml>]
+    fract info [--debug|--info] [--file=<yaml>] <info_target>
+    fract track [--debug|--info] [--file=<yaml>] [--sqlite=<db>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
-    fract stream [--debug] [--file=<yaml>] [--target=<str>] [--sqlite=<db>]
-                 [<instrument>...]
-    fract cache [--debug] [--file=<yaml>] [--target=<str>] [--sqlite=<db>]
-                [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-                [--redis-maxl=<int>] [<instrument>...]
-    fract close [--debug] [--file=<yaml>] [<instrument>...]
-    fract open [--debug] [--file=<yaml>] [--wait=<sec>] [--iter=<int>]
+    fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
+                 [--sqlite=<db>] [<instrument>...]
+    fract cache [--debug|--info] [--file=<yaml>] [--target=<str>]
+                [--sqlite=<db>] [--redis-host=<ip>] [--redis-port=<int>]
+                [--redis-db=<int>] [--redis-maxl=<int>] [<instrument>...]
+    fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
+    fract open [--debug|--info] [--file=<yaml>] [--wait=<sec>] [--iter=<int>]
                [--models=<mod>] [--quiet] [<instrument>...]
     fract -h|--help
     fract -v|--version
@@ -71,7 +71,8 @@ import sys
 from docopt import docopt
 from .. import __version__
 from .util import write_config_yml, read_config_yml
-from ..trade.info import print_info, track_rate, invoke_stream
+from ..trade.info import print_info, track_rate
+from ..trade.stream import invoke_stream
 from ..trade.order import close_positions
 from ..trade.auto import open_deals
 
