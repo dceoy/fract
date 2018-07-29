@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-"""
-Stream and trade forex with Oanda API
+"""Stream and trade forex with Oanda API
 
 Usage:
     fract init [--debug|--info] [--file=<yaml>]
@@ -8,10 +7,8 @@ Usage:
     fract track [--debug|--info] [--file=<yaml>] [--sqlite=<db>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
-                 [--sqlite=<db>] [<instrument>...]
-    fract cache [--debug|--info] [--file=<yaml>] [--target=<str>]
-                [--sqlite=<db>] [--redis-host=<ip>] [--redis-port=<int>]
-                [--redis-db=<int>] [--redis-maxl=<int>] [<instrument>...]
+                 [--sqlite=<db>] [--redis-host=<ip>] [--redis-port=<int>]
+                 [--redis-db=<int>] [--redis-maxl=<int>] [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--wait=<sec>] [--iter=<int>]
                [--models=<mod>] [--quiet] [<instrument>...]
@@ -70,7 +67,7 @@ import os
 import sys
 from docopt import docopt
 from .. import __version__
-from .util import write_config_yml, read_config_yml
+from .util import write_config_yml
 from ..trade.info import print_info, track_rate
 from ..trade.stream import invoke_stream
 from ..trade.order import close_positions
@@ -85,33 +82,32 @@ def main():
 
     if args['init']:
         write_config_yml(path=args['--file'])
-    else:
-        cf = read_config_yml(path=args['--file'])
-        if args['info']:
-            print_info(config=cf, type=args['<info_target>'])
-        elif args['track']:
-            track_rate(
-                config=cf, instruments=args['<instrument>'],
-                granularity=args['--granularity'], count=int(args['--count']),
-                sqlite_path=args['--sqlite']
-            )
-        elif args['stream']:
-            invoke_stream(
-                target=args['--target'], config=cf,
-                instruments=args['<instrument>'], sqlite_path=args['--sqlite'],
-                redis_host=args['--redis-host'],
-                redis_port=args['--redis-port'], redis_db=args['--redis-db'],
-                redis_maxl=args['--redis-maxl']
-            )
-        elif args['close']:
-            close_positions(config=cf, instruments=args['<instrument>'])
-        elif args['open']:
-            open_deals(
-                config=cf, instruments=args['<instrument>'],
-                models=args['--models'],
-                n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
-                interval=float(args['--wait']), quiet=args['--quiet']
-            )
+    elif args['info']:
+        print_info(config_yml=args['--file'], type=args['<info_target>'])
+    elif args['track']:
+        track_rate(
+            config_yml=args['--file'], instruments=args['<instrument>'],
+            granularity=args['--granularity'], count=int(args['--count']),
+            sqlite_path=args['--sqlite']
+        )
+    elif args['stream']:
+        invoke_stream(
+            config_yml=args['--file'], target=args['--target'],
+            instruments=args['<instrument>'], sqlite_path=args['--sqlite'],
+            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
+            redis_db=args['--redis-db'], redis_maxl=args['--redis-maxl']
+        )
+    elif args['close']:
+        close_positions(
+            config_yml=args['--file'], instruments=args['<instrument>']
+        )
+    elif args['open']:
+        open_deals(
+            config_yml=args['--file'], instruments=args['<instrument>'],
+            models=args['--models'],
+            n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
+            interval=float(args['--wait']), quiet=args['--quiet']
+        )
 
 
 def _set_log_config(debug=None, info=None):

@@ -7,6 +7,7 @@ import signal
 import sqlite3
 import oandapy
 import redis
+from ..cli.util import read_config_yml
 
 
 class BaseStreamer(oandapy.Streamer):
@@ -118,20 +119,20 @@ class StreamDriver(oandapy.Streamer):
             self.events(**kwargs)
 
 
-def invoke_stream(target, instruments, config, sqlite_path=None,
+def invoke_stream(config_yml, target, instruments, sqlite_path=None,
                   redis_host=None, redis_port=6379, redis_db=0,
                   redis_maxl=1000):
     logger = logging.getLogger(__name__)
     logger.info('Streaming')
-    insts = (instruments if instruments else config['trade']['instruments'])
-
+    cf = read_config_yml(path=config_yml)
+    insts = (instruments if instruments else cf['trade']['instruments'])
     stream = StreamDriver(
-        target=target, environment=config['oanda']['environment'],
-        access_token=config['oanda']['access_token'], sqlite_path=sqlite_path,
+        target=target, environment=cf['oanda']['environment'],
+        access_token=cf['oanda']['access_token'], sqlite_path=sqlite_path,
         redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
         redis_maxl=redis_maxl
     )
     stream.fire(
-        account_id=config['oanda']['account_id'], instruments=','.join(insts),
+        account_id=cf['oanda']['account_id'], instruments=','.join(insts),
         ignore_heartbeat=True
     )
