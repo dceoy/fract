@@ -1,56 +1,42 @@
 #!/usr/bin/env python
 
+from concurrent.futures import as_completed, ProcessPoolExecutor
 import logging
 import signal
-import time
-from ..cli.util import FractError, read_config_yml
-from ..model.bollinger import Bollinger
-from ..model.kalman import Kalman
-from ..model.delta import Delta
-from ..model.volatility import Volatility
+from ..cli.util import read_config_yml
+from ..model.online import FractRedisTrader
+from .streamer import RateCacheStreamer
 
 
-def open_deals(config_yml, instruments, models, n=10, interval=2, quiet=False):
+def open_deals(config_yml, instruments, redis_host, redis_port=6379,
+               redis_db=0, redis_maxl=1000, wait=0, timeout=3600, quiet=False):
     logger = logging.getLogger(__name__)
     logger.info('Autonomous trading')
     cf = read_config_yml(path=config_yml)
-    insts = (instruments if instruments else cf['trade']['instruments'])
-    traders = [_trader(model=m, cf=cf, quiet=quiet) for m in models.split(',')]
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    insts = (instruments if instruments else cf['instruments'])
+    streamer = RateCacheStreamer(
+        environment=cf['oanda']['environment'],
+        access_token=cf['oanda']['access_token'],
+        account_id=cf['oanda']['account_id'], instruments=insts,
+        redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
+        redis_maxl=redis_maxl, ignore_heartbeat=True
+    )
+    trader = FractRedisTrader(
+        environment=cf['oanda']['environment'],
+        access_token=cf['oanda']['access_token'],
+        account_id=cf['oanda']['account_id'], instruments=insts,
+        redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
+        redis_maxl=redis_maxl, wait=wait, timeout=timeout, quiet=quiet
+    )
     if not quiet:
         print('!!! OPEN DEALS !!!')
-    for i in range(n):
-        res = traders[i % len(traders)].fire(
-            instrument=insts[i % (len(traders) * len(insts)) // len(traders)]
-        )
-        if res['halted'] or i == n - 1:
-            break
-        else:
-            time.sleep(interval)
-
-
-def _trader(model, cf, quiet=False):
-    if model not in cf['trade']['model']:
-        raise FractError('`{}` not in cf'.format(model))
-    elif model == 'volatility':
-        return Volatility(
-            oanda=cf['oanda'], model=cf['trade']['model']['volatility'],
-            margin_ratio=cf['trade']['margin_ratio'], quiet=quiet
-        )
-    elif model == 'delta':
-        return Delta(
-            oanda=cf['oanda'], model=cf['trade']['model']['delta'],
-            margin_ratio=cf['trade']['margin_ratio'], quiet=quiet
-        )
-    elif model == 'bollinger':
-        return Bollinger(
-            oanda=cf['oanda'], model=cf['trade']['model']['bollinger'],
-            margin_ratio=cf['trade']['margin_ratio'], quiet=quiet
-        )
-    elif model == 'kalman':
-        return Kalman(
-            oanda=cf['oanda'], model=cf['trade']['model']['kalman'],
-            margin_ratio=cf['trade']['margin_ratio'], quiet=quiet
-        )
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    ppe = ProcessPoolExecutor(max_workers=2)
+    fs = [ppe.submit(i.invoke) for i in [streamer, trader]]
+    try:
+        fs_results = [f.result() for f in as_completed(fs)]
+    except Exception as e:
+        [f.shutdown(wait=False) for f in fs]
+        raise e
     else:
-        raise FractError('invalid trading model')
+        logging.debug('fs_results: {}'.format(fs_results))

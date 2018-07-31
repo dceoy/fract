@@ -13,8 +13,10 @@ from ..cli.util import FractError
 
 class FractTrader(oandapy.API):
     def __init__(self, oanda, margin_ratio, model, quiet=False):
-        super().__init__(environment=oanda['environment'],
-                         access_token=oanda['access_token'])
+        super().__init__(
+            environment=oanda['environment'],
+            access_token=oanda['access_token']
+        )
         self.account_id = oanda['account_id']
         self.account_currency = self.get_account(
             account_id=self.account_id
@@ -24,13 +26,13 @@ class FractTrader(oandapy.API):
         self.quiet = quiet
         logging.debug(
             '{0}:{1}{2}'.format(
-                self.__class__.__name__,
-                os.linesep,
-                pformat({'self.account_id': self.account_id,
-                         'self.account_currency': self.account_currency,
-                         'self.margin_ratio': self.margin_ratio,
-                         'self.model': self.model,
-                         'self.quiet': self.quiet})
+                self.__class__.__name__, os.linesep,
+                pformat({
+                    'self.account_id': self.account_id,
+                    'self.account_currency': self.account_currency,
+                    'self.margin_ratio': self.margin_ratio,
+                    'self.model': self.model, 'self.quiet': self.quiet
+                })
             )
         )
         self.instrument_list = [
@@ -40,49 +42,40 @@ class FractTrader(oandapy.API):
         logging.debug('self.instrument_list: {}'.format(self.instrument_list))
 
     def _get_prices(self):
-        return dict(
-            map(lambda p:
-                (p['instrument'],
-                 {'bid': p['bid'],
-                  'ask': p['ask'],
-                  'spread': np.float32(p['ask'] - p['bid'])}),
-                self.get_prices(
-                    account_id=self.account_id,
-                    instruments=','.join(self.instrument_list)
-                )['prices'])
-        )
+        return {
+            p['instrument']: {
+                'bid': p['bid'], 'ask': p['ask'],
+                'spread': np.float32(p['ask'] - p['bid'])
+            } for p in self.get_prices(
+                account_id=self.account_id,
+                instruments=','.join(self.instrument_list)
+            )['prices']
+        }
 
     def _get_margin(self):
         return (
-            lambda a:
-            {'avail': a['marginAvail'],
-             'used': a['marginUsed'],
-             'total': a['marginAvail'] + a['marginUsed']}
+            lambda a: {
+                'avail': a['marginAvail'], 'used': a['marginUsed'],
+                'total': a['marginAvail'] + a['marginUsed']
+            }
         )(self.get_account(account_id=self.account_id))
 
     def _get_rate(self, instrument):
         return self.get_instruments(
-            account_id=self.account_id,
-            instruments=instrument,
-            fields=','.join(['displayName',
-                             'pip',
-                             'maxTradeUnits',
-                             'precision',
-                             'maxTrailingStop',
-                             'minTrailingStop',
-                             'marginRate',
-                             'halted'])
+            account_id=self.account_id, instruments=instrument,
+            fields=','.join([
+                'displayName', 'pip', 'maxTradeUnits', 'precision',
+                'maxTrailingStop', 'minTrailingStop', 'marginRate', 'halted'
+            ])
         )['instruments'][0]
 
     def _get_window(self, instrument):
         return {
             'instrument': instrument,
             'midpoints': np.array([
-                d['closeMid']
-                for d in
-                self.get_history(
-                    account_id=self.account_id,
-                    candleFormat='midpoint',
+                d['closeMid'] for d
+                in self.get_history(
+                    account_id=self.account_id, candleFormat='midpoint',
                     instrument=instrument,
                     granularity=self.model['window']['granularity'],
                     count=self.model['window']['size']
@@ -95,8 +88,7 @@ class FractTrader(oandapy.API):
             'instrument': instrument,
             'df': pd.DataFrame.from_dict(
                 self.get_history(
-                    account_id=self.account_id,
-                    candleFormat=candle_format,
+                    account_id=self.account_id, candleFormat=candle_format,
                     instrument=instrument,
                     granularity=self.model['window']['granularity'],
                     count=self.model['window']['size']
@@ -114,11 +106,11 @@ class FractTrader(oandapy.API):
             bp = prices[inst]['ask']
         else:
             inst_bp = [
-                (inst if inst in self.instrument_list else None)
-                for inst in
-                map(lambda p: '_'.join(p),
-                    [(cur_pair[1], self.account_currency),
-                     (self.account_currency, cur_pair[1])])
+                (inst if inst in self.instrument_list else None) for inst
+                in [
+                    '{0}_{1}'.format(cur_pair[1], self.account_currency),
+                    '{0}_{1}'.format(self.account_currency, cur_pair[1])
+                ]
             ]
             logging.debug('inst_bp: {}'.format(inst_bp))
             if inst_bp[0]:
@@ -129,8 +121,10 @@ class FractTrader(oandapy.API):
                 raise FractError('invalid instruments')
         logging.debug('bp: {}'.format(bp))
 
-        mg = dict([(k, v * (margin['avail'] + margin['used']))
-                   for k, v in self.margin_ratio.items()])
+        mg = {
+            k: v * (margin['avail'] + margin['used'])
+            for k, v in self.margin_ratio.items()
+        }
         logging.debug('mg: {}'.format(mg))
         mg_per_unit = bp * rate['marginRate']
         logging.debug('mg_per_unit: {}'.format(mg_per_unit))
@@ -226,11 +220,9 @@ class FractTradeHelper(object):
 
     def print_log(self, message):
         text = '[ {0} - {1}{2}]\t{3}\t>>>>>>\t{4}'.format(
-            __package__,
-            self.name,
+            __package__, self.name,
             (lambda n: ' ' * (10 - n) if n < 10 else ' ')(n=len(self.name)),
-            self.instrument,
-            message
+            self.instrument, message
         )
         if self.quiet:
             logging.debug(text)
@@ -241,9 +233,7 @@ class FractTradeHelper(object):
         self.print_log(
             '{0} {1} units.{2}{3}'.format(
                 response['tradeOpened']['side'].capitalize(),
-                response['tradeOpened']['units'],
-                os.linesep,
-                pformat(response)
+                response['tradeOpened']['units'], os.linesep, pformat(response)
             )
         )
 

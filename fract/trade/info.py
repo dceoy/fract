@@ -9,6 +9,26 @@ import pandas as pd
 import pandas.io.sql as pdsql
 import yaml
 from ..cli.util import FractError, read_config_yml
+from .streamer import StorageStreamer
+
+
+def invoke_stream(config_yml, target, instruments, sqlite_path=None,
+                  use_redis=False, redis_host=None, redis_port=6379,
+                  redis_db=0, redis_maxl=1000):
+    logger = logging.getLogger(__name__)
+    logger.info('Streaming')
+    cf = read_config_yml(path=config_yml)
+    insts = (instruments if instruments else cf['instruments'])
+    streamer = StorageStreamer(
+        target=target, sqlite_path=sqlite_path, use_redis=use_redis,
+        redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
+        redis_maxl=redis_maxl, environment=cf['oanda']['environment'],
+        access_token=cf['oanda']['access_token'],
+    )
+    streamer.invoke(
+        account_id=cf['oanda']['account_id'], instruments=','.join(insts),
+        ignore_heartbeat=True
+    )
 
 
 def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):
@@ -26,8 +46,7 @@ def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):
                 account_id=cf['oanda']['account_id'], instrument=inst,
                 candleFormat='bidask', granularity=granularity, count=count
             )['candles'] if d['complete']
-        ]
-        for inst in (instruments or cf['trade']['instruments'])
+        ] for inst in (instruments or cf['instruments'])
     }
     if sqlite_path:
         df = pd.concat([

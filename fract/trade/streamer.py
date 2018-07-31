@@ -7,43 +7,60 @@ import signal
 import sqlite3
 import oandapy
 import redis
-from ..cli.util import read_config_yml
+from ..cli.util import FractError
 
 
-class BaseStreamer(oandapy.Streamer):
-    def __init__(self, target, logger=None, **kwargs):
-        super().__init__(**kwargs)
-        self.target = target
-        self.key = {'rate': 'tick', 'event': 'transaction'}[self.target]
+class RateCacheStreamer(oandapy.Streamer):
+    def __init__(self, environment, access_token, account_id, instruments,
+                 redis_host='127.0.0.1', redis_port=6379, redis_db=0,
+                 redis_maxl=1000, ignore_heartbeat=True):
+        super().__init__(environment=environment, access_token=access_token)
         self.logger = logging.getLogger(__name__)
+        self.account_id = account_id
+        self.instruments = instruments
+        self.ignore_heartbeat = ignore_heartbeat
+        self.logger.info('Set a streamer with Redis')
+        self.redis = redis.StrictRedis(
+            host=redis_host, port=int(redis_port), db=int(redis_db)
+        )
+        self.redis_maxl = int(redis_maxl)
+        self.redis.flushdb()
 
     def on_success(self, data):
-        print(data)
+        self.logger.debug(data)
+        if 'tick' in data and 'instrument' in data['tick']:
+            instrument = data['tick']['instrument']
+            self.redis.rpush(instrument, json.dumps(data))
+            if self.redis.llen(instrument) > self.redis_maxl:
+                self.redis.lpop(instrument)
+        else:
+            raise FractError('data[\'tick\'][\'instrument\'] not found')
         if 'disconnect' in data:
             self.disconnect()
+            self.redis.connection_pool.disconnect()
 
     def on_error(self, data):
         self.logger.error(data)
         self.disconnect()
+        self.redis.connection_pool.disconnect()
 
     def invoke(self, **kwargs):
-        signal.signal(signal.SIGINT, signal.SIG_DFL)
-        if self.target == 'rate':
-            self.logger.debug('Stream market prices')
-            self.rates(**kwargs)
-        elif self.target == 'event':
-            self.logger.debug('Stream account events')
-            self.events(**kwargs)
+        self.logger.info('Start to stream market prices')
+        self.rates(
+            account_id=self.account_id, instruments=','.join(self.instruments),
+            ignore_heartbeat=self.ignore_heartbeat, **kwargs
+        )
 
 
-class StreamDriver(oandapy.Streamer):
-    def __init__(self, target, sqlite_path=None, redis_host=None,
-                 redis_port=6379, redis_db=0, redis_maxl=1000, **kwargs):
+class StorageStreamer(oandapy.Streamer):
+    def __init__(self, target, sqlite_path=None, use_redis=False,
+                 redis_host='127.0.0.1', redis_port=6379, redis_db=0,
+                 redis_maxl=1000, **kwargs):
         super().__init__(**kwargs)
         self.target = target
         self.key = {'rate': 'tick', 'event': 'transaction'}[self.target]
         if sqlite_path:
-            self.logger.debug('Set a streamer with SQLite')
+            self.logger.info('Set a streamer with SQLite')
             if os.path.isfile(sqlite_path):
                 self.sqlite = sqlite3.connect(sqlite_path)
             else:
@@ -56,15 +73,15 @@ class StreamDriver(oandapy.Streamer):
                 self.sqlite.executescript(sql)
         else:
             self.sqlite = None
-        if redis_host:
-            self.logger.debug('Set a streamer with Redis')
+        if use_redis:
+            self.logger.info('Set a streamer with Redis')
             self.redis = redis.StrictRedis(
                 host=redis_host, port=int(redis_port), db=int(redis_db)
             )
-            self.redis_maxl = int(redis_maxl)
             self.redis.flushdb()
         else:
             self.redis = None
+        self.redis_maxl = int(redis_maxl)
 
     def on_success(self, data):
         print(data)
@@ -109,30 +126,11 @@ class StreamDriver(oandapy.Streamer):
         if self.redis:
             self.redis.connection_pool.disconnect()
 
-    def fire(self, **kwargs):
+    def invoke(self, **kwargs):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         if self.target == 'rate':
-            self.logger.debug('Start to stream market prices')
+            self.logger.info('Start to stream market prices')
             self.rates(**kwargs)
         elif self.target == 'event':
-            self.logger.debug('Start to stream authorized account\'s events')
+            self.logger.info('Start to stream authorized account\'s events')
             self.events(**kwargs)
-
-
-def invoke_stream(config_yml, target, instruments, sqlite_path=None,
-                  redis_host=None, redis_port=6379, redis_db=0,
-                  redis_maxl=1000):
-    logger = logging.getLogger(__name__)
-    logger.info('Streaming')
-    cf = read_config_yml(path=config_yml)
-    insts = (instruments if instruments else cf['trade']['instruments'])
-    stream = StreamDriver(
-        target=target, environment=cf['oanda']['environment'],
-        access_token=cf['oanda']['access_token'], sqlite_path=sqlite_path,
-        redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
-        redis_maxl=redis_maxl
-    )
-    stream.fire(
-        account_id=cf['oanda']['account_id'], instruments=','.join(insts),
-        ignore_heartbeat=True
-    )

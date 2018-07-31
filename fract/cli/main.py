@@ -1,38 +1,40 @@
 #!/usr/bin/env python
-"""Stream and trade forex with Oanda API
+"""Stream, track, and trade forex with Oanda API
 
 Usage:
+    fract -h|--help
+    fract -v|--version
     fract init [--debug|--info] [--file=<yaml>]
     fract info [--debug|--info] [--file=<yaml>] <info_target>
     fract track [--debug|--info] [--file=<yaml>] [--sqlite=<db>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
-                 [--sqlite=<db>] [--redis-host=<ip>] [--redis-port=<int>]
-                 [--redis-db=<int>] [--redis-maxl=<int>] [<instrument>...]
+                 [--sqlite=<db>] [--use-redis] [--redis-host=<ip>]
+                 [--redis-port=<int>] [--redis-db=<int>] [--redis-maxl=<int>]
+                 [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
-    fract open [--debug|--info] [--file=<yaml>] [--wait=<sec>] [--iter=<int>]
-               [--models=<mod>] [--quiet] [<instrument>...]
-    fract -h|--help
-    fract -v|--version
+    fract open [--debug|--info] [--file=<yaml>] [--redis-host=<ip>]
+               [--redis-port=<int>] [--redis-db=<int>] [--redis-maxl=<int>]
+               [--wait=<sec>] [--timeout=<sec>] [--quiet] [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
     -v, --version       Print version and exit
     --debug, --info     Execute a command with debug|info messages
     --file=<yaml>       Set a path to a YAML for configurations [$FRACT_YML]
-    --wait=<sec>        Wait seconds between orders [default: 0]
-    --iter=<int>        Limit a number of executions
-    --models=<mod>      Set trading models [default: volatility]
     --quiet             Suppress messages
-    --target=<str>      Set a streaming target { rate, event } [default: rate]
     --sqlite=<db>       Save data in an SQLite3 database
-    --count=<int>       Set a size for rate tracking (max: 5000) [default: 60]
     --granularity=<code>
                         Set a granularity for rate tracking [default: S5]
-    --redis-host=<ip>   Set a Redis server host
-    --redis-port=<int>  Set a Redis server port
+    --count=<int>       Set a size for rate tracking (max: 5000) [default: 60]
+    --target=<str>      Set a streaming target { rate, event } [default: rate]
+    --use-redis         Use Redis for streaming cache
+    --redis-host=<ip>   Set a Redis server host [default: 127.0.0.1]
+    --redis-port=<int>  Set a Redis server port [default: 6379]
     --redis-db=<int>    Set a Redis database [default: 0]
     --redis-maxl=<int>  Limit max length for records in Redis [default: 1000]
+    --wait=<sec>        Wait seconds between orders [default: 0]
+    --timeout=<sec>     Set senconds for timeout [default: 3600]
 
 Commands:
     init                Generate a YAML template for configuration
@@ -64,12 +66,10 @@ Arguments:
 
 import logging
 import os
-import sys
 from docopt import docopt
 from .. import __version__
 from .util import write_config_yml
-from ..trade.info import print_info, track_rate
-from ..trade.stream import invoke_stream
+from ..trade.info import invoke_stream, print_info, track_rate
 from ..trade.order import close_positions
 from ..trade.auto import open_deals
 
@@ -94,8 +94,9 @@ def main():
         invoke_stream(
             config_yml=args['--file'], target=args['--target'],
             instruments=args['<instrument>'], sqlite_path=args['--sqlite'],
-            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
-            redis_db=args['--redis-db'], redis_maxl=args['--redis-maxl']
+            use_redis=args['--use-redis'], redis_host=args['--redis-host'],
+            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
+            redis_maxl=args['--redis-maxl']
         )
     elif args['close']:
         close_positions(
@@ -104,9 +105,10 @@ def main():
     elif args['open']:
         open_deals(
             config_yml=args['--file'], instruments=args['<instrument>'],
-            models=args['--models'],
-            n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
-            interval=float(args['--wait']), quiet=args['--quiet']
+            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
+            redis_db=args['--redis-db'], redis_maxl=args['--redis-maxl'],
+            wait=args['--wait'], timeout=args['--timeout'],
+            quiet=args['--quiet']
         )
 
 
