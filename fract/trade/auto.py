@@ -1,20 +1,21 @@
 #!/usr/bin/env python
 
+import logging
 import signal
 import time
-from ..cli.util import FractError
+from ..cli.util import FractError, read_config_yml
 from ..model.bollinger import Bollinger
 from ..model.kalman import Kalman
 from ..model.delta import Delta
 from ..model.volatility import Volatility
 
 
-def open_deals(config, instruments, models, n=10, interval=2, quiet=False):
-    insts = (instruments if instruments else config['trade']['instruments'])
-    traders = [
-        _generate_trader(model=m, config=config, quiet=quiet)
-        for m in models.split(',')
-    ]
+def open_deals(config_yml, instruments, models, n=10, interval=2, quiet=False):
+    logger = logging.getLogger(__name__)
+    logger.info('Autonomous trading')
+    cf = read_config_yml(path=config_yml)
+    insts = (instruments if instruments else cf['trade']['instruments'])
+    traders = [_trader(model=m, cf=cf, quiet=quiet) for m in models.split(',')]
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     if not quiet:
         print('!!! OPEN DEALS !!!')
@@ -28,28 +29,28 @@ def open_deals(config, instruments, models, n=10, interval=2, quiet=False):
             time.sleep(interval)
 
 
-def _generate_trader(model, config, quiet=False):
-    if model not in config['trade']['model']:
-        raise FractError('`{}` not in config'.format(model))
+def _trader(model, cf, quiet=False):
+    if model not in cf['trade']['model']:
+        raise FractError('`{}` not in cf'.format(model))
     elif model == 'volatility':
-        return Volatility(oanda=config['oanda'],
-                          model=config['trade']['model']['volatility'],
-                          margin_ratio=config['trade']['margin_ratio'],
-                          quiet=quiet)
+        return Volatility(
+            oanda=cf['oanda'], model=cf['trade']['model']['volatility'],
+            margin_ratio=cf['trade']['margin_ratio'], quiet=quiet
+        )
     elif model == 'delta':
-        return Delta(oanda=config['oanda'],
-                     model=config['trade']['model']['delta'],
-                     margin_ratio=config['trade']['margin_ratio'],
-                     quiet=quiet)
+        return Delta(
+            oanda=cf['oanda'], model=cf['trade']['model']['delta'],
+            margin_ratio=cf['trade']['margin_ratio'], quiet=quiet
+        )
     elif model == 'bollinger':
-        return Bollinger(oanda=config['oanda'],
-                         model=config['trade']['model']['bollinger'],
-                         margin_ratio=config['trade']['margin_ratio'],
-                         quiet=quiet)
+        return Bollinger(
+            oanda=cf['oanda'], model=cf['trade']['model']['bollinger'],
+            margin_ratio=cf['trade']['margin_ratio'], quiet=quiet
+        )
     elif model == 'kalman':
-        return Kalman(oanda=config['oanda'],
-                      model=config['trade']['model']['kalman'],
-                      margin_ratio=config['trade']['margin_ratio'],
-                      quiet=quiet)
+        return Kalman(
+            oanda=cf['oanda'], model=cf['trade']['model']['kalman'],
+            margin_ratio=cf['trade']['margin_ratio'], quiet=quiet
+        )
     else:
         raise FractError('invalid trading model')

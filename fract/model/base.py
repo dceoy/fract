@@ -3,11 +3,12 @@
 from datetime import datetime
 import logging
 import os
+from pprint import pformat
 import time
 import numpy as np
 import oandapy
 import pandas as pd
-from ..cli.util import dump_yaml, FractError
+from ..cli.util import FractError
 
 
 class FractTrader(oandapy.API):
@@ -25,11 +26,11 @@ class FractTrader(oandapy.API):
             '{0}:{1}{2}'.format(
                 self.__class__.__name__,
                 os.linesep,
-                dump_yaml({'self.account_id': self.account_id,
-                           'self.account_currency': self.account_currency,
-                           'self.margin_ratio': self.margin_ratio,
-                           'self.model': self.model,
-                           'self.quiet': self.quiet})
+                pformat({'self.account_id': self.account_id,
+                         'self.account_currency': self.account_currency,
+                         'self.margin_ratio': self.margin_ratio,
+                         'self.model': self.model,
+                         'self.quiet': self.quiet})
             )
         )
         self.instrument_list = [
@@ -242,7 +243,7 @@ class FractTradeHelper(object):
                 response['tradeOpened']['side'].capitalize(),
                 response['tradeOpened']['units'],
                 os.linesep,
-                dump_yaml(response)
+                pformat(response)
             )
         )
 

@@ -10,51 +10,32 @@ class FractError(Exception):
     pass
 
 
-def set_log_config(debug=False):
-    logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s',
-                        datefmt='%Y-%m-%d %H:%M:%S',
-                        level=logging.DEBUG if debug else logging.WARNING)
-
-
-def read_yaml(path):
-    with open(path) as f:
+def read_config_yml(path):
+    with open(_config_yml_path(path=path)) as f:
         d = yaml.load(f)
     return d
 
 
-def dump_yaml(dict, flow=False):
-    return yaml.dump(dict, default_flow_style=flow)
-
-
-def set_config_yml(path=None, env='FRACT_YML', default='fract.yml'):
-    return os.path.expanduser(
-        tuple(filter(
-            lambda p: p is not None, [path, os.getenv(env), default]
-        ))[0]
-    )
-
-
 def write_config_yml(path):
-    if os.path.exists(path):
-        print('The file already exists: {}'.format(path))
+    logger = logging.getLogger(__name__)
+    p = _config_yml_path(path=path)
+    if os.path.exists(p):
+        print('A file already exists: {}'.format(p))
     else:
-        logging.debug('Write {}'.format(path))
+        logger.info('Write a config: {}'.format(p))
         shutil.copyfile(
             os.path.join(
                 os.path.dirname(__file__), '../static/default_fract.yml'
             ),
-            path
+            _config_yml_path(path=p)
         )
-        print('A YAML template was generated: {}'.format(path))
+        print('A YAML template was generated: {}'.format(p))
 
 
-def set_redis_config(host, db, maxl, default_port=6379):
-    ipp = host.split(':')
-    redis_config = {
-        'ip': ipp[0],
-        'port': (ipp[1] if len(ipp) > 1 else default_port),
-        'db': db,
-        'max_llen': maxl
-    }
-    logging.debug('redis_config: {}'.format(redis_config))
-    return redis_config
+def _config_yml_path(path=None, env='FRACT_YML', default='fract.yml'):
+    logger = logging.getLogger(__name__)
+    p = os.path.abspath(os.path.expanduser(
+        [p for p in [path, os.getenv(env), default] if p is not None][0]
+    ))
+    logger.debug('abspath to a config: {}'.format(p))
+    return p
