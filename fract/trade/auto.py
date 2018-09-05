@@ -5,7 +5,7 @@ import logging
 import signal
 from ..cli.util import read_config_yml
 from ..model.online import FractRedisTrader
-from .streamer import RateCacheStreamer
+from .streamer import StreamDriver
 
 
 def open_deals(config_yml, instruments, redis_host, redis_port=6379,
@@ -14,12 +14,13 @@ def open_deals(config_yml, instruments, redis_host, redis_port=6379,
     logger.info('Autonomous trading')
     cf = read_config_yml(path=config_yml)
     insts = (instruments if instruments else cf['instruments'])
-    streamer = RateCacheStreamer(
+    streamer = StreamDriver(
         environment=cf['oanda']['environment'],
         access_token=cf['oanda']['access_token'],
-        account_id=cf['oanda']['account_id'], instruments=insts,
+        account_id=cf['oanda']['account_id'], target='rate',
+        instruments=insts, ignore_heartbeat=True, use_redis=True,
         redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
-        redis_maxl=redis_maxl, ignore_heartbeat=True
+        redis_maxl=redis_maxl, quiet=True
     )
     trader = FractRedisTrader(
         environment=cf['oanda']['environment'],

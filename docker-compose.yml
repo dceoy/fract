@@ -13,14 +13,13 @@ services:
     depends_on:
       - redis
     volumes:
-      - .:/host
-    working_dir: /host
+      - ${PWD}:/wd
+    working_dir: /wd
     entrypoint:
       - fract
     command:
       - stream
-      - --debug
-      - --file=/host/fract.yml
+      - --file=/wd/fract.yml
       - --target=rate
       - --redis-host=redis:6379
       - --redis-db=0

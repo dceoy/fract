@@ -3,13 +3,14 @@
 import json
 import os
 import logging
+import signal
 import sqlite3
 import oandapy
 import pandas as pd
 import pandas.io.sql as pdsql
 import yaml
 from ..cli.util import FractError, read_config_yml
-from .streamer import StorageStreamer
+from .streamer import StreamDriver
 
 
 def invoke_stream(config_yml, target, instruments, sqlite_path=None,
@@ -19,16 +20,16 @@ def invoke_stream(config_yml, target, instruments, sqlite_path=None,
     logger.info('Streaming')
     cf = read_config_yml(path=config_yml)
     insts = (instruments if instruments else cf['instruments'])
-    streamer = StorageStreamer(
-        target=target, sqlite_path=sqlite_path, use_redis=use_redis,
-        redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
-        redis_maxl=redis_maxl, environment=cf['oanda']['environment'],
+    streamer = StreamDriver(
+        environment=cf['oanda']['environment'],
         access_token=cf['oanda']['access_token'],
+        account_id=cf['oanda']['account_id'], target=target,
+        instruments=insts, ignore_heartbeat=True, use_redis=use_redis,
+        redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
+        redis_maxl=redis_maxl, sqlite_path=sqlite_path, quiet=False
     )
-    streamer.invoke(
-        account_id=cf['oanda']['account_id'], instruments=','.join(insts),
-        ignore_heartbeat=True
-    )
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
+    streamer.invoke()
 
 
 def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):

@@ -79,7 +79,6 @@ def main():
     _set_log_config(debug=args['--debug'], info=args['--info'])
     logger = logging.getLogger(__name__)
     logger.debug('args:{0}{1}'.format(os.linesep, args))
-
     if args['init']:
         write_config_yml(path=args['--file'])
     elif args['info']:
