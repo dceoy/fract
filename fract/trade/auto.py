@@ -4,7 +4,7 @@ from concurrent.futures import as_completed, ProcessPoolExecutor
 import logging
 import signal
 from ..cli.util import read_config_yml
-from ..model.online import FractRedisTrader
+from ..model.driver import FractRedisTrader
 from .streamer import StreamDriver
 
 

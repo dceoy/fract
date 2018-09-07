@@ -18,7 +18,7 @@ class FractRedisTrader(oandapy.API):
             account_id=self.account_id
         )['accountCurrency']
         self.quiet = quiet
-        logging.debug(
+        self.logger.debug(
             '{0}:{1}{2}'.format(
                 self.__class__.__name__, os.linesep,
                 pformat({
@@ -33,7 +33,9 @@ class FractRedisTrader(oandapy.API):
             d['instrument'] for d in
             self.get_instruments(account_id=self.account_id)['instruments']
         ]
-        logging.debug('self.instrument_list: {}'.format(self.instrument_list))
+        self.logger.debug(
+            'self.instrument_list: {}'.format(self.instrument_list)
+        )
         self.redis = redis.StrictRedis(
             host=redis_host, port=int(redis_port), db=int(redis_db)
         )
