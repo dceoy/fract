@@ -13,9 +13,10 @@ Usage:
                  [--redis-port=<int>] [--redis-db=<int>] [--redis-maxl=<int>]
                  [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
-    fract open [--debug|--info] [--file=<yaml>] [--redis-host=<ip>]
+    fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
+               [--wait=<sec>] [--timeout=<sec>] [--redis-host=<ip>]
                [--redis-port=<int>] [--redis-db=<int>] [--redis-maxl=<int>]
-               [--wait=<sec>] [--timeout=<sec>] [--quiet] [<instrument>...]
+               [--quiet] [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
@@ -33,6 +34,7 @@ Options:
     --redis-port=<int>  Set a Redis server port [default: 6379]
     --redis-db=<int>    Set a Redis database [default: 0]
     --redis-maxl=<int>  Limit max length for records in Redis [default: 1000]
+    --model=<str>       Set trading models [default: ewma]
     --wait=<sec>        Wait seconds between orders [default: 0]
     --timeout=<sec>     Set senconds for timeout [default: 3600]
 
@@ -104,10 +106,10 @@ def main():
     elif args['open']:
         open_deals(
             config_yml=args['--file'], instruments=args['<instrument>'],
-            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
-            redis_db=args['--redis-db'], redis_maxl=args['--redis-maxl'],
-            wait=args['--wait'], timeout=args['--timeout'],
-            quiet=args['--quiet']
+            model=args['--model'], redis_host=args['--redis-host'],
+            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
+            redis_maxl=args['--redis-maxl'], wait=args['--wait'],
+            timeout=args['--timeout'], quiet=args['--quiet']
         )
 
 

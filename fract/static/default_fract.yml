@@ -16,6 +16,7 @@ trade:
     init: 0.01          # (0, 1)
     unit: 0.01          # (0, 1)
     max: 0.9            # (0, 1)
-  ewm_alpha: 0.05       # (0, 1)
+  survival_sec: 3600    # [0, Inf]
+model:
+  ewm_alpha: 0.1        # (0, 1)
   bollinger: 1          # [0, 10]
-  contrary: false       # { true | false }
