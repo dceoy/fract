@@ -21,7 +21,9 @@ services:
       - stream
       - --file=/wd/fract.yml
       - --target=rate
-      - --redis-host=redis:6379
+      - --use-redis
+      - --redis-host=redis
+      - --redis-port=6379
       - --redis-db=0
     restart: always
   redis:
@@ -37,6 +39,7 @@ services:
 
 networks:
   fract-db:
+    external: false
 
 volumes:
   redis-data:

@@ -12,7 +12,7 @@ class StreamDriver(oandapy.Streamer):
     def __init__(self, environment, access_token, account_id, target='rate',
                  instruments=None, ignore_heartbeat=True, use_redis=False,
                  redis_host='127.0.0.1', redis_port=6379, redis_db=0,
-                 redis_maxl=1000, sqlite_path=None, quiet=False, **kwargs):
+                 redis_max_llen=None, sqlite_path=None, quiet=False, **kwargs):
         self.logger = logging.getLogger(__name__)
         super().__init__(
             environment=environment, access_token=access_token, **kwargs
@@ -26,13 +26,13 @@ class StreamDriver(oandapy.Streamer):
         if use_redis:
             self.logger.info('Set a streamer with Redis')
             self.redis = redis.StrictRedis(
-                host=redis_host, port=int(redis_port), db=int(redis_db)
+                host=redis_host, port=redis_port, db=redis_db
             )
             self.redis.flushdb()
-            self.redis_maxl = int(redis_maxl)
+            self.redis_max_llen = redis_max_llen
         else:
             self.redis = None
-            self.redis_maxl = None
+            self.redis_max_llen = None
         if sqlite_path:
             self.logger.info('Set a streamer with SQLite')
             if os.path.isfile(sqlite_path):
@@ -63,8 +63,11 @@ class StreamDriver(oandapy.Streamer):
             if self.redis:
                 instrument = data[self.key]['instrument']
                 self.redis.rpush(instrument, json.dumps(data))
-                if self.redis.llen(instrument) > self.redis_maxl:
-                    self.redis.lpop(instrument)
+                if self.redis_max_llen:
+                    llen = self.redis.llen(instrument)
+                    self.logger.debug('llen: {}'.format(llen))
+                    if llen > self.redis_max_llen:
+                        self.redis.lpop(instrument)
             if self.sqlite:
                 c = self.sqlite.cursor()
                 if 'tick' in data:
@@ -95,7 +98,7 @@ class StreamDriver(oandapy.Streamer):
         if self.sqlite:
             self.sqlite.close()
 
-    def invoke(self, **kwargs):
+    def run(self, **kwargs):
         if self.target == 'rate':
             self.logger.info('Start to stream market prices')
             self.rates(

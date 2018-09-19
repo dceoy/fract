@@ -13,9 +13,9 @@ from ..cli.util import FractError, read_config_yml
 from .streamer import StreamDriver
 
 
-def invoke_stream(config_yml, target, instruments, sqlite_path=None,
-                  use_redis=False, redis_host=None, redis_port=6379,
-                  redis_db=0, redis_maxl=1000):
+def invoke_streamer(config_yml, target, instruments, sqlite_path=None,
+                    use_redis=False, redis_host=None, redis_port=6379,
+                    redis_db=0, redis_max_llen=1000):
     logger = logging.getLogger(__name__)
     logger.info('Streaming')
     cf = read_config_yml(path=config_yml)
@@ -26,10 +26,10 @@ def invoke_stream(config_yml, target, instruments, sqlite_path=None,
         account_id=cf['oanda']['account_id'], target=target,
         instruments=insts, ignore_heartbeat=True, use_redis=use_redis,
         redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
-        redis_maxl=redis_maxl, sqlite_path=sqlite_path, quiet=False
+        redis_max_llen=redis_max_llen, sqlite_path=sqlite_path, quiet=False
     )
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    streamer.invoke()
+    streamer.run()
 
 
 def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):
