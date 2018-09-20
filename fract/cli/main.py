@@ -98,8 +98,9 @@ def main():
             config_yml=args['--file'], target=args['--target'],
             instruments=args['<instrument>'], sqlite_path=args['--sqlite'],
             use_redis=args['--use-redis'], redis_host=args['--redis-host'],
-            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
-            redis_max_llen=args['--redis-max-llen']
+            redis_port=int(args['--redis-port']),
+            redis_db=int(args['--redis-db']),
+            redis_max_llen=(int(args['--redis-max-llen'] or 0) or None)
         )
     elif args['close']:
         close_positions(

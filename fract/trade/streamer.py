@@ -25,9 +25,10 @@ class StreamDriver(oandapy.Streamer):
         self.key = {'rate': 'tick', 'event': 'transaction'}[self.target]
         if use_redis:
             self.logger.info('Set a streamer with Redis')
-            self.redis = redis.StrictRedis(
+            self.redis_pool = redis.ConnectionPool(
                 host=redis_host, port=redis_port, db=redis_db
             )
+            self.redis = redis.StrictRedis(connection_pool=self.redis_pool)
             self.redis.flushdb()
             self.redis_max_llen = redis_max_llen
         else:

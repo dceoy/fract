@@ -21,28 +21,23 @@ def open_deals(config_yml, instruments, redis_host, redis_port=6379,
     cf = read_config_yml(path=config_yml)
     insts = (instruments if instruments else cf['instruments'])
     if model == 'ewma':
+        streamer = None if without_streamer else StreamDriver(
+            environment=cf['oanda']['environment'],
+            access_token=cf['oanda']['access_token'],
+            account_id=cf['oanda']['account_id'], target='rate',
+            instruments=insts, ignore_heartbeat=True, use_redis=True,
+            redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
+            redis_max_llen=redis_max_llen, quiet=True
+        )
         trader = Ewma(
             environment=cf['oanda']['environment'],
             access_token=cf['oanda']['access_token'],
             account_id=cf['oanda']['account_id'], instruments=insts,
             redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
-            wait=wait, timeout=timeout, n_cpu=cpu_count(), quiet=quiet
+            wait=wait, timeout=timeout, n_cpu=cpu_count(), quiet=quiet,
+            streamer=streamer
         )
-        if without_streamer:
-            logger.info('Invoke a trader withoput an internal streamer')
-        else:
-            trader.set_streamer(
-                streamer=StreamDriver(
-                    environment=cf['oanda']['environment'],
-                    access_token=cf['oanda']['access_token'],
-                    account_id=cf['oanda']['account_id'], target='rate',
-                    instruments=insts, ignore_heartbeat=True, use_redis=True,
-                    redis_host=redis_host, redis_port=redis_port,
-                    redis_db=redis_db, redis_max_llen=redis_max_llen,
-                    quiet=True
-                )
-            )
-            logger.info('Invoke a trader')
+        logger.info('Invoke a trader')
         trader.run()
     else:
         if model == 'volatility':
