@@ -4,7 +4,6 @@ import logging
 from multiprocessing import cpu_count
 import signal
 import time
-from .streamer import StreamDriver
 from ..cli.util import FractError, read_config_yml
 from ..model.bollinger import Bollinger
 from ..model.delta import Delta
@@ -13,32 +12,21 @@ from ..model.kalman import Kalman
 from ..model.volatility import Volatility
 
 
-def open_deals(config_yml, instruments, redis_host, redis_port=6379,
-               redis_db=0, redis_max_llen=None, wait=0, timeout=3600,
-               without_streamer=False, quiet=False, model='ewma'):
+def invoke_trader(config_yml, instruments=None, model='ewma', interval='0',
+                  timeout='3600', with_streamer=False, redis_host=None,
+                  redis_port='6379', redis_db='0', quiet=False):
     logger = logging.getLogger(__name__)
     logger.info('Autonomous trading')
     cf = read_config_yml(path=config_yml)
-    insts = (instruments if instruments else cf['instruments'])
     if model == 'ewma':
-        streamer = None if without_streamer else StreamDriver(
-            environment=cf['oanda']['environment'],
-            access_token=cf['oanda']['access_token'],
-            account_id=cf['oanda']['account_id'], target='rate',
-            instruments=insts, ignore_heartbeat=True, use_redis=True,
-            redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
-            redis_max_llen=redis_max_llen, quiet=True
-        )
         trader = Ewma(
-            environment=cf['oanda']['environment'],
-            access_token=cf['oanda']['access_token'],
-            account_id=cf['oanda']['account_id'], instruments=insts,
-            redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
-            wait=wait, timeout=timeout, n_cpu=cpu_count(), quiet=quiet,
-            streamer=streamer
+            config_dict=cf, instruments=instruments, redis_host=redis_host,
+            redis_port=int(redis_port), redis_db=int(redis_db),
+            interval=int(interval), timeout=int(timeout), n_cpu=cpu_count(),
+            with_streamer=with_streamer, quiet=quiet
         )
         logger.info('Invoke a trader')
-        trader.run()
+        trader.invoke()
     else:
         if model == 'volatility':
             trader = Volatility(
@@ -62,6 +50,7 @@ def open_deals(config_yml, instruments, redis_host, redis_port=6379,
             )
         else:
             raise FractError('invalid trading model')
+        insts = (instruments if instruments else cf['instruments'])
         if not quiet:
             print('!!! OPEN DEALS !!!')
         signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -69,4 +58,4 @@ def open_deals(config_yml, instruments, redis_host, redis_port=6379,
             if all([trader.fire(instrument=i)['halted'] for i in insts]):
                 break
             else:
-                time.sleep(wait)
+                time.sleep(int(interval))

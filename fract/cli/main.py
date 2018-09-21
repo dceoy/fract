@@ -11,12 +11,12 @@ Usage:
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
                  [--sqlite=<db>] [--use-redis] [--redis-host=<ip>]
                  [--redis-port=<int>] [--redis-db=<int>]
-                 [--redis-max-llen=<int>] [<instrument>...]
-    fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
+                 [--redis-max-llen=<int>] [--quiet] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
-               [--wait=<sec>] [--timeout=<sec>] [--without-streamer]
+               [--interval=<sec>] [--timeout=<sec>] [--with-streamer]
                [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-               [--redis-max-llen=<int>] [--quiet] [<instrument>...]
+               [--quiet] [<instrument>...]
+    fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
@@ -36,17 +36,17 @@ Options:
     --redis-max-llen=<int>
                         Limit max length for records in Redis
     --model=<str>       Set trading models [default: ewma]
-    --wait=<sec>        Wait seconds between orders [default: 0]
+    --interval=<sec>    Wait seconds between iterations [default: 0]
     --timeout=<sec>     Set senconds for timeout [default: 3600]
-    --without-streamer  Invoke a trader without a streamer
+    --with-streamer     Invoke a trader with a streamer
 
 Commands:
     init                Generate a YAML template for configuration
     info                Print information about <info_target>
     track               Fetch past rates
     stream              Stream market prices or authorized account events
-    close               Close positions (if not <instrument>, close all)
     open                Invoke an autonomous trader
+    close               Close positions (if not <instrument>, close all)
 
 Arguments:
     <info_target>       { instruments, prices, account, accounts, orders,
@@ -72,10 +72,11 @@ import logging
 import os
 from docopt import docopt
 from .. import __version__
-from .util import write_config_yml
-from ..trade.info import invoke_streamer, print_info, track_rate
+from ..trade.auto import invoke_trader
+from ..trade.info import print_info, track_rate
 from ..trade.order import close_positions
-from ..trade.auto import open_deals
+from ..trade.streamer import invoke_streamer
+from .util import write_config_yml
 
 
 def main():
@@ -90,7 +91,7 @@ def main():
     elif args['track']:
         track_rate(
             config_yml=args['--file'], instruments=args['<instrument>'],
-            granularity=args['--granularity'], count=int(args['--count']),
+            granularity=args['--granularity'], count=args['--count'],
             sqlite_path=args['--sqlite']
         )
     elif args['stream']:
@@ -98,23 +99,20 @@ def main():
             config_yml=args['--file'], target=args['--target'],
             instruments=args['<instrument>'], sqlite_path=args['--sqlite'],
             use_redis=args['--use-redis'], redis_host=args['--redis-host'],
-            redis_port=int(args['--redis-port']),
-            redis_db=int(args['--redis-db']),
-            redis_max_llen=(int(args['--redis-max-llen'] or 0) or None)
+            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
+            redis_max_llen=args['--redis-max-llen'], quiet=args['--quiet']
+        )
+    elif args['open']:
+        invoke_trader(
+            config_yml=args['--file'], instruments=args['<instrument>'],
+            model=args['--model'], interval=args['--interval'],
+            timeout=args['--timeout'], with_streamer=args['--with-streamer'],
+            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
+            redis_db=args['--redis-db'], quiet=args['--quiet']
         )
     elif args['close']:
         close_positions(
             config_yml=args['--file'], instruments=args['<instrument>']
-        )
-    elif args['open']:
-        open_deals(
-            config_yml=args['--file'], instruments=args['<instrument>'],
-            model=args['--model'], redis_host=args['--redis-host'],
-            redis_port=int(args['--redis-port']),
-            redis_db=int(args['--redis-db']),
-            redis_max_llen=(int(args['--redis-max-llen'] or 0) or None),
-            wait=int(args['--wait']), timeout=int(args['--timeout']),
-            without_streamer=args['--without-streamer'], quiet=args['--quiet']
         )
 
 

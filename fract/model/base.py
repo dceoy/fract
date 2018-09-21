@@ -24,22 +24,11 @@ class FractTrader(oandapy.API):
         self.margin_ratio = margin_ratio
         self.model = model
         self.quiet = quiet
-        logging.debug(
-            '{0}:{1}{2}'.format(
-                self.__class__.__name__, os.linesep,
-                pformat({
-                    'self.account_id': self.account_id,
-                    'self.account_currency': self.account_currency,
-                    'self.margin_ratio': self.margin_ratio,
-                    'self.model': self.model, 'self.quiet': self.quiet
-                })
-            )
-        )
-        self.instrument_list = [
+        self.tradable_instruments = [
             d['instrument'] for d in
             self.get_instruments(account_id=self.account_id)['instruments']
         ]
-        logging.debug('self.instrument_list: {}'.format(self.instrument_list))
+        logging.logger.debug(pformat(vars(self)))
 
     def _get_prices(self):
         return {
@@ -48,7 +37,7 @@ class FractTrader(oandapy.API):
                 'spread': np.float32(p['ask'] - p['bid'])
             } for p in self.get_prices(
                 account_id=self.account_id,
-                instruments=','.join(self.instrument_list)
+                instruments=','.join(self.tradable_instruments)
             )['prices']
         }
 
@@ -106,7 +95,7 @@ class FractTrader(oandapy.API):
             bp = prices[inst]['ask']
         else:
             inst_bp = [
-                (inst if inst in self.instrument_list else None) for inst
+                (inst if inst in self.tradable_instruments else None) for inst
                 in [
                     '{0}_{1}'.format(cur_pair[1], self.account_currency),
                     '{0}_{1}'.format(self.account_currency, cur_pair[1])

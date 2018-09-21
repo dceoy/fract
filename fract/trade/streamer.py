@@ -3,23 +3,28 @@
 import logging
 import json
 import os
+import signal
 import sqlite3
 import oandapy
 import redis
+from ..cli.util import read_config_yml
 
 
 class StreamDriver(oandapy.Streamer):
-    def __init__(self, environment, access_token, account_id, target='rate',
-                 instruments=None, ignore_heartbeat=True, use_redis=False,
+    def __init__(self, config_dict, target='rate', instruments=None,
+                 ignore_heartbeat=True, use_redis=False,
                  redis_host='127.0.0.1', redis_port=6379, redis_db=0,
-                 redis_max_llen=None, sqlite_path=None, quiet=False, **kwargs):
+                 redis_max_llen=None, sqlite_path=None, quiet=False):
         self.logger = logging.getLogger(__name__)
         super().__init__(
-            environment=environment, access_token=access_token, **kwargs
+            environment=config_dict['oanda']['environment'],
+            access_token=config_dict['oanda']['access_token']
         )
-        self.account_id = account_id
+        self.account_id = config_dict['oanda']['account_id'],
         self.target = target
-        self.instruments = instruments
+        self.instruments = (
+            instruments if instruments else config_dict['instruments']
+        )
         self.ignore_heartbeat = ignore_heartbeat
         self.quiet = quiet
         self.key = {'rate': 'tick', 'event': 'transaction'}[self.target]
@@ -32,6 +37,7 @@ class StreamDriver(oandapy.Streamer):
             self.redis.flushdb()
             self.redis_max_llen = redis_max_llen
         else:
+            self.redis_pool = None
             self.redis = None
             self.redis_max_llen = None
         if sqlite_path:
@@ -50,20 +56,21 @@ class StreamDriver(oandapy.Streamer):
             self.sqlite = None
 
     def on_success(self, data):
-        if self.quiet:
-            self.logger.debug(data)
-        else:
-            print(data)
+        data_json_str = json.dumps(data)
+        if not self.quiet:
+            print(data_json_str)
         if 'disconnect' in data:
+            self.logger.warning('Streaming disconnected: {}'.format(data))
             self.disconnect()
             if self.redis:
                 self.redis.connection_pool.disconnect()
             if self.sqlite:
                 self.sqlite.close()
-        else:
+        elif self.key in data:
+            self.logger.debug(data)
             if self.redis:
                 instrument = data[self.key]['instrument']
-                self.redis.rpush(instrument, json.dumps(data))
+                self.redis.rpush(instrument, data_json_str)
                 if self.redis_max_llen:
                     llen = self.redis.llen(instrument)
                     self.logger.debug('llen: {}'.format(llen))
@@ -90,6 +97,10 @@ class StreamDriver(oandapy.Streamer):
                         ]
                     )
                     self.sqlite.commit()
+                else:
+                    self.logger.warning(data)
+        else:
+            self.logger.debug('Save skipped: {}'.format(data))
 
     def on_error(self, data):
         self.logger.error(data)
@@ -99,17 +110,34 @@ class StreamDriver(oandapy.Streamer):
         if self.sqlite:
             self.sqlite.close()
 
-    def run(self, **kwargs):
+    def invoke(self):
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
         if self.target == 'rate':
             self.logger.info('Start to stream market prices')
             self.rates(
                 account_id=self.account_id,
                 ignore_heartbeat=self.ignore_heartbeat,
-                instruments=','.join(self.instruments), **kwargs
+                instruments=','.join(self.instruments)
             )
         elif self.target == 'event':
             self.logger.info('Start to stream events for the account')
             self.events(
                 account_id=self.account_id,
-                ignore_heartbeat=self.ignore_heartbeat, **kwargs
+                ignore_heartbeat=self.ignore_heartbeat
             )
+
+
+def invoke_streamer(config_yml, target='rate', instruments=None,
+                    sqlite_path=None, use_redis=False, redis_host=None,
+                    redis_port='6379', redis_db='0', redis_max_llen=None,
+                    quiet=False):
+    logger = logging.getLogger(__name__)
+    logger.info('Streaming')
+    streamer = StreamDriver(
+        config_dict=read_config_yml(path=config_yml), target=target,
+        instruments=instruments, use_redis=use_redis, redis_host=redis_host,
+        redis_port=int(redis_port), redis_db=int(redis_db),
+        redis_max_llen=(int(redis_max_llen) if redis_max_llen else None),
+        sqlite_path=sqlite_path, quiet=quiet
+    )
+    streamer.invoke()

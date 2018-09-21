@@ -3,33 +3,12 @@
 import json
 import os
 import logging
-import signal
 import sqlite3
 import oandapy
 import pandas as pd
 import pandas.io.sql as pdsql
 import yaml
 from ..cli.util import FractError, read_config_yml
-from .streamer import StreamDriver
-
-
-def invoke_streamer(config_yml, target, instruments, sqlite_path=None,
-                    use_redis=False, redis_host=None, redis_port=6379,
-                    redis_db=0, redis_max_llen=1000):
-    logger = logging.getLogger(__name__)
-    logger.info('Streaming')
-    cf = read_config_yml(path=config_yml)
-    insts = (instruments if instruments else cf['instruments'])
-    streamer = StreamDriver(
-        environment=cf['oanda']['environment'],
-        access_token=cf['oanda']['access_token'],
-        account_id=cf['oanda']['account_id'], target=target,
-        instruments=insts, ignore_heartbeat=True, use_redis=use_redis,
-        redis_host=redis_host, redis_port=redis_port, redis_db=redis_db,
-        redis_max_llen=redis_max_llen, sqlite_path=sqlite_path, quiet=False
-    )
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-    streamer.run()
 
 
 def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):
@@ -45,7 +24,8 @@ def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):
             d for d
             in oanda.get_history(
                 account_id=cf['oanda']['account_id'], instrument=inst,
-                candleFormat='bidask', granularity=granularity, count=count
+                candleFormat='bidask', granularity=granularity,
+                count=int(count)
             )['candles'] if d['complete']
         ] for inst in (instruments or cf['instruments'])
     }
