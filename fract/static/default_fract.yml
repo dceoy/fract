@@ -1,8 +1,8 @@
 ---
 oanda:
-  access_token: ''
-  account_id: ''
-  environment: live
+  access_token: ''      # required
+  account_id: ''        # required
+  environment: live     # required
 instruments:
   - USD_JPY
   - EUR_USD
@@ -24,3 +24,8 @@ model:
   ewma:
     alpha: 0.1          # (0, 1)
     ci_level: 0.99      # (0, 1)
+redis:
+  host: 127.0.0.1
+  port: 6379
+  db: 0
+  max_llen: 1000
