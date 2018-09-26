@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from functools import reduce
 import json
 import logging
 from pprint import pformat
@@ -98,7 +99,7 @@ class FractRedisTrader(oandapy.API):
                     time=lambda d: pd.to_datetime(d['time']),
                     mid=lambda d: (d['ask'] + d['bid']) / 2,
                     spread=lambda d: d['ask'] - d['bid']
-                )
+                ).set_index('time', drop=True)
         else:
             return None
 
@@ -108,27 +109,24 @@ class FractRedisTrader(oandapy.API):
 
 class Ewm:
     def __init__(self, alpha, mu=None, sigma=None):
-        self.wa = np.array([alpha, 1 - alpha])
+        self.alpha = alpha
         self.mean = mu
         self.std = sigma
-        self.var = sigma ** 2
+        self.var = sigma ** 2 if sigma else None
 
     def update(self, array):
-        is_init = self.mean is None and self.var is None
-        if is_init:
-            a = array
-        else:
-            a = np.insert(arr=array, obj=0, values=self.mean)
-        ewma = np.insert(
-            arr=np.convolve(a=a, v=self.wa, mode='valid'), obj=0, values=a[0]
-        )
-        if is_init:
-            d2 = (a - ewma) ** 2
-        else:
-            d2 = np.insert(arr=(a - ewma) ** 2, obj=0, values=self.var)
-        ewmvar = np.convolve(a=d2, v=self.wa, mode='valid')
+        ewma = pd.DataFrame(
+            np.insert(arr=array, obj=0, values=self.mean)
+            if self.mean else array
+        ).ewm(alpha=self.alpha, adjust=False).mean()[0].values
         self.mean = ewma[-1]
-        self.var = ewmvar[-1]
+        self.var = reduce(
+            lambda x0, x1: (1 - self.alpha) * (x0 + self.alpha * x1),
+            (
+                np.insert(arr=(array - ewma[:-1]) ** 2, obj=0, values=self.std)
+                if self.var else (array[1:] - ewma[:-1]) ** 2
+            )
+        )
         self.std = np.sqrt(self.var)
 
 
@@ -177,7 +175,7 @@ class EwmLogDiffTrader(FractRedisTrader):
             else:
                 ewm_ld = self.rate_dfs[instrument].pipe(
                     lambda d: np.log(d['mid']).diff()
-                ).ewm(alpha=self.mp['alpha'])
+                ).ewm(alpha=self.mp['alpha'], adjust=False)
                 self.ewm_ld[instrument] = Ewm(
                     alpha=self.mp['alpha'], mu=ewm_ld.mean().values[-1],
                     sigma=ewm_ld.std().values[-1]
