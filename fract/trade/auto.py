@@ -18,10 +18,13 @@ def invoke_trader(config_yml, instruments=None, model='ewm', interval='0',
     logger = logging.getLogger(__name__)
     logger.info('Autonomous trading')
     cf = read_config_yml(path=config_yml)
+    rd = cf['redis'] if 'redis' in cf else {}
     if model == 'ewm':
         trader = EwmLogDiffTrader(
-            config_dict=cf, instruments=instruments, redis_host=redis_host,
-            redis_port=int(redis_port), redis_db=int(redis_db),
+            config_dict=cf, instruments=instruments,
+            redis_host=(redis_host or rd['host']),
+            redis_port=(int(redis_port) if redis_port else rd['port']),
+            redis_db=(int(redis_db) if redis_db else rd['db']),
             interval=int(interval), timeout=int(timeout), n_cpu=cpu_count(),
             with_streamer=with_streamer, quiet=quiet
         )

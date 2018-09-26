@@ -2,12 +2,29 @@
 version: '3'
 
 services:
-  fract:
-    container_name: fract
+  trader:
+    container_name: fract-trader
     build:
       context: .
       dockerfile: Dockerfile
-    image: dceoy/fract:latest
+    image: dceoy/fract:dev
+    networks:
+      - fract-db
+    depends_on:
+      - streamer
+      - redis
+    volumes:
+      - ${PWD}:/wd
+    working_dir: /wd
+    entrypoint:
+      - fract
+    command:
+      - open
+      - --file=/wd/fract.yml
+    restart: always
+  streamer:
+    container_name: fract-streamer
+    image: dceoy/fract:dev
     networks:
       - fract-db
     depends_on:
@@ -21,10 +38,7 @@ services:
       - stream
       - --file=/wd/fract.yml
       - --target=rate
-      - --use-redis
-      - --redis-host=redis
-      - --redis-port=6379
-      - --redis-db=0
+      - --quiet
     restart: always
   redis:
     container_name: redis

@@ -1,8 +1,13 @@
 ---
-oanda:
+oanda:                  # required
   access_token: ''      # required
   account_id: ''        # required
   environment: live     # required
+redis:
+  host: 127.0.0.1
+  port: 6379
+  db: 0
+  max_llen: 1000
 instruments:
   - USD_JPY
   - EUR_USD
@@ -25,8 +30,3 @@ model:
     alpha: 0.01         # (0, 1)
     ci_level: 0.9       # (0, 1)
     window: [10, 1000]  # (0, Inf)
-redis:
-  host: 127.0.0.1
-  port: 6379
-  db: 0
-  max_llen: 1000

@@ -9,9 +9,9 @@ Usage:
     fract track [--debug|--info] [--file=<yaml>] [--sqlite=<db>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
-                 [--sqlite=<db>] [--use-redis] [--redis-host=<ip>]
-                 [--redis-port=<int>] [--redis-db=<int>]
-                 [--redis-max-llen=<int>] [--quiet] [<instrument>...]
+                 [--sqlite=<db>] [--redis-host=<ip>] [--redis-port=<int>]
+                 [--redis-db=<int>] [--redis-max-llen=<int>] [--quiet]
+                 [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--with-streamer]
                [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
@@ -29,12 +29,12 @@ Options:
                         Set a granularity for rate tracking [default: S5]
     --count=<int>       Set a size for rate tracking (max: 5000) [default: 60]
     --target=<str>      Set a streaming target { rate, event } [default: rate]
-    --use-redis         Use Redis for streaming cache
-    --redis-host=<ip>   Set a Redis server host [default: 127.0.0.1]
-    --redis-port=<int>  Set a Redis server port [default: 6379]
-    --redis-db=<int>    Set a Redis database [default: 0]
+    --redis-host=<ip>   Set a Redis server host (override YAML configurations)
+    --redis-port=<int>  Set a Redis server port (override YAML configurations)
+    --redis-db=<int>    Set a Redis database (override YAML configurations)
     --redis-max-llen=<int>
                         Limit max length for records in Redis
+                        (override YAML configurations)
     --model=<str>       Set trading models [default: ewm]
     --interval=<sec>    Wait seconds between iterations [default: 0]
     --timeout=<sec>     Set senconds for timeout [default: 3600]
@@ -98,8 +98,8 @@ def main():
         invoke_streamer(
             config_yml=args['--file'], target=args['--target'],
             instruments=args['<instrument>'], sqlite_path=args['--sqlite'],
-            use_redis=args['--use-redis'], redis_host=args['--redis-host'],
-            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
+            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
+            redis_db=args['--redis-db'],
             redis_max_llen=args['--redis-max-llen'], quiet=args['--quiet']
         )
     elif args['open']:

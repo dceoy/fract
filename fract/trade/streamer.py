@@ -12,9 +12,9 @@ from ..cli.util import read_config_yml
 
 class StreamDriver(oandapy.Streamer):
     def __init__(self, config_dict, target='rate', instruments=None,
-                 ignore_heartbeat=True, use_redis=False,
-                 redis_host='127.0.0.1', redis_port=6379, redis_db=0,
-                 redis_max_llen=None, sqlite_path=None, quiet=False):
+                 ignore_heartbeat=True, redis_host='127.0.0.1',
+                 redis_port=6379, redis_db=0, redis_max_llen=None,
+                 sqlite_path=None, quiet=False):
         self.logger = logging.getLogger(__name__)
         super().__init__(
             environment=config_dict['oanda']['environment'],
@@ -28,7 +28,7 @@ class StreamDriver(oandapy.Streamer):
         self.ignore_heartbeat = ignore_heartbeat
         self.quiet = quiet
         self.key = {'rate': 'tick', 'event': 'transaction'}[self.target]
-        if use_redis:
+        if redis_host:
             self.logger.info('Set a streamer with Redis')
             self.redis_pool = redis.ConnectionPool(
                 host=redis_host, port=redis_port, db=redis_db
@@ -128,16 +128,20 @@ class StreamDriver(oandapy.Streamer):
 
 
 def invoke_streamer(config_yml, target='rate', instruments=None,
-                    sqlite_path=None, use_redis=False, redis_host=None,
-                    redis_port='6379', redis_db='0', redis_max_llen=None,
-                    quiet=False):
+                    sqlite_path=None, redis_host=None, redis_port=None,
+                    redis_db=None, redis_max_llen=None, quiet=False):
     logger = logging.getLogger(__name__)
     logger.info('Streaming')
+    cf = read_config_yml(path=config_yml)
+    rd = cf['redis'] if 'redis' in cf else {}
     streamer = StreamDriver(
-        config_dict=read_config_yml(path=config_yml), target=target,
-        instruments=instruments, use_redis=use_redis, redis_host=redis_host,
-        redis_port=int(redis_port), redis_db=int(redis_db),
-        redis_max_llen=(int(redis_max_llen) if redis_max_llen else None),
+        config_dict=cf, target=target, instruments=instruments,
+        redis_host=(redis_host or rd.get('host')),
+        redis_port=(int(redis_port) if redis_port else rd.get('port')),
+        redis_db=(int(redis_db) if redis_db else rd.get('db')),
+        redis_max_llen=(
+            int(redis_max_llen) if redis_max_llen else rd.get('max_llen')
+        ),
         sqlite_path=sqlite_path, quiet=quiet
     )
     streamer.invoke()
