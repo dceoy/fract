@@ -21,9 +21,10 @@ order:
   stop_loss: 0.0025     # (0, 1)
   max_spread: 0.001     # (0, 1)
 model:
-  ewma:
-    alpha: 0.1          # (0, 1)
-    ci_level: 0.99      # (0, 1)
+  ewm:
+    alpha: 0.01         # (0, 1)
+    ci_level: 0.9       # (0, 1)
+    window: [10, 1000]  # (0, Inf)
 redis:
   host: 127.0.0.1
   port: 6379

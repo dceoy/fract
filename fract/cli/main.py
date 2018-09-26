@@ -35,7 +35,7 @@ Options:
     --redis-db=<int>    Set a Redis database [default: 0]
     --redis-max-llen=<int>
                         Limit max length for records in Redis
-    --model=<str>       Set trading models [default: ewma]
+    --model=<str>       Set trading models [default: ewm]
     --interval=<sec>    Wait seconds between iterations [default: 0]
     --timeout=<sec>     Set senconds for timeout [default: 3600]
     --with-streamer     Invoke a trader with a streamer

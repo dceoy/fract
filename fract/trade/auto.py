@@ -7,18 +7,18 @@ import time
 from ..cli.util import FractError, read_config_yml
 from ..model.bollinger import Bollinger
 from ..model.delta import Delta
-from ..model.ewma import EwmLogDiffTrader
+from ..model.ewm import EwmLogDiffTrader
 from ..model.kalman import Kalman
 from ..model.volatility import Volatility
 
 
-def invoke_trader(config_yml, instruments=None, model='ewma', interval='0',
+def invoke_trader(config_yml, instruments=None, model='ewm', interval='0',
                   timeout='3600', with_streamer=False, redis_host=None,
                   redis_port='6379', redis_db='0', quiet=False):
     logger = logging.getLogger(__name__)
     logger.info('Autonomous trading')
     cf = read_config_yml(path=config_yml)
-    if model == 'ewma':
+    if model == 'ewm':
         trader = EwmLogDiffTrader(
             config_dict=cf, instruments=instruments, redis_host=redis_host,
             redis_port=int(redis_port), redis_db=int(redis_db),

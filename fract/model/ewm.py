@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-from functools import reduce
 import json
 import logging
 from pprint import pformat
@@ -11,6 +10,7 @@ import numpy as np
 import oandapy
 import pandas as pd
 import redis
+from scipy import stats
 from ..trade.streamer import StreamDriver
 
 
@@ -107,37 +107,16 @@ class FractRedisTrader(oandapy.API):
         return [self.redis.lpop(key) for i in range(times)]
 
 
-class Ewm:
-    def __init__(self, alpha, mu=None, sigma=None):
-        self.alpha = alpha
-        self.mean = mu
-        self.std = sigma
-        self.var = sigma ** 2 if sigma else None
-
-    def update(self, array):
-        ewma = pd.DataFrame(
-            np.insert(arr=array, obj=0, values=self.mean)
-            if self.mean else array
-        ).ewm(alpha=self.alpha, adjust=False).mean()[0].values
-        self.mean = ewma[-1]
-        self.var = reduce(
-            lambda x0, x1: (1 - self.alpha) * (x0 + self.alpha * x1),
-            (
-                np.insert(arr=(array - ewma[:-1]) ** 2, obj=0, values=self.std)
-                if self.var else (array[1:] - ewma[:-1]) ** 2
-            )
-        )
-        self.std = np.sqrt(self.var)
-
-
 class EwmLogDiffTrader(FractRedisTrader):
-    def __init__(self, len_cache=10, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.op = self.cf['order']
-        self.mp = self.cf['model']['ewma']
-        self.len_cache = len_cache
-        self.rate_dfs = {k: pd.DataFrame() for k in self.instruments}
-        self.ewm_ld = {}
+        self.mp = self.cf['model']['ewm']
+        self.ewmld = EwmLogDiffCache(
+            alpha=self.mp['alpha'], ci_level=self.mp['ci_level'],
+            max_spread_prop=self.op['max_spread'],
+            size_range=self.mp['window'], ewm_adjust=False, quiet=self.quiet
+        )
 
     def invoke(self):
         if self.streamer:
@@ -158,26 +137,76 @@ class EwmLogDiffTrader(FractRedisTrader):
     def _open_deals(self):
         while self.is_active:
             time.sleep(self.interval)
-            for inst in self.instruments:
-                df_new = self.fetch_cached_rates(instrument=inst)
-                if df_new is not None:
-                    self._trade(instrument=inst, df_new=df_new)
+            [self._trade(instrument=i) for i in self.instruments]
 
-    def _trade(self, instrument, df_new):
-        self.rate_dfs[instrument] = pd.concat(
-            [self.rate_dfs[instrument], df_new]
-        ).tail(n=self.len_cache)
-        if len(self.rate_dfs[instrument]) < self.len_cache:
-            return None
-        else:
-            if instrument in self.ewm_ld:
-                self.ewm_ld[instrument].update(array=df_new[['mid']].values)
+    def _trade(self, instrument):
+        df_new = self.fetch_cached_rates(instrument=instrument)
+        if df_new is not None:
+            self.ewmld.update(key=instrument, df_new=df_new)
+            if self.ewmld.caches[instrument]['side']:
+                pass
             else:
-                ewm_ld = self.rate_dfs[instrument].pipe(
-                    lambda d: np.log(d['mid']).diff()
-                ).ewm(alpha=self.mp['alpha'], adjust=False)
-                self.ewm_ld[instrument] = Ewm(
-                    alpha=self.mp['alpha'], mu=ewm_ld.mean().values[-1],
-                    sigma=ewm_ld.std().values[-1]
-                )
-            print(vars(self.ewm_ld[instrument]), flush=True)
+                pass
+
+
+class EwmLogDiffCache:
+    def __init__(self, alpha=0.01, size_range=(10, 1000), ci_level=0.99,
+                 max_spread_prop=0.001, ewm_adjust=False, quiet=False):
+        self.alpha = alpha
+        self.size_range = size_range
+        self.ci_level = ci_level
+        self.max_spread_prop = max_spread_prop
+        self.ewm_adjust = ewm_adjust
+        self.quiet = quiet
+        self.caches = {}
+
+    def update(self, key, df_new):
+        last_rate = df_new.tail(n=1).reset_index().T.to_dict()[0]
+        series_mid = (
+            self.caches[key]['series_mid'].append(df_new['mid'])
+            if key in self.caches else df_new['mid']
+        ).tail(n=self.size_range[1])
+        if series_mid.size < self.size_range[0]:
+            mu = sigma = np.nan
+            ci = np.array([np.nan] * 2)
+            side = None
+            state = 'LOADING'
+        else:
+            ewm = np.log(series_mid).diff().ewm(
+                alpha=self.alpha, adjust=self.ewm_adjust, ignore_na=True
+            )
+            mu = ewm.mean().values[-1]
+            sigma = ewm.std().values[-1]
+            ci = np.array(
+                stats.norm.interval(alpha=self.ci_level, loc=mu, scale=sigma)
+            )
+            if last_rate['spread'] > last_rate['mid'] * self.max_spread_prop:
+                side = None
+                state = 'OVERSPREAD'
+            else:
+                if ci[0] > 0:
+                    side = 'BUY'
+                elif ci[1] < 0:
+                    side = 'SELL'
+                else:
+                    side = None
+                state = side or ''
+        self.caches[key] = {
+            'mean': mu, 'std': sigma, 'ci': ci, 'side': side,
+            'series_mid': series_mid, **last_rate
+        }
+        msg = '| {0:7} | RATE: {1:>20} | LD: {2:>20} | {3:^10} |'.format(
+            key,
+            np.array2string(
+                df_new[['bid', 'ask']].values[-1],
+                formatter={'float_kind': lambda f: '{:8g}'.format(f)}
+            ),
+            np.array2string(
+                ci, formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
+            ),
+            state
+        )
+        if self.quiet:
+            self.logger.info(msg)
+        else:
+            print(msg, flush=True)
