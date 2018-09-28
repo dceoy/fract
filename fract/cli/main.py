@@ -72,11 +72,13 @@ import logging
 import os
 from docopt import docopt
 from .. import __version__
-from ..trade.auto import invoke_trader
-from ..trade.info import print_info, track_rate
-from ..trade.order import close_positions
-from ..trade.streamer import invoke_streamer
-from .util import set_log_config, write_config_yml
+from ..auto.streamer import invoke_streamer
+from ..auto.trader import invoke_trader
+from ..order.close import close_positions
+from ..track.info import print_info
+from ..track.rate import track_rate
+from ..util.config import write_config_yml
+from ..util.logger import set_log_config
 
 
 def main():
@@ -111,8 +113,8 @@ def main():
             model=args['--model'], interval_sec=args['--interval'],
             timeout_sec=args['--timeout'], redis_host=args['--redis-host'],
             redis_port=args['--redis-port'], redis_db=args['--redis-db'],
-            log_dir_path=['--log-dir'], with_streamer=args['--with-streamer'],
-            quiet=args['--quiet']
+            log_dir_path=args['--log-dir'],
+            with_streamer=args['--with-streamer'], quiet=args['--quiet']
         )
     elif args['close']:
         close_positions(

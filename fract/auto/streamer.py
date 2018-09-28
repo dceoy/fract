@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-import logging
 import json
+import logging
 import os
 import signal
 import sqlite3
 import oandapy
 import redis
-from ..cli.util import read_config_yml
+from ..util.config import read_config_yml
 
 
 class StreamDriver(oandapy.Streamer):
@@ -33,7 +33,9 @@ class StreamDriver(oandapy.Streamer):
             self.redis_pool = redis.ConnectionPool(
                 host=redis_host, port=int(redis_port), db=int(redis_db)
             )
-            self.redis_max_llen = int(redis_max_llen)
+            self.redis_max_llen = (
+                int(redis_max_llen) if redis_max_llen else None
+            )
             redis_c = redis.StrictRedis(connection_pool=self.redis_pool)
             redis_c.flushdb()
         else:
@@ -41,23 +43,26 @@ class StreamDriver(oandapy.Streamer):
             self.redis_max_llen = None
         if sqlite_path:
             self.logger.info('Set a streamer with SQLite')
-            if os.path.isfile(sqlite_path):
-                self.sqlite = sqlite3.connect(sqlite_path)
+            sqlite_abspath = os.path.abspath(os.path.expanduser(sqlite_path))
+            if os.path.isfile(sqlite_abspath):
+                self.sqlite = sqlite3.connect(sqlite_abspath)
             else:
                 schema_sql_path = os.path.join(
                     os.path.dirname(__file__), '../static/create_tables.sql'
                 )
                 with open(schema_sql_path, 'r') as f:
                     sql = f.read()
-                self.sqlite = sqlite3.connect(sqlite_path)
+                self.sqlite = sqlite3.connect(sqlite_abspath)
                 self.sqlite.executescript(sql)
         else:
             self.sqlite = None
 
     def on_success(self, data):
         data_json_str = json.dumps(data)
-        if not self.quiet:
-            print(data_json_str)
+        if self.quiet:
+            self.logger.debug(data_json_str)
+        else:
+            print(data_json_str, flush=True)
         if 'disconnect' in data:
             self.logger.warning('Streaming disconnected: {}'.format(data))
             self.shutdown()

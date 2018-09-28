@@ -3,7 +3,7 @@
 import logging
 import os
 import oandapy
-from ..cli.util import read_config_yml
+from ..util.config import read_config_yml
 
 
 def close_positions(config_yml, instruments=[]):
