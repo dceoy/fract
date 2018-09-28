@@ -31,14 +31,13 @@ class StreamDriver(oandapy.Streamer):
         if redis_host:
             self.logger.info('Set a streamer with Redis')
             self.redis_pool = redis.ConnectionPool(
-                host=redis_host, port=redis_port, db=redis_db
+                host=redis_host, port=int(redis_port), db=int(redis_db)
             )
-            self.redis = redis.StrictRedis(connection_pool=self.redis_pool)
-            self.redis.flushdb()
-            self.redis_max_llen = redis_max_llen
+            self.redis_max_llen = int(redis_max_llen)
+            redis_c = redis.StrictRedis(connection_pool=self.redis_pool)
+            redis_c.flushdb()
         else:
             self.redis_pool = None
-            self.redis = None
             self.redis_max_llen = None
         if sqlite_path:
             self.logger.info('Set a streamer with SQLite')
@@ -61,21 +60,16 @@ class StreamDriver(oandapy.Streamer):
             print(data_json_str)
         if 'disconnect' in data:
             self.logger.warning('Streaming disconnected: {}'.format(data))
-            self.disconnect()
-            if self.redis:
-                self.redis.connection_pool.disconnect()
-            if self.sqlite:
-                self.sqlite.close()
+            self.shutdown()
         elif self.key in data:
             self.logger.debug(data)
-            if self.redis:
+            if self.redis_pool:
                 instrument = data[self.key]['instrument']
-                self.redis.rpush(instrument, data_json_str)
+                redis_c = redis.StrictRedis(connection_pool=self.redis_pool)
+                redis_c.rpush(instrument, data_json_str)
                 if self.redis_max_llen:
-                    llen = self.redis.llen(instrument)
-                    self.logger.debug('llen: {}'.format(llen))
-                    if llen > self.redis_max_llen:
-                        self.redis.lpop(instrument)
+                    if redis_c.llen(instrument) > self.redis_max_llen:
+                        redis_c.lpop(instrument)
             if self.sqlite:
                 c = self.sqlite.cursor()
                 if 'tick' in data:
@@ -104,11 +98,7 @@ class StreamDriver(oandapy.Streamer):
 
     def on_error(self, data):
         self.logger.error(data)
-        self.disconnect()
-        if self.redis:
-            self.redis.connection_pool.disconnect()
-        if self.sqlite:
-            self.sqlite.close()
+        self.shutdown()
 
     def invoke(self):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -126,10 +116,17 @@ class StreamDriver(oandapy.Streamer):
                 ignore_heartbeat=self.ignore_heartbeat
             )
 
+    def shutdown(self):
+        self.disconnect()
+        if self.redis_pool:
+            self.redis_pool.disconnect()
+        if self.sqlite:
+            self.sqlite.close()
+
 
 def invoke_streamer(config_yml, target='rate', instruments=None,
-                    sqlite_path=None, redis_host=None, redis_port=None,
-                    redis_db=None, redis_max_llen=None, quiet=False):
+                    sqlite_path=None, redis_host=None, redis_port=6379,
+                    redis_db=0, redis_max_llen=None, quiet=False):
     logger = logging.getLogger(__name__)
     logger.info('Streaming')
     cf = read_config_yml(path=config_yml)
@@ -137,11 +134,8 @@ def invoke_streamer(config_yml, target='rate', instruments=None,
     streamer = StreamDriver(
         config_dict=cf, target=target, instruments=instruments,
         redis_host=(redis_host or rd.get('host')),
-        redis_port=(int(redis_port) if redis_port else rd.get('port')),
-        redis_db=(int(redis_db) if redis_db else rd.get('db')),
-        redis_max_llen=(
-            int(redis_max_llen) if redis_max_llen else rd.get('max_llen')
-        ),
-        sqlite_path=sqlite_path, quiet=quiet
+        redis_port=(redis_port or rd.get('port')),
+        redis_db=(redis_db if redis_db is not None else rd.get('db')),
+        redis_max_llen=redis_max_llen, sqlite_path=sqlite_path, quiet=quiet
     )
     streamer.invoke()

@@ -76,8 +76,16 @@ def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):
         print(json.dumps(candles))
 
 
-def print_info(config_yml, instruments, type='accounts'):
+def print_info(config_yml, instruments=[], type='accounts'):
     logger = logging.getLogger(__name__)
+    available_types = [
+        'instruments', 'account', 'accounts', 'orders', 'trades', 'positions',
+        'transactions', 'prices', 'position', 'eco_calendar',
+        'historical_position_ratios', 'historical_spreads',
+        'commitments_of_traders', 'orderbook', 'autochartist',
+    ]
+    if type not in available_types:
+        raise FractError('invalid info type: {}'.format(type))
     logger.info('Information')
     cf = read_config_yml(path=config_yml)
     oanda = oandapy.API(
@@ -85,42 +93,51 @@ def print_info(config_yml, instruments, type='accounts'):
         access_token=cf['oanda']['access_token']
     )
     account_id = cf['oanda']['account_id']
-    cs_instruments = ','.join(instruments)
+    insts_str = ','.join(cf.get('instruments') or instruments)
+    period = 604800     # 1 weeik
+    arg_insts = {'instruments': insts_str} if insts_str else {}
     if type == 'instruments':
-        info = oanda.get_instruments(account_id=account_id)
-    elif type == 'prices':
-        info = oanda.get_prices(account_id=account_id,
-                                instruments=cs_instruments)
+        res = oanda.get_instruments(
+            account_id=account_id,
+            fields=','.join([
+                'displayName', 'pip', 'maxTradeUnits', 'precision',
+                'maxTrailingStop', 'minTrailingStop', 'marginRate', 'halted'
+            ]),
+            **arg_insts
+        )
     elif type == 'account':
-        info = oanda.get_account(account_id=account_id)
+        res = oanda.get_account(account_id=account_id)
     elif type == 'accounts':
-        info = oanda.get_accounts()
+        res = oanda.get_accounts()
     elif type == 'orders':
-        info = oanda.get_orders(account_id=account_id)
+        res = oanda.get_orders(account_id=account_id, **arg_insts)
     elif type == 'trades':
-        info = oanda.get_trades(account_id=account_id)
+        res = oanda.get_trades(account_id=account_id, **arg_insts)
     elif type == 'positions':
-        info = oanda.get_positions(account_id=account_id)
+        res = oanda.get_positions(account_id=account_id)
+    elif type == 'transactions':
+        res = oanda.get_transaction_history(account_id=account_id, **arg_insts)
+    elif not insts_str:
+        raise FractError('{}: instruments required'.format(type))
+    elif type == 'prices':
+        res = oanda.get_prices(account_id=account_id, instruments=insts_str)
     elif type == 'position':
-        info = oanda.get_position(account_id=account_id,
-                                  instruments=cs_instruments)
-    elif type == 'transaction':
-        info = oanda.get_transaction(account_id=account_id)
-    elif type == 'transaction_history':
-        info = oanda.get_transaction_history(account_id=account_id)
+        res = oanda.get_position(account_id=account_id, instruments=insts_str)
     elif type == 'eco_calendar':
-        info = oanda.get_eco_calendar()
+        res = oanda.get_eco_calendar(instruments=insts_str, period=period)
     elif type == 'historical_position_ratios':
-        info = oanda.get_historical_position_ratios()
+        res = oanda.get_historical_position_ratios(
+            instruments=insts_str, period=period
+        )
     elif type == 'historical_spreads':
-        info = oanda.get_historical_spreads()
+        res = oanda.get_historical_spreads(
+            instruments=insts_str, period=period
+        )
     elif type == 'commitments_of_traders':
-        info = oanda.get_commitments_of_traders()
+        res = oanda.get_commitments_of_traders(instruments=insts_str)
     elif type == 'orderbook':
-        info = oanda.get_orderbook()
+        res = oanda.get_orderbook(instruments=insts_str, period=period)
     elif type == 'autochartist':
-        info = oanda.get_autochartist()
-    else:
-        raise FractError('invalid info type: {}'.format(type))
+        res = oanda.get_autochartist(instruments=insts_str, period=period)
     logger.debug('Print information: {}'.format(type))
-    print(yaml.dump(info, default_flow_style=False))
+    print(yaml.dump(res, default_flow_style=False))

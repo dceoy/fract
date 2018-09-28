@@ -5,7 +5,7 @@ Usage:
     fract -h|--help
     fract -v|--version
     fract init [--debug|--info] [--file=<yaml>]
-    fract info [--debug|--info] [--file=<yaml>] <info_target>
+    fract info [--debug|--info] [--file=<yaml>] <info_target> [<instrument>...]
     fract track [--debug|--info] [--file=<yaml>] [--sqlite=<db>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
@@ -15,7 +15,7 @@ Usage:
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--with-streamer]
                [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-               [--quiet] [<instrument>...]
+               [--log-dir=<path>] [--quiet] [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
 
 Options:
@@ -33,12 +33,12 @@ Options:
     --redis-port=<int>  Set a Redis server port (override YAML configurations)
     --redis-db=<int>    Set a Redis database (override YAML configurations)
     --redis-max-llen=<int>
-                        Limit max length for records in Redis
-                        (override YAML configurations)
+                        Limit Redis list length (override YAML configurations)
     --model=<str>       Set trading models [default: ewm]
     --interval=<sec>    Wait seconds between iterations [default: 0]
-    --timeout=<sec>     Set senconds for timeout [default: 3600]
+    --timeout=<sec>     Set senconds for response timeout [default: 3600]
     --with-streamer     Invoke a trader with a streamer
+    --log-dir=<path>    Write output log files in a directory
 
 Commands:
     init                Generate a YAML template for configuration
@@ -50,10 +50,10 @@ Commands:
 
 Arguments:
     <info_target>       { instruments, prices, account, accounts, orders,
-                          trades, positions, position, transaction,
-                          transaction_history, eco_calendar,
-                          historical_position_ratios, historical_spreads,
-                          commitments_of_traders, orderbook, autochartists }
+                          trades, positions, position, transaction_history,
+                          eco_calendar, historical_position_ratios,
+                          historical_spreads, commitments_of_traders,
+                          orderbook, autochartists }
     <instrument>        { AUD_CAD, AUD_CHF, AUD_HKD, AUD_JPY, AUD_NZD, AUD_SGD,
                           AUD_USD, CAD_CHF, CAD_HKD, CAD_JPY, CAD_SGD, CHF_HKD,
                           CHF_JPY, CHF_ZAR, EUR_AUD, EUR_CAD, EUR_CHF, EUR_CZK,
@@ -76,18 +76,21 @@ from ..trade.auto import invoke_trader
 from ..trade.info import print_info, track_rate
 from ..trade.order import close_positions
 from ..trade.streamer import invoke_streamer
-from .util import write_config_yml
+from .util import set_log_config, write_config_yml
 
 
 def main():
     args = docopt(__doc__, version='fract {}'.format(__version__))
-    _set_log_config(debug=args['--debug'], info=args['--info'])
+    set_log_config(debug=args['--debug'], info=args['--info'])
     logger = logging.getLogger(__name__)
     logger.debug('args:{0}{1}'.format(os.linesep, args))
     if args['init']:
         write_config_yml(path=args['--file'])
     elif args['info']:
-        print_info(config_yml=args['--file'], type=args['<info_target>'])
+        print_info(
+            config_yml=args['--file'], instruments=args['<instrument>'],
+            type=args['<info_target>']
+        )
     elif args['track']:
         track_rate(
             config_yml=args['--file'], instruments=args['<instrument>'],
@@ -105,25 +108,13 @@ def main():
     elif args['open']:
         invoke_trader(
             config_yml=args['--file'], instruments=args['<instrument>'],
-            model=args['--model'], interval=args['--interval'],
-            timeout=args['--timeout'], with_streamer=args['--with-streamer'],
-            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
-            redis_db=args['--redis-db'], quiet=args['--quiet']
+            model=args['--model'], interval_sec=args['--interval'],
+            timeout_sec=args['--timeout'], redis_host=args['--redis-host'],
+            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
+            log_dir_path=['--log-dir'], with_streamer=args['--with-streamer'],
+            quiet=args['--quiet']
         )
     elif args['close']:
         close_positions(
             config_yml=args['--file'], instruments=args['<instrument>']
         )
-
-
-def _set_log_config(debug=None, info=None):
-    if debug:
-        lv = logging.DEBUG
-    elif info:
-        lv = logging.INFO
-    else:
-        lv = logging.WARNING
-    logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S', level=lv
-    )
