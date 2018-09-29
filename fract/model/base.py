@@ -8,6 +8,7 @@ import time
 import numpy as np
 import oandapy
 import pandas as pd
+import yaml
 from .bet import BettingSystem
 
 
@@ -22,10 +23,13 @@ class BaseTrader(oandapy.API):
         )
         self.account_id = config_dict['oanda']['account_id'],
         self.instruments = instruments or config_dict['instruments']
-        self.log_dir_path = (
-            os.path.abspath(os.path.expanduser(log_dir_path))
-            if log_dir_path else None
-        )
+        if log_dir_path:
+            log_dir_path = os.path.abspath(os.path.expanduser(log_dir_path))
+            self.log_dir_path = log_dir_path
+            self.order_log_path = os.path.join(log_dir_path, 'order.json.txt')
+        else:
+            self.log_dir_path = None
+            self.order_log_path = None
         self.quiet = quiet
         self.bs = BettingSystem(strategy=self.cf['position']['bet'])
         self.oanda_dict = dict()
@@ -119,7 +123,7 @@ class BaseTrader(oandapy.API):
                 if td > np.timedelta64(ttl_sec, 's'):
                     r = self._place_close_order(instrument=i)
                     if self.log_dir_path:
-                        self.write_order_log(response=r)
+                        self.write_json_log(data=r, name=self.order_log_path)
 
     def design_and_place_order(self, instrument, side):
         units = self.calculate_order_units(instrument=instrument, side=side)
@@ -135,7 +139,7 @@ class BaseTrader(oandapy.API):
             self.print_log('Open on order:' + os.linesep + pformat(r))
         finally:
             if self.log_dir_path:
-                self.write_order_log(response=r)
+                self.write_json_log(data=r, name=self.order_log_path)
 
     def calculate_order_limits(self, instrument, side):
         inst_dict = [
@@ -226,13 +230,18 @@ class BaseTrader(oandapy.API):
         else:
             print(data, flush=True)
 
-    def write_rate_log(self, instrument, df_new):
-        p = os.path.join(
-            self.log_dir_path, 'rate_{}.log.csv'.format(instrument)
-        )
-        df_new.to_csv(p, mode='a', header=(not os.path.isfile(p)))
+    def write_df_log(self, df, name, mode='a'):
+        p = os.path.join(self.log_dir_path, name)
+        df.to_csv(p, mode=mode, header=(not os.path.isfile(p)))
 
-    def write_order_log(self, response):
-        p = os.path.join(self.log_dir_path, 'order.log.csv')
-        with open(p, 'a') as f:
-            f.write(json.dumps(response))
+    def write_json_log(self, data, name, mode='a'):
+        with open(os.path.join(self.log_dir_path, name), mode) as f:
+            f.write(json.dumps(data) + os.linesep)
+
+    def write_parameter_log(self, name='fract.parameter.yml'):
+        param = {
+            'instrument': self.instruments, 'model': self.cf['model'],
+            'position': self.cf['position']
+        }
+        with open(os.path.join(self.log_dir_path, name), 'w') as f:
+            f.write(yaml.dump(param, default_flow_style=False))

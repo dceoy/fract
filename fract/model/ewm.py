@@ -17,25 +17,34 @@ class EwmLogDiffTrader(RedisTrader):
             ci_level=self.cf['model']['ewm']['ci_level']
         )
         self.rate_caches = {i: pd.Series() for i in self.instruments}
-        self.ewm_caches = {i: dict() for i in self.instruments}
+        self.ewm_stats = {i: dict() for i in self.instruments}
 
     def invoke(self):
         self.print_log('!!! OPEN DEALS !!!')
         signal.signal(signal.SIGINT, signal.SIG_DFL)
+        if self.log_dir_path:
+            self.write_parameter_log()
         while self.check_health():
             self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
-            for i in self.instruments:
-                self.refresh_oanda_dict()
-                df_new = self.fetch_cached_rates(instrument=i)
-                if df_new is None:
-                    self.logger.info('No updated data')
-                else:
-                    self._update_caches(instrument=i, df_new=df_new)
-                    side = self._determine_order_side(instrument=i)
-                    if side:
-                        self.design_and_place_order(instrument=i, side=side)
-                    if self.log_dir_path:
-                        self.write_rate_log(instrument=i, df_new=df_new)
+            self._open_deals()
+
+    def _open_deals(self):
+        for i in self.instruments:
+            self.refresh_oanda_dict()
+            df_new = self.fetch_cached_rates(instrument=i)
+            if df_new is None:
+                self.logger.info('No updated data')
+            else:
+                self._update_caches(instrument=i, df_new=df_new)
+                st = self._determine_order_side(instrument=i)
+                if st['side']:
+                    self.design_and_place_order(instrument=i, side=st['side'])
+                if self.log_dir_path:
+                    self.write_df_log(df=df_new, name='rate.{}.csv'.format(i))
+                    self.write_df_log(
+                        df=pd.DataFrame([st]).set_index('time', drop=True),
+                        name='ewm.{}.csv'.format(i)
+                    )
 
     def _update_caches(self, instrument, df_new):
         self.latest_update_time = datetime.now()
@@ -44,14 +53,14 @@ class EwmLogDiffTrader(RedisTrader):
             df_new['mid']
         ).tail(n=int(self.cf['model']['ewm']['window'][1]))
         self.rate_caches[instrument] = mid
-        self.ewm_caches[instrument] = {
+        self.ewm_stats[instrument] = {
             **df_new.tail(n=1).reset_index().T.to_dict()[0],
             **self.ewmld.calculate_ci(series=mid)
         }
 
     def _determine_order_side(self, instrument):
         od = self.oanda_dict
-        ec = self.ewm_caches[instrument]
+        ec = self.ewm_stats[instrument]
         pos = [p for p in od['positions'] if p['instrument'] == instrument][0]
         tr = [d for d in od['instruments'] if d['instrument'] == instrument][0]
         mp = self.cf['model']['ewm']
@@ -71,10 +80,10 @@ class EwmLogDiffTrader(RedisTrader):
         elif ec['spread'] > ec['mid'] * pp['limit_price_ratio']['max_spread']:
             side = None
             state = 'OVER-SPREAD'
-        elif ec['ci'][0] > 0:
+        elif ec['ewmacil'] > 0:
             side = 'buy'
             state = 'OPEN LONG'
-        elif ec['ci'][1] < 0:
+        elif ec['ewmaciu'] < 0:
             side = 'sell'
             state = 'OPEN SHORT'
         else:
@@ -88,13 +97,13 @@ class EwmLogDiffTrader(RedisTrader):
                     formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                 ),
                 np.array2string(
-                    ec['ci'],
+                    np.array([ec['ewmacil'], ec['ewmaciu']]),
                     formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
                 ),
                 state
             )
         )
-        return side
+        return {'side': side, 'state': state, **ec}
 
 
 class EwmLogDiff(object):
@@ -107,9 +116,7 @@ class EwmLogDiff(object):
         ewm = np.log(series).diff().ewm(
             alpha=self.alpha, adjust=self.ewm_adjust, ignore_na=True
         )
-        mu = ewm.mean().values[-1]
-        sigma = ewm.std().values[-1]
-        ci = np.array(
-            stats.norm.interval(alpha=self.ci_level, loc=mu, scale=sigma)
-        )
-        return {'mean': mu, 'std': sigma, 'ci': ci}
+        m = ewm.mean().values[-1]
+        s = ewm.std().values[-1]
+        ci = stats.norm.interval(alpha=self.ci_level, loc=m, scale=s)
+        return {'ewma': m, 'ewmstd': s, 'ewmacil': ci[0], 'ewmaciu': ci[1]}

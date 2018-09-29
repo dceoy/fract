@@ -25,10 +25,10 @@ Usage:
     fract -v|--version
     fract init [--debug|--info] [--file=<yaml>]
     fract info [--debug|--info] [--file=<yaml>] <info_target> [<instrument>...]
-    fract track [--debug|--info] [--file=<yaml>] [--sqlite=<db>]
+    fract track [--debug|--info] [--file=<yaml>] [--sqlite=<path>]
                 [--granularity=<code>] [--count=<int>] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
-                 [--sqlite=<db>] [--redis-host=<ip>] [--redis-port=<int>]
+                 [--sqlite=<path>] [--redis-host=<ip>] [--redis-port=<int>]
                  [--redis-db=<int>] [--redis-max-llen=<int>] [--quiet]
                  [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
@@ -43,7 +43,7 @@ Options:
     --debug, --info     Execute a command with debug|info messages
     --file=<yaml>       Set a path to a YAML for configurations [$FRACT_YML]
     --quiet             Suppress messages
-    --sqlite=<db>       Save data in an SQLite3 database
+    --sqlite=<path>     Save data in an SQLite3 database
     --granularity=<code>
                         Set a granularity for rate tracking [default: S5]
     --count=<int>       Set a size for rate tracking (max: 5000) [default: 60]

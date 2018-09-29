@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import logging
 import time
+import numpy as np
 import pandas as pd
 import redis
 from .base import BaseTrader
@@ -19,7 +20,7 @@ class RedisTrader(BaseTrader):
             log_dir_path=log_dir_path, quiet=quiet
         )
         self.interval_sec = int(interval_sec)
-        self.timeout_sec = int(timeout_sec)
+        self.timeout_sec = int(timeout_sec) if timeout_sec else None
         self.redis_pool = redis_pool or redis.ConnectionPool(
             host=redis_host, port=int(redis_port), db=int(redis_db)
         )
@@ -44,8 +45,8 @@ class RedisTrader(BaseTrader):
                     [d['tick'] for d in cached_rates if 'tick' in d]
                 ).assign(
                     time=lambda d: pd.to_datetime(d['time']),
-                    mid=lambda d: (d['ask'] + d['bid']) / 2,
-                    spread=lambda d: d['ask'] - d['bid']
+                    mid=lambda d: np.float16((d['ask'] + d['bid']) / 2),
+                    spread=lambda d: np.float16(d['ask'] - d['bid'])
                 ).set_index('time', drop=True)
         else:
             return None
@@ -58,7 +59,7 @@ class RedisTrader(BaseTrader):
             return self.is_active
         else:
             td = datetime.now() - self.latest_update_time
-            if td.total_seconds() > self.timeout_sec:
+            if self.timeout_sec and td.total_seconds() > self.timeout_sec:
                 self.logger.warning(
                     'Timeout: no data update ({} sec)'.format(self.timeout_sec)
                 )
