@@ -9,8 +9,8 @@ Installation
 ------------
 
 ```sh
-$ pip install -U git+https://github.com/oanda/oandapy.git \
-                 git+https://github.com/dceoy/fract.git
+$ pip install -U https://github.com/oanda/oandapy/archive/master.tar.gz \
+                 https://github.com/dceoy/fract/archive/master.tar.gz
 ```
 
 Usage
