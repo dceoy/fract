@@ -1,53 +1,59 @@
 #!/usr/bin/env python
-"""Stream and trade forex with Oanda API
+"""Stream, track, and trade forex with Oanda API
 
 Usage:
-    fract init [--debug|--info] [--file=<yaml>]
-    fract info [--debug|--info] [--file=<yaml>] <info_target>
-    fract track [--debug|--info] [--file=<yaml>] [--sqlite=<db>]
-                [--granularity=<code>] [--count=<int>] [<instrument>...]
-    fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
-                 [--sqlite=<db>] [--redis-host=<ip>] [--redis-port=<int>]
-                 [--redis-db=<int>] [--redis-maxl=<int>] [<instrument>...]
-    fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
-    fract open [--debug|--info] [--file=<yaml>] [--wait=<sec>] [--iter=<int>]
-               [--models=<mod>] [--quiet] [<instrument>...]
     fract -h|--help
     fract -v|--version
+    fract init [--debug|--info] [--file=<yaml>]
+    fract info [--debug|--info] [--file=<yaml>] <info_target> [<instrument>...]
+    fract track [--debug|--info] [--file=<yaml>] [--sqlite=<path>]
+                [--granularity=<code>] [--count=<int>] [<instrument>...]
+    fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
+                 [--sqlite=<path>] [--redis-host=<ip>] [--redis-port=<int>]
+                 [--redis-db=<int>] [--redis-max-llen=<int>] [--quiet]
+                 [<instrument>...]
+    fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
+               [--interval=<sec>] [--timeout=<sec>] [--with-streamer]
+               [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
+               [--log-dir=<path>] [--quiet] [<instrument>...]
+    fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
     -v, --version       Print version and exit
     --debug, --info     Execute a command with debug|info messages
     --file=<yaml>       Set a path to a YAML for configurations [$FRACT_YML]
-    --wait=<sec>        Wait seconds between orders [default: 0]
-    --iter=<int>        Limit a number of executions
-    --models=<mod>      Set trading models [default: volatility]
     --quiet             Suppress messages
-    --target=<str>      Set a streaming target { rate, event } [default: rate]
-    --sqlite=<db>       Save data in an SQLite3 database
-    --count=<int>       Set a size for rate tracking (max: 5000) [default: 60]
+    --sqlite=<path>     Save data in an SQLite3 database
     --granularity=<code>
                         Set a granularity for rate tracking [default: S5]
-    --redis-host=<ip>   Set a Redis server host
-    --redis-port=<int>  Set a Redis server port
-    --redis-db=<int>    Set a Redis database [default: 0]
-    --redis-maxl=<int>  Limit max length for records in Redis [default: 1000]
+    --count=<int>       Set a size for rate tracking (max: 5000) [default: 60]
+    --target=<str>      Set a streaming target { rate, event } [default: rate]
+    --redis-host=<ip>   Set a Redis server host (override YAML configurations)
+    --redis-port=<int>  Set a Redis server port (override YAML configurations)
+    --redis-db=<int>    Set a Redis database (override YAML configurations)
+    --redis-max-llen=<int>
+                        Limit Redis list length (override YAML configurations)
+    --model=<str>       Set trading models [default: ewm]
+    --interval=<sec>    Wait seconds between iterations [default: 0]
+    --timeout=<sec>     Set senconds for response timeout
+    --with-streamer     Invoke a trader with a streamer
+    --log-dir=<path>    Write output log files in a directory
 
 Commands:
     init                Generate a YAML template for configuration
     info                Print information about <info_target>
     track               Fetch past rates
     stream              Stream market prices or authorized account events
+    open                Invoke an autonomous trader
     close               Close positions (if not <instrument>, close all)
-    open                Open autonomous trading
 
 Arguments:
     <info_target>       { instruments, prices, account, accounts, orders,
-                          trades, positions, position, transaction,
-                          transaction_history, eco_calendar,
-                          historical_position_ratios, historical_spreads,
-                          commitments_of_traders, orderbook, autochartists }
+                          trades, positions, position, transaction_history,
+                          eco_calendar, historical_position_ratios,
+                          historical_spreads, commitments_of_traders,
+                          orderbook, autochartists }
     <instrument>        { AUD_CAD, AUD_CHF, AUD_HKD, AUD_JPY, AUD_NZD, AUD_SGD,
                           AUD_USD, CAD_CHF, CAD_HKD, CAD_JPY, CAD_SGD, CHF_HKD,
                           CHF_JPY, CHF_ZAR, EUR_AUD, EUR_CAD, EUR_CHF, EUR_CZK,
@@ -64,60 +70,53 @@ Arguments:
 
 import logging
 import os
-import sys
 from docopt import docopt
 from .. import __version__
-from .util import write_config_yml
-from ..trade.info import print_info, track_rate
-from ..trade.stream import invoke_stream
-from ..trade.order import close_positions
-from ..trade.auto import open_deals
+from ..auto.streamer import invoke_streamer
+from ..auto.trader import invoke_trader
+from ..order.close import close_positions
+from ..track.info import print_info
+from ..track.rate import track_rate
+from ..util.config import write_config_yml
+from ..util.logger import set_log_config
 
 
 def main():
     args = docopt(__doc__, version='fract {}'.format(__version__))
-    _set_log_config(debug=args['--debug'], info=args['--info'])
+    set_log_config(debug=args['--debug'], info=args['--info'])
     logger = logging.getLogger(__name__)
     logger.debug('args:{0}{1}'.format(os.linesep, args))
-
     if args['init']:
         write_config_yml(path=args['--file'])
     elif args['info']:
-        print_info(config_yml=args['--file'], type=args['<info_target>'])
+        print_info(
+            config_yml=args['--file'], instruments=args['<instrument>'],
+            type=args['<info_target>']
+        )
     elif args['track']:
         track_rate(
             config_yml=args['--file'], instruments=args['<instrument>'],
-            granularity=args['--granularity'], count=int(args['--count']),
+            granularity=args['--granularity'], count=args['--count'],
             sqlite_path=args['--sqlite']
         )
     elif args['stream']:
-        invoke_stream(
+        invoke_streamer(
             config_yml=args['--file'], target=args['--target'],
             instruments=args['<instrument>'], sqlite_path=args['--sqlite'],
             redis_host=args['--redis-host'], redis_port=args['--redis-port'],
-            redis_db=args['--redis-db'], redis_maxl=args['--redis-maxl']
+            redis_db=args['--redis-db'],
+            redis_max_llen=args['--redis-max-llen'], quiet=args['--quiet']
+        )
+    elif args['open']:
+        invoke_trader(
+            config_yml=args['--file'], instruments=args['<instrument>'],
+            model=args['--model'], interval_sec=args['--interval'],
+            timeout_sec=args['--timeout'], redis_host=args['--redis-host'],
+            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
+            log_dir_path=args['--log-dir'],
+            with_streamer=args['--with-streamer'], quiet=args['--quiet']
         )
     elif args['close']:
         close_positions(
             config_yml=args['--file'], instruments=args['<instrument>']
         )
-    elif args['open']:
-        open_deals(
-            config_yml=args['--file'], instruments=args['<instrument>'],
-            models=args['--models'],
-            n=(int(args['--iter']) if args['--iter'] else sys.maxsize),
-            interval=float(args['--wait']), quiet=args['--quiet']
-        )
-
-
-def _set_log_config(debug=None, info=None):
-    if debug:
-        lv = logging.DEBUG
-    elif info:
-        lv = logging.INFO
-    else:
-        lv = logging.WARNING
-    logging.basicConfig(
-        format='%(asctime)s %(levelname)-8s %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S', level=lv
-    )

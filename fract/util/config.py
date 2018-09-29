@@ -6,10 +6,6 @@ import shutil
 import yaml
 
 
-class FractError(Exception):
-    pass
-
-
 def read_config_yml(path):
     with open(_config_yml_path(path=path)) as f:
         d = yaml.load(f)
