@@ -38,7 +38,7 @@ class RedisTrader(BaseTrader):
             if [r for r in cached_rates if 'disconnect' in r]:
                 self.logger.warning('cached_rates: {}'.format(cached_rates))
                 self.is_active = False
-                return None
+                return pd.DataFrame()
             else:
                 self.logger.debug('cached_rates: {}'.format(cached_rates))
                 return pd.DataFrame(
@@ -49,7 +49,7 @@ class RedisTrader(BaseTrader):
                     spread=lambda d: np.float16(d['ask'] - d['bid'])
                 ).set_index('time', drop=True)
         else:
-            return None
+            return pd.DataFrame()
 
     def check_health(self):
         if not self.latest_update_time:

@@ -24,17 +24,21 @@ class BaseTrader(oandapy.API):
         self.account_id = config_dict['oanda']['account_id'],
         self.instruments = instruments or config_dict['instruments']
         if log_dir_path:
-            log_dir_path = os.path.abspath(os.path.expanduser(log_dir_path))
-            self.log_dir_path = log_dir_path
-            self.order_log_path = os.path.join(log_dir_path, 'order.json.txt')
+            self.log_dir_path = self._abspath(log_dir_path)
+            self.order_log_path = os.path.join(
+                self.log_dir_path, 'order.json.txt'
+            )
         else:
             self.log_dir_path = None
             self.order_log_path = None
         self.quiet = quiet
         self.bs = BettingSystem(strategy=self.cf['position']['bet'])
         self.oanda_dict = dict()
-        self.history_books = {i: pd.DataFrame() for i in self.instruments}
-        self.logger.debug('vars(self): ' + pformat(vars(self)))
+        self.position_hists = {i: pd.DataFrame() for i in self.instruments}
+
+    @staticmethod
+    def _abspath(path):
+        return os.path.abspath(os.path.expanduser(path))
 
     def close_positions(self, instruments=[]):
         return [
@@ -84,9 +88,9 @@ class BaseTrader(oandapy.API):
             df_r = pd.DataFrame(prices['prices']).pipe(
                 lambda d: d[d['instrument'] == i][['time', 'bid', 'ask']]
             )
-            df_h = self.history_books[i].tail(n=1)
+            df_h = self.position_hists[i].tail(n=1)
             if df_h.size and df_h['units'].values[0] and not df_p.size:
-                self.history_books[i].append(
+                self.position_hists[i].append(
                     pd.concat([df_h, df_r], axis=1).assign(
                         time=lambda d: pd.to_datetime(d['time']),
                         pl=lambda d: (
@@ -97,7 +101,7 @@ class BaseTrader(oandapy.API):
                     )
                 )
             elif df_p.size and not (df_h.size and df_h['units'].values[0]):
-                self.history_books[i].append(
+                self.position_hists[i].append(
                     pd.concat([df_p, df_r], axis=1).assign(
                         time=lambda d: pd.to_datetime(d['time']), pl=np.nan
                     )
@@ -107,8 +111,8 @@ class BaseTrader(oandapy.API):
         insts = {
             p['instrument'] for p in
             self.get_positions(account_id=self.account_id)['positions']
-            if self.history_books[p['instrument']].size and
-            self.history_books[p['instrument']]['pl'].values[-1] is np.nan
+            if self.position_hists[p['instrument']].size and
+            self.position_hists[p['instrument']]['pl'].values[-1] is np.nan
         }
         if insts:
             time.sleep(0.5)
@@ -119,11 +123,11 @@ class BaseTrader(oandapy.API):
                 )['prices']
             }
             for i, t in latest_datetimes.items():
-                td = (t - self.history_books[i]['time'].tail(n=1)).value[0]
+                td = (t - self.position_hists[i]['time'].tail(n=1)).value[0]
                 if td > np.timedelta64(ttl_sec, 's'):
                     r = self._place_close_order(instrument=i)
                     if self.log_dir_path:
-                        self.write_json_log(data=r, name=self.order_log_path)
+                        self.write_json_log(data=r, path=self.order_log_path)
 
     def design_and_place_order(self, instrument, side):
         units = self.calculate_order_units(instrument=instrument, side=side)
@@ -139,7 +143,7 @@ class BaseTrader(oandapy.API):
             self.print_log('Open on order:' + os.linesep + pformat(r))
         finally:
             if self.log_dir_path:
-                self.write_json_log(data=r, name=self.order_log_path)
+                self.write_json_log(data=r, path=self.order_log_path)
 
     def calculate_order_limits(self, instrument, side):
         inst_dict = [
@@ -190,8 +194,8 @@ class BaseTrader(oandapy.API):
             k: np.ceil(self.oanda_dict['balance'] * v / margin_per_bp)
             for k, v in self.cf['position']['margin_nav_ratio']
         }
-        if self.history_books[instrument].size:
-            df_pl = self.history_books[instrument].dropna(subset=['pl'])
+        if self.position_hists[instrument].size:
+            df_pl = self.position_hists[instrument].dropna(subset=['pl'])
             bet_size = self.bs.calculate_size(
                 unit_size=sizes['unit'], init_size=sizes['init'],
                 last_size=df_pl['units'].values[-1],
@@ -230,18 +234,21 @@ class BaseTrader(oandapy.API):
         else:
             print(data, flush=True)
 
-    def write_df_log(self, df, name, mode='a'):
-        p = os.path.join(self.log_dir_path, name)
-        df.to_csv(p, mode=mode, header=(not os.path.isfile(p)))
+    def write_df_log(self, df, path, mode='a'):
+        p = self._abspath(path)
+        df.to_csv(
+            p, mode=mode, sep=(',' if p.endswith('.csv') else '\t'),
+            header=(not os.path.isfile(p))
+        )
 
-    def write_json_log(self, data, name, mode='a'):
-        with open(os.path.join(self.log_dir_path, name), mode) as f:
+    def write_json_log(self, data, path, mode='a'):
+        with open(self._abspath(path), mode) as f:
             f.write(json.dumps(data) + os.linesep)
 
-    def write_parameter_log(self, name='fract.parameter.yml'):
+    def write_parameter_log(self, dir_path, basename='parameter.yml'):
         param = {
             'instrument': self.instruments, 'model': self.cf['model'],
             'position': self.cf['position']
         }
-        with open(os.path.join(self.log_dir_path, name), 'w') as f:
+        with open(os.path.join(self._abspath(dir_path), basename), 'w') as f:
             f.write(yaml.dump(param, default_flow_style=False))
