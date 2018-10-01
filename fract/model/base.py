@@ -21,7 +21,7 @@ class BaseTrader(oandapy.API):
             environment=config_dict['oanda']['environment'],
             access_token=config_dict['oanda']['access_token']
         )
-        self.account_id = config_dict['oanda']['account_id'],
+        self.account_id = config_dict['oanda']['account_id']
         self.instruments = instruments or config_dict['instruments']
         if log_dir_path:
             self.log_dir_path = self._abspath(log_dir_path)
@@ -104,36 +104,42 @@ class BaseTrader(oandapy.API):
             for i, t in latest_datetimes.items():
                 td = (t - self.position_hists[i]['time'].tail(n=1)).value[0]
                 if td > np.timedelta64(ttl_sec, 's'):
-                    self._place_closing_order(instrument=i)
+                    self._place_order(closing=True, instrument=i)
 
     def design_and_place_order(self, instrument, side):
-        pos_side = {
-            d['instrument']: d['side'] for d in self.oanda_dict['positions']
+        pos = {
+            d['instrument']: d for d in self.oanda_dict['positions']
         }.get(instrument)
-        if pos_side and pos_side != side:
-            self.logger.info('Order: {0} >>> {1}'.format(pos_side, side))
-            self._place_order(open=False, instrument=instrument)
+        limits = self.design_order_limits(instrument=instrument, side=side)
+        self.logger.debug('limits: {}'.format(limits))
+        units = self.design_order_units(instrument=instrument, side=side)
+        self.logger.debug('units: {}'.format(units))
+        if pos and pos['side'] != side:
+            self.logger.info('Order: {0} >>> {1}'.format(pos['side'], side))
+            self._place_order(
+                type='market', instrument=instrument, side=side,
+                units=(units + pos['units']), **limits
+            )
         else:
             self.logger.info('Order: {}'.format(side))
-        units = self.design_order_units(instrument=instrument, side=side),
-        limits = self.design_order_limits(instrument=instrument, side=side)
-        self._place_order(
-            open=True, instrument=instrument, side=side, units=units, **limits
-        )
+            self._place_order(
+                type='market', instrument=instrument, side=side, units=units,
+                **limits
+            )
 
-    def _place_order(self, open=True, **kwargs):
+    def _place_order(self, closing=False, **kwargs):
         try:
-            if open:
-                r = self.create_order(account_id=self.account_id, **kwargs)
-            else:
+            if closing:
                 r = self.close_position(account_id=self.account_id, **kwargs)
+            else:
+                r = self.create_order(account_id=self.account_id, **kwargs)
         except Exception as e:
             self.logger.error(e)
             if self.log_dir_path:
                 self.write_log(data=e, path=self.order_log_path)
         else:
             self.print_log(
-                '{} a position:'.format('Open' if open else 'Close') +
+                '{} a position:'.format('Close' if closing else 'Open') +
                 os.linesep + pformat(r)
             )
             if self.log_dir_path:
@@ -142,32 +148,31 @@ class BaseTrader(oandapy.API):
                 time.sleep(0.5)
 
     def design_order_limits(self, instrument, side):
-        inst_dict = [
-            i for i in self.oanda_dict['instruments'] if i == instrument
-        ][0]
-        open_price = [
-            p[{'buy': 'ask', 'sell': 'bid'}[side]]
-            for p in self.oanda_dict['prices'] if p['instrument'] == instrument
-        ][0]
-        trailing_stop = min([
-            max([
+        inst_dict = {
+            i['instrument']: i for i in self.oanda_dict['instruments']
+        }[instrument]
+        open_price = {
+            p['instrument']: p[{'buy': 'ask', 'sell': 'bid'}[side]]
+            for p in self.oanda_dict['prices']
+        }[instrument]
+        trailing_stop = min(
+            max(
                 int(
                     self.cf['position']['limit_price_ratio']['trailing_stop'] *
                     open_price / np.float32(inst_dict['pip'])
                 ),
                 inst_dict['minTrailingStop']
-            ]),
+            ),
             inst_dict['maxTrailingStop']
-        ])
+        )
         tp = {
             k: np.float16(
-                1 + v * {
+                open_price + open_price * v * {
                     'take_profit': {'buy': 1, 'sell': -1}[side],
                     'stop_loss': {'buy': -1, 'sell': 1}[side],
                     'upper_bound': 1, 'lower_bound': -1
                 }[k]
-            ) * open_price
-            for k, v in self.cf['position']['limit_price_ratio']
+            ) for k, v in self.cf['position']['limit_price_ratio'].items()
             if k in ['take_profit', 'stop_loss', 'upper_bound', 'lower_bound']
         }
         return {
@@ -177,19 +182,22 @@ class BaseTrader(oandapy.API):
         }
 
     def design_order_units(self, instrument, side):
-        margin_per_bp = self.calculate_bp_value(instrument=instrument) * [
-            i for i in self.oanda_dict['instruments'] if i == instrument
-        ][0]['marginRate']
+        margin_per_bp = self.calculate_bp_value(instrument=instrument) * {
+            i['instrument']: i for i in self.oanda_dict['instruments']
+        }[instrument]['marginRate']
         avail_size = np.ceil(
             (
                 self.oanda_dict['marginAvail'] - self.oanda_dict['balance'] *
                 self.cf['position']['margin_nav_ratio']['preserve']
             ) / margin_per_bp
         )
+        self.logger.debug('avail_size: {}'.format(avail_size))
         sizes = {
             k: np.ceil(self.oanda_dict['balance'] * v / margin_per_bp)
-            for k, v in self.cf['position']['margin_nav_ratio']
+            for k, v in self.cf['position']['margin_nav_ratio'].items()
+            if k in ['unit', 'init']
         }
+        self.logger.debug('sizes: {}'.format(sizes))
         if self.position_hists[instrument].size:
             df_h = self.position_hists[instrument]
             bet_size = self.bs.calculate_size(
@@ -202,23 +210,24 @@ class BaseTrader(oandapy.API):
             )
         else:
             bet_size = sizes['init']
-        return min([bet_size, avail_size])
+        self.logger.debug('bet_size: {}'.format(bet_size))
+        return int(min(bet_size, avail_size))
 
     def calculate_bp_value(self, instrument):
         prices = {p['instrument']: p for p in self.oanda_dict['prices']}
         cur_pair = instrument.split('_')
-        if cur_pair[0] == self.account_currency:
+        if cur_pair[0] == self.oanda_dict['accountCurrency']:
             bpv = 1 / prices[instrument]['ask']
-        elif cur_pair[1] == self.account_currency:
+        elif cur_pair[1] == self.oanda_dict['accountCurrency']:
             bpv = prices[instrument]['ask']
         else:
             inst_bpv = [
                 i['instrument'] for i in self.oanda_dict['instruments']
                 if set(i['instrument'].split('_')) == {
-                    cur_pair[1], self.account_currency
+                    cur_pair[1], self.oanda_dict['accountCurrency']
                 }
             ][0]
-            if inst_bpv.split('_')[1] == self.account_currency:
+            if inst_bpv.split('_')[1] == self.oanda_dict['accountCurrency']:
                 bpv = prices[instrument]['ask'] * prices[inst_bpv]['ask']
             else:
                 bpv = prices[instrument]['ask'] / prices[inst_bpv]['ask']

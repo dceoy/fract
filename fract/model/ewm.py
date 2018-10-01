@@ -46,7 +46,7 @@ class EwmLogDiffTrader(RedisTrader):
                     self.design_and_place_order(instrument=i, side=st['act'])
                 else:
                     self.logger.info('Current state: {}'.format(st['state']))
-                self.logger.info('Stat:{0}{1}'.format(os.linesep, pformat(st)))
+                self.logger.debug('st: {}'.format(st))
                 df_s = pd.DataFrame([st]).set_index('time', drop=True)
             else:
                 self.logger.info('No updated rate')
@@ -118,12 +118,15 @@ class EwmLogDiffTrader(RedisTrader):
         else:
             st = {'act': None, 'state': '-'}
         self.print_log(
-            '|{0:^11}| RATE:{1:>21} | LOGDIFF CI:{2:>20} |{3:^16}|'.format(
+            (
+                '|{0:^11}| RATE:{1:>21} | LOGDIFF CI{2:02d}:{3:>20} |{4:^16}|'
+            ).format(
                 instrument,
                 np.array2string(
                     np.array([ec['bid'], ec['ask']]),
                     formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                 ),
+                int(self.ci_level * 100),
                 np.array2string(
                     np.array([ec['ewmacil'], ec['ewmaciu']]),
                     formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
