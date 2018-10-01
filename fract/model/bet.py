@@ -4,7 +4,7 @@ from ..util.error import FractRuntimeError
 
 
 class BettingSystem(object):
-    def __init__(self, strategy, init_to_unit_ratio=1):
+    def __init__(self, strategy):
         strategies = ['Martingale', "d'Alembert", 'Pyramid', "Oscar's grind"]
         if strategy in strategies:
             self.strategy = strategy

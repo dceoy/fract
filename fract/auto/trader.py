@@ -47,7 +47,6 @@ def invoke_trader(config_yml, instruments=None, model='ewm', interval_sec=0,
             try:
                 results = [f.result() for f in as_completed(fs)]
             except Exception as e:
-                logger.error(results)
                 streamer.shutdown()
                 trader.shutdown()
                 executor.shutdown(wait=True)

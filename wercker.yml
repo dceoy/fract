@@ -18,7 +18,7 @@ test:
         name: Validate the codes using flake8
         code: |
           pip install -U flake8
-          find . -name '*.py' | xargs flake8
+          find fract -name '*.py' | xargs flake8
     - script:
         name: Test base options
         code: |

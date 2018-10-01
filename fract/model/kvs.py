@@ -4,7 +4,6 @@ from datetime import datetime
 import json
 import logging
 import time
-import numpy as np
 import pandas as pd
 import redis
 from .base import BaseTrader
@@ -44,9 +43,7 @@ class RedisTrader(BaseTrader):
                 return pd.DataFrame(
                     [d['tick'] for d in cached_rates if 'tick' in d]
                 ).assign(
-                    time=lambda d: pd.to_datetime(d['time']),
-                    mid=lambda d: np.float16((d['ask'] + d['bid']) / 2),
-                    spread=lambda d: np.float16(d['ask'] - d['bid'])
+                    time=lambda d: pd.to_datetime(d['time'])
                 ).set_index('time', drop=True)
         else:
             return pd.DataFrame()

@@ -40,27 +40,6 @@ class BaseTrader(oandapy.API):
     def _abspath(path):
         return os.path.abspath(os.path.expanduser(path))
 
-    def close_positions(self, instruments=[]):
-        return [
-            self._place_close_order(instrument=i) for i in {
-                p['instrument'] for p in
-                self.get_positions(account_id=self.account_id)['positions']
-            } if not instruments or i in instruments
-        ]
-
-    def _place_close_order(self, instrument):
-        try:
-            r = self.close_position(
-                account_id=self.account_id, instrument=instrument
-            )
-        except Exception as e:
-            self.logger.error(e)
-        else:
-            self.logger.info('Close an position:' + os.linesep + pformat(r))
-            return r
-        finally:
-            time.sleep(0.5)
-
     def refresh_oanda_dict(self):
         account = self.get_account(account_id=self.account_id)
         time.sleep(0.5)
@@ -125,27 +104,44 @@ class BaseTrader(oandapy.API):
             for i, t in latest_datetimes.items():
                 td = (t - self.position_hists[i]['time'].tail(n=1)).value[0]
                 if td > np.timedelta64(ttl_sec, 's'):
-                    r = self._place_close_order(instrument=i)
-                    if self.log_dir_path:
-                        self.write_json_log(data=r, path=self.order_log_path)
+                    self._place_closing_order(instrument=i)
 
     def design_and_place_order(self, instrument, side):
-        units = self.calculate_order_units(instrument=instrument, side=side)
-        limits = self.calculate_order_limits(instrument=instrument, side=side)
+        pos_side = {
+            d['instrument']: d['side'] for d in self.oanda_dict['positions']
+        }.get(instrument)
+        if pos_side and pos_side != side:
+            self.logger.info('Order: {0} >>> {1}'.format(pos_side, side))
+            self._place_order(open=False, instrument=instrument)
+        else:
+            self.logger.info('Order: {}'.format(side))
+        units = self.design_order_units(instrument=instrument, side=side),
+        limits = self.design_order_limits(instrument=instrument, side=side)
+        self._place_order(
+            open=True, instrument=instrument, side=side, units=units, **limits
+        )
+
+    def _place_order(self, open=True, **kwargs):
         try:
-            r = self.create_order(
-                account_id=self.account_id, type='market',
-                instrument=instrument, side=side, units=units, **limits
-            )
+            if open:
+                r = self.create_order(account_id=self.account_id, **kwargs)
+            else:
+                r = self.close_position(account_id=self.account_id, **kwargs)
         except Exception as e:
             self.logger.error(e)
-        else:
-            self.print_log('Open on order:' + os.linesep + pformat(r))
-        finally:
             if self.log_dir_path:
-                self.write_json_log(data=r, path=self.order_log_path)
+                self.write_log(data=e, path=self.order_log_path)
+        else:
+            self.print_log(
+                '{} a position:'.format('Open' if open else 'Close') +
+                os.linesep + pformat(r)
+            )
+            if self.log_dir_path:
+                self.write_log(data=json.dumps(r), path=self.order_log_path)
+            else:
+                time.sleep(0.5)
 
-    def calculate_order_limits(self, instrument, side):
+    def design_order_limits(self, instrument, side):
         inst_dict = [
             i for i in self.oanda_dict['instruments'] if i == instrument
         ][0]
@@ -180,7 +176,7 @@ class BaseTrader(oandapy.API):
             'lowerBound': tp['lower_bound']
         }
 
-    def calculate_order_units(self, instrument, side):
+    def design_order_units(self, instrument, side):
         margin_per_bp = self.calculate_bp_value(instrument=instrument) * [
             i for i in self.oanda_dict['instruments'] if i == instrument
         ][0]['marginRate']
@@ -195,12 +191,12 @@ class BaseTrader(oandapy.API):
             for k, v in self.cf['position']['margin_nav_ratio']
         }
         if self.position_hists[instrument].size:
-            df_pl = self.position_hists[instrument].dropna(subset=['pl'])
+            df_h = self.position_hists[instrument]
             bet_size = self.bs.calculate_size(
                 unit_size=sizes['unit'], init_size=sizes['init'],
-                last_size=df_pl['units'].values[-1],
-                last_won=(df_pl['pl'].values[-1] > 0),
-                is_all_time_high=df_pl['pl'].cumsum().pipe(
+                last_size=df_h['units'].values[-1],
+                last_won=(df_h['pl'].dropna().values[-1] > 0),
+                is_all_time_high=df_h['pl'].dropna().cumsum().pipe(
                     lambda s: s == max(s)
                 ).values[-1]
             )
@@ -241,9 +237,9 @@ class BaseTrader(oandapy.API):
             header=(not os.path.isfile(p))
         )
 
-    def write_json_log(self, data, path, mode='a'):
+    def write_log(self, data, path, mode='a'):
         with open(self._abspath(path), mode) as f:
-            f.write(json.dumps(data) + os.linesep)
+            f.write('{0}{1}'.format(data, os.linesep))
 
     def write_parameter_log(self, dir_path, basename='parameter.yml'):
         param = {
