@@ -33,10 +33,6 @@ class EwmLogDiffTrader(RedisTrader):
             len_h = len(self.position_hists[i])
             self.refresh_oanda_dict()
             df_p = self.position_hists[i][len_h:]
-            if df_p.size:
-                self.logger.info('Position:{0}{1}'.format(os.linesep, df_p))
-            else:
-                self.logger.info('No updated position')
             df_r = self.fetch_cached_rates(instrument=i)
             if df_r.size:
                 self.logger.info('Rate:{0}{1}'.format(os.linesep, df_r))

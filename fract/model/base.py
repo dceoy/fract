@@ -61,30 +61,48 @@ class BaseTrader(oandapy.API):
         positions = self.get_positions(account_id=self.account_id)
         self.oanda_dict = {**account, **instruments, **prices, **positions}
         for i in self.instruments:
+            df_r = pd.DataFrame(prices['prices']).pipe(
+                lambda d: d[d['instrument'] == i]
+            ).assign(time=lambda d: pd.to_datetime(d['time']))
             df_p = pd.DataFrame(positions['positions']).pipe(
                 lambda d: d[d['instrument'] == i]
             )
-            df_r = pd.DataFrame(prices['prices']).pipe(
-                lambda d: d[d['instrument'] == i][['time', 'bid', 'ask']]
-            )
-            df_h = self.position_hists[i].tail(n=1)
-            if df_h.size and df_h['units'].values[0] and not df_p.size:
-                self.position_hists[i].append(
-                    pd.concat([df_h, df_r], axis=1).assign(
-                        time=lambda d: pd.to_datetime(d['time']),
-                        pl=lambda d: (
-                            d['bid'] - d['avgPrice']
-                            if df_h['side'].values[0] == 'buy' else
-                            d['avgPrice'] - d['ask']
-                        ) * d['units']
-                    )
+            df_ph = self.position_hists[i]
+            if df_ph.size:
+                h = df_ph.tail(n=1).reset_index().T.to_dict()[0]
+                pl = (
+                    df_r['bid'].values[0] - h['avgPrice'] if h['side'] == 'buy'
+                    else h['avgPrice'] - df_r['ask'].values[0]
+                ) * h['units']
+                if df_p.size and h['units'] == 0:
+                    df_up = pd.merge(
+                        df_r, df_p, on='instrument'
+                    ).assign(pl=np.nan).set_index('time')
+                elif df_p.size == 0 and h['units']:
+                    df_up = df_r.assign(
+                        units=0, side=h['side'], avgPrice=h['avgPrice'], pl=pl
+                    ).set_index('time')
+                elif df_p.size and h['side'] != df_p['side'].values[0]:
+                    df_up = df_r.assign(
+                        units=0, side=h['side'], avgPrice=h['avgPrice'], pl=pl
+                    ).append(
+                        pd.merge(df_r, df_p, on='instrument').assign(pl=np.nan)
+                    ).set_index('time')
+                else:
+                    df_up = pd.DataFrame()
+            elif df_p.size:
+                df_up = pd.merge(
+                    df_r, df_p, on='instrument'
+                ).assign(pl=np.nan).set_index('time')
+            else:
+                df_up = pd.DataFrame()
+            if df_up.size:
+                self.position_hists[i] = df_ph.append(df_up)
+                self.logger.info(
+                    '{0} position:{1}{2}'.format(i, os.linesep, df_up)
                 )
-            elif df_p.size and not (df_h.size and df_h['units'].values[0]):
-                self.position_hists[i].append(
-                    pd.concat([df_p, df_r], axis=1).assign(
-                        time=lambda d: pd.to_datetime(d['time']), pl=np.nan
-                    )
-                )
+            else:
+                self.logger.debug('No updated {} position'.format(i))
 
     def expire_positions(self, ttl_sec=86400):
         insts = {
