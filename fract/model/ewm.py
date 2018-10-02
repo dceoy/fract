@@ -30,9 +30,7 @@ class EwmLogDiffTrader(RedisTrader):
 
     def _open_deals(self):
         for i in self.instruments:
-            len_h = len(self.position_hists[i])
-            self.refresh_oanda_dict()
-            df_p = self.position_hists[i][len_h:]
+            self.refresh_oanda_dicts()
             df_r = self.fetch_cached_rates(instrument=i)
             if df_r.size:
                 self.logger.info('Rate:{0}{1}'.format(os.linesep, df_r))
@@ -45,11 +43,10 @@ class EwmLogDiffTrader(RedisTrader):
                 self.logger.debug('st: {}'.format(st))
                 df_s = pd.DataFrame([st]).set_index('time', drop=True)
             else:
-                self.logger.info('No updated rate')
                 df_s = pd.DataFrame()
             log_paths = {
                 os.path.join(self.log_dir_path, '{0}.{1}.tsv'.format(k, i)): v
-                for k, v in {'pos': df_p, 'rate': df_r, 'stat': df_s}.items()
+                for k, v in {'rate': df_r, 'stat': df_s}.items()
                 if self.log_dir_path and v.size
             }
             for p, d in log_paths.items():
@@ -76,20 +73,21 @@ class EwmLogDiffTrader(RedisTrader):
         }
 
     def _determine_order_side(self, instrument):
-        od = self.oanda_dict
         ec = self.ewm_stats[instrument]
         mp = self.cf['model']['ewm']
         pp = self.cf['position']
-        tr = {d['instrument']: d for d in od['instruments']}.get(instrument)
-        pos = {d['instrument']: d for d in od['positions']}.get(instrument)
-        preserved_margin = od['balance'] * pp['margin_nav_ratio']['preserve']
+        pos = self.pos_dict.get(instrument)
+        margin_lack = (
+            self.acc_dict['balance'] * pp['margin_nav_ratio']['preserve'] <
+            self.acc_dict['marginAvail'] and not pos
+        )
         if self.rate_caches[instrument].size < mp['window'][0]:
             st = {'act': None, 'state': 'LOADING'}
-        elif tr['halted']:
+        elif self.inst_dict[instrument]['halted']:
             st = {'act': None, 'state': 'TRADING HALTED'}
-        elif od['balance'] == 0:
+        elif self.acc_dict['balance'] == 0:
             st = {'act': None, 'state': 'NO FUND'}
-        elif od['marginAvail'] < preserved_margin and not pos:
+        elif margin_lack:
             st = {'act': None, 'state': 'LACK OF FUNDS'}
         elif ec['spread_ratio'] > pp['limit_price_ratio']['max_spread']:
             st = {'act': None, 'state': 'OVER-SPREAD'}

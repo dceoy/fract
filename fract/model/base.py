@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from datetime import datetime
 import json
 import logging
 import os
@@ -28,106 +29,107 @@ class BaseTrader(oandapy.API):
             self.order_log_path = os.path.join(
                 self.log_dir_path, 'order.json.txt'
             )
+            self.txn_log_path = os.path.join(
+                self.log_dir_path, 'txn.json.txt'
+            )
         else:
             self.log_dir_path = None
             self.order_log_path = None
+            self.txn_log_path = None
         self.quiet = quiet
         self.bs = BettingSystem(strategy=self.cf['position']['bet'])
-        self.oanda_dict = dict()
-        self.position_hists = {i: pd.DataFrame() for i in self.instruments}
+        self.min_txn_id = max(
+            [
+                t['id'] for t in self.get_transaction_history(
+                    account_id=self.account_id
+                )['transactions']
+            ] + [0]
+        ) + 1
+        self.acc_dict = dict()
+        self.txn_list = list()
+        self.inst_dict = dict()
+        self.rate_dict = dict()
+        self.pos_dict = dict()
+        self.pos_time = dict()
 
     @staticmethod
     def _abspath(path):
         return os.path.abspath(os.path.expanduser(path))
 
-    def refresh_oanda_dict(self):
-        account = self.get_account(account_id=self.account_id)
+    def refresh_oanda_dicts(self):
+        self.acc_dict = self.get_account(account_id=self.account_id)
         time.sleep(0.5)
-        instruments = self.get_instruments(
-            account_id=self.account_id,
-            fields=','.join([
-                'displayName', 'pip', 'maxTradeUnits', 'precision',
-                'maxTrailingStop', 'minTrailingStop', 'marginRate', 'halted'
-            ])
-        )
+        self._refresh_txn_list()
+        self._refresh_inst_dict()
+        self._refresh_rate_dict()
+        self._refresh_pos_dict()
+
+    def _refresh_txn_list(self):
+        th_new = [
+            t for t in self.get_transaction_history(
+                account_id=self.account_id, minId=self.min_txn_id
+            ).get('transactions')
+            if t['id'] not in [t['id'] for t in self.txn_list]
+        ]
+        if th_new:
+            self.logger.info('transactions:' + os.linesep + pformat(th_new))
+            self.txn_list = self.txn_list + th_new
+            if self.txn_log_path:
+                self.write_log(data=json.dumps(th_new), path=self.txn_log_path)
+            else:
+                time.sleep(0.5)
+        else:
+            time.sleep(0.5)
+
+    def _refresh_inst_dict(self):
+        self.inst_dict = {
+            d['instrument']: d
+            for d in self.get_instruments(
+                account_id=self.account_id,
+                fields=','.join([
+                    'displayName', 'pip', 'maxTradeUnits', 'precision',
+                    'maxTrailingStop', 'minTrailingStop', 'marginRate',
+                    'halted'
+                ])
+            )['instruments'] if 'instrument' in d
+        }
         time.sleep(0.5)
-        prices = self.get_prices(
-            account_id=self.account_id,
-            instruments=','.join([
-                d['instrument'] for d in instruments['instruments']
-            ])
-        )
+
+    def _refresh_rate_dict(self):
+        self.rate_dict = {
+            d['instrument']: d
+            for d in self.get_prices(
+                account_id=self.account_id,
+                instruments=','.join(self.inst_dict.keys())
+            )['prices'] if 'instrument' in d
+        }
         time.sleep(0.5)
-        positions = self.get_positions(account_id=self.account_id)
-        self.oanda_dict = {**account, **instruments, **prices, **positions}
+
+    def _refresh_pos_dict(self):
+        p0 = self.pos_dict
+        self.pos_dict = {
+            d['instrument']: d for d
+            in self.get_positions(account_id=self.account_id)['positions']
+            if 'instrument' in d
+        }
         for i in self.instruments:
-            df_r = pd.DataFrame(prices['prices']).pipe(
-                lambda d: d[d['instrument'] == i]
-            ).assign(time=lambda d: pd.to_datetime(d['time']))
-            df_p = pd.DataFrame(positions['positions']).pipe(
-                lambda d: d[d['instrument'] == i]
-            )
-            df_ph = self.position_hists[i]
-            if df_ph.size:
-                h = df_ph.tail(n=1).reset_index().T.to_dict()[0]
-                pl = (
-                    df_r['bid'].values[0] - h['avgPrice'] if h['side'] == 'buy'
-                    else h['avgPrice'] - df_r['ask'].values[0]
-                ) * h['units']
-                if df_p.size and h['units'] == 0:
-                    df_up = pd.merge(
-                        df_r, df_p, on='instrument'
-                    ).assign(pl=np.nan).set_index('time')
-                elif df_p.size == 0 and h['units']:
-                    df_up = df_r.assign(
-                        units=0, side=h['side'], avgPrice=h['avgPrice'], pl=pl
-                    ).set_index('time')
-                elif df_p.size and h['side'] != df_p['side'].values[0]:
-                    df_up = df_r.assign(
-                        units=0, side=h['side'], avgPrice=h['avgPrice'], pl=pl
-                    ).append(
-                        pd.merge(df_r, df_p, on='instrument').assign(pl=np.nan)
-                    ).set_index('time')
-                else:
-                    df_up = pd.DataFrame()
-            elif df_p.size:
-                df_up = pd.merge(
-                    df_r, df_p, on='instrument'
-                ).assign(pl=np.nan).set_index('time')
-            else:
-                df_up = pd.DataFrame()
-            if df_up.size:
-                self.position_hists[i] = df_ph.append(df_up)
-                self.logger.info(
-                    '{0} position:{1}{2}'.format(i, os.linesep, df_up)
-                )
-            else:
-                self.logger.debug('No updated {} position'.format(i))
+            if not self.pos_dict.get(i):
+                self.pos_time[i] = None
+            elif not p0.get(i) or p0[i]['side'] != self.pos_dict[i]['side']:
+                self.pos_time[i] = datetime.now()
 
     def expire_positions(self, ttl_sec=86400):
-        insts = {
-            p['instrument'] for p in
+        inst_times = {
+            p['instrument']: self.pos_time[p['instrument']] for p in
             self.get_positions(account_id=self.account_id)['positions']
-            if self.position_hists[p['instrument']].size and
-            self.position_hists[p['instrument']]['pl'].values[-1] is np.nan
+            if self.pos_time.get(p['instrument'])
         }
-        if insts:
-            time.sleep(0.5)
-            latest_datetimes = {
-                r['instrument']: pd.to_datetime(r['time'])
-                for r in self.get_prices(
-                    account_id=self.account_id, instruments=','.join(insts)
-                )['prices']
-            }
-            for i, t in latest_datetimes.items():
-                td = (t - self.position_hists[i]['time'].tail(n=1)).value[0]
-                if td > np.timedelta64(ttl_sec, 's'):
-                    self._place_order(closing=True, instrument=i)
+        for i, t in inst_times.items():
+            if (datetime.now() - t).total_seconds() > ttl_sec:
+                self._place_order(closing=True, instrument=i)
 
     def design_and_place_order(self, instrument, side):
-        pos = {
-            d['instrument']: d for d in self.oanda_dict['positions']
-        }.get(instrument)
+        pos = self.pos_dict.get(instrument)
         limits = self.design_order_limits(instrument=instrument, side=side)
         self.logger.debug('limits: {}'.format(limits))
         units = self.design_order_units(instrument=instrument, side=side)
@@ -153,44 +155,39 @@ class BaseTrader(oandapy.API):
                 r = self.create_order(account_id=self.account_id, **kwargs)
         except Exception as e:
             self.logger.error(e)
-            if self.log_dir_path:
+            if self.order_log_path:
                 self.write_log(data=e, path=self.order_log_path)
         else:
             self.print_log(
                 '{} a position:'.format('Close' if closing else 'Open') +
                 os.linesep + pformat(r)
             )
-            if self.log_dir_path:
+            if self.order_log_path:
                 self.write_log(data=json.dumps(r), path=self.order_log_path)
             else:
                 time.sleep(0.5)
 
     def design_order_limits(self, instrument, side):
-        inst_dict = {
-            i['instrument']: i for i in self.oanda_dict['instruments']
-        }[instrument]
-        open_price = {
-            p['instrument']: p[{'buy': 'ask', 'sell': 'bid'}[side]]
-            for p in self.oanda_dict['prices']
-        }[instrument]
+        rate = self.rate_dict[instrument][{'buy': 'ask', 'sell': 'bid'}[side]]
         trailing_stop = min(
             max(
                 int(
                     self.cf['position']['limit_price_ratio']['trailing_stop'] *
-                    open_price / np.float32(inst_dict['pip'])
+                    rate / np.float32(self.inst_dict[instrument]['pip'])
                 ),
-                inst_dict['minTrailingStop']
+                self.inst_dict[instrument]['minTrailingStop']
             ),
-            inst_dict['maxTrailingStop']
+            self.inst_dict[instrument]['maxTrailingStop']
         )
         tp = {
             k: np.float16(
-                open_price + open_price * v * {
+                rate + rate * v * {
                     'take_profit': {'buy': 1, 'sell': -1}[side],
                     'stop_loss': {'buy': -1, 'sell': 1}[side],
                     'upper_bound': 1, 'lower_bound': -1
                 }[k]
-            ) for k, v in self.cf['position']['limit_price_ratio'].items()
+            )
+            for k, v in self.cf['position']['limit_price_ratio'].items()
             if k in ['take_profit', 'stop_loss', 'upper_bound', 'lower_bound']
         }
         return {
@@ -200,29 +197,33 @@ class BaseTrader(oandapy.API):
         }
 
     def design_order_units(self, instrument, side):
-        margin_per_bp = self.calculate_bp_value(instrument=instrument) * {
-            i['instrument']: i for i in self.oanda_dict['instruments']
-        }[instrument]['marginRate']
+        margin_per_bp = (
+            self.calculate_bp_value(instrument=instrument) *
+            self.inst_dict[instrument]['marginRate']
+        )
         avail_size = np.ceil(
             (
-                self.oanda_dict['marginAvail'] - self.oanda_dict['balance'] *
+                self.acc_dict['marginAvail'] - self.acc_dict['balance'] *
                 self.cf['position']['margin_nav_ratio']['preserve']
             ) / margin_per_bp
         )
         self.logger.debug('avail_size: {}'.format(avail_size))
         sizes = {
-            k: np.ceil(self.oanda_dict['balance'] * v / margin_per_bp)
+            k: np.ceil(self.acc_dict['balance'] * v / margin_per_bp)
             for k, v in self.cf['position']['margin_nav_ratio'].items()
             if k in ['unit', 'init']
         }
         self.logger.debug('sizes: {}'.format(sizes))
-        if self.position_hists[instrument].size:
-            df_h = self.position_hists[instrument]
+        df_pl = pd.DataFrame([
+            {'pl': t['pl'], 'units': t['pl']} for t in self.txn_list
+            if t.get('pl') and t['instrument'] == instrument
+        ])
+        if df_pl.size:
             bet_size = self.bs.calculate_size(
                 unit_size=sizes['unit'], init_size=sizes['init'],
-                last_size=df_h['units'].values[-1],
-                last_won=(df_h['pl'].dropna().values[-1] > 0),
-                is_all_time_high=df_h['pl'].dropna().cumsum().pipe(
+                last_size=df_pl['units'].values[-1],
+                last_won=(df_pl['pl'].values[-1] > 0),
+                is_all_time_high=df_pl['pl'].cumsum().pipe(
                     lambda s: s == max(s)
                 ).values[-1]
             )
@@ -232,23 +233,23 @@ class BaseTrader(oandapy.API):
         return int(min(bet_size, avail_size))
 
     def calculate_bp_value(self, instrument):
-        prices = {p['instrument']: p for p in self.oanda_dict['prices']}
         cur_pair = instrument.split('_')
-        if cur_pair[0] == self.oanda_dict['accountCurrency']:
-            bpv = 1 / prices[instrument]['ask']
-        elif cur_pair[1] == self.oanda_dict['accountCurrency']:
-            bpv = prices[instrument]['ask']
+        if cur_pair[0] == self.acc_dict['accountCurrency']:
+            bpv = 1 / self.rate_dict[instrument]['ask']
+        elif cur_pair[1] == self.acc_dict['accountCurrency']:
+            bpv = self.rate_dict[instrument]['ask']
         else:
             inst_bpv = [
-                i['instrument'] for i in self.oanda_dict['instruments']
-                if set(i['instrument'].split('_')) == {
-                    cur_pair[1], self.oanda_dict['accountCurrency']
+                i for i in self.inst_dict.keys()
+                if set(i.split('_')) == {
+                    cur_pair[1], self.acc_dict['accountCurrency']
                 }
             ][0]
-            if inst_bpv.split('_')[1] == self.oanda_dict['accountCurrency']:
-                bpv = prices[instrument]['ask'] * prices[inst_bpv]['ask']
-            else:
-                bpv = prices[instrument]['ask'] / prices[inst_bpv]['ask']
+            bpv = self.rate_dict[instrument]['ask'] * (
+                self.rate_dict[inst_bpv]['ask']
+                if inst_bpv.split('_')[1] == self.acc_dict['accountCurrency']
+                else (1 / self.rate_dict[inst_bpv]['ask'])
+            )
         return bpv
 
     def print_log(self, data):

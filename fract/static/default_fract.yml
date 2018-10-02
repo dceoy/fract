@@ -25,9 +25,9 @@ position:
     upper_bound: 0.001    # (0, 1)
     lower_bound: 0.001    # (0, 1)
     max_spread: 0.0005    # (0, 1)
-  ttl_sec: 3600           # [0, Inf]
+  ttl_sec: 86400          # [0, Inf]
 model:
   ewm:
-    alpha: 0.2            # (0, 1)
-    ci_level: 0.8         # (0, 1)
+    alpha: 0.4            # (0, 1)
+    ci_level: 0.9         # (0, 1)
     window: [10, 1000]    # (0, Inf)
