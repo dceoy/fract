@@ -13,7 +13,7 @@ class BettingSystem(object):
 
     def calculate_size(self, unit_size, init_size=None, last_size=None,
                        last_won=None, is_all_time_high=False):
-        if last_size is None:
+        if last_size is None or last_won is None:
             return init_size or unit_size
         elif self.strategy == 'Martingale':
             return (unit_size if last_won else last_size * 2)

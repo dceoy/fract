@@ -214,15 +214,25 @@ class BaseTrader(oandapy.API):
             if k in ['unit', 'init']
         }
         self.logger.debug('sizes: {}'.format(sizes))
+        txns = [t for t in self.txn_list if t['instrument'] == instrument]
         df_pl = pd.DataFrame([
-            {'pl': t['pl'], 'units': t['pl']} for t in self.txn_list
-            if t.get('pl') and t['instrument'] == instrument
+            {'pl': t['pl'], 'units': t['units']} for t in txns if t.get('pl')
         ])
         if df_pl.size:
+            tot = [t for t in txns if 'tradeOpened' in t]
+            if self.pos_dict.get(instrument) and tot:
+                last_size = self.pos_dict[instrument]['units']
+                last_won = (
+                    (self.rate_dict[instrument]['bid'] > tot[-1]['price'])
+                    if self.pos_dict[instrument]['side'] == 'buy' else
+                    (self.rate_dict[instrument]['ask'] < tot[-1]['price'])
+                )
+            else:
+                last_size = df_pl['units'].values[-1]
+                last_won = (df_pl['pl'].values[-1] > 0)
             bet_size = self.bs.calculate_size(
                 unit_size=sizes['unit'], init_size=sizes['init'],
-                last_size=df_pl['units'].values[-1],
-                last_won=(df_pl['pl'].values[-1] > 0),
+                last_size=last_size, last_won=last_won,
                 is_all_time_high=df_pl['pl'].cumsum().pipe(
                     lambda s: s == max(s)
                 ).values[-1]
