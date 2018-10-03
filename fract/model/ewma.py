@@ -67,12 +67,19 @@ class EwmaLogDiffTrader(RedisTrader):
         self.cache_dfs[instrument] = df_spr
         spr = np.float16(df_spr['spr'].values[-1])
         self.logger.info('Spread-price ratio: {}'.format(spr))
-        log_return_rate = df_spr.reset_index().pipe(
-            lambda d: np.log(d['mid']).diff() / d['spr'] /
-            d['time'].diff().dt.total_seconds()
+        log_return_rate = df_spr.reset_index().assign(
+            recip_spr=lambda d: (d['mid'] / d['spread'])
+        ).assign(
+            log_diff=lambda d: np.log(d['mid']).diff(),
+            spr_weight=lambda d: d['recip_spr'] / d['recip_spr'].sum(),
+            delta_sec=lambda d: d['time'].diff().dt.total_seconds()
+        ).dropna().pipe(
+            lambda d: d['log_diff'] * d['spr_weight'] / d['delta_sec']
         )
-        self.logger.info(
-            'Latest log return per sec: {}'.format(log_return_rate.values[-1])
+        self.logger.debug(
+            'Adjusted log return per second (tail): {}'.format(
+                log_return_rate.tail().values
+            )
         )
         ewm = log_return_rate.ewm(alpha=self.mp['alpha'])
         self.logger.debug('ewm: {}'.format(ewm))
