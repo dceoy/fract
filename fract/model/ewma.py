@@ -10,13 +10,12 @@ from scipy import stats
 from .kvs import RedisTrader
 
 
-class EwmLogDiffTrader(RedisTrader):
+class EwmaLogDiffTrader(RedisTrader):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.alpha = self.cf['model']['ewm']['alpha']
-        self.ci_level = self.cf['model']['ewm']['ci_level']
+        self.mp = self.cf['model']['ewma']
         self.rate_caches = {i: pd.Series() for i in self.instruments}
-        self.ewm_stats = {i: dict() for i in self.instruments}
+        self.ewma_stats = {i: dict() for i in self.instruments}
         self.logger.debug('vars(self): ' + pformat(vars(self)))
 
     def invoke(self):
@@ -58,30 +57,30 @@ class EwmLogDiffTrader(RedisTrader):
         rate = df_rate.tail(n=1).reset_index().T.to_dict()[0]
         mid = self.rate_caches[instrument].append(
             (df_rate['bid'] + df_rate['ask']) / 2
-        ).tail(n=int(self.cf['model']['ewm']['window'][1])).astype(np.float32)
+        ).tail(n=int(self.mp['window_range'][1])).astype(np.float32)
         self.rate_caches[instrument] = mid
-        ewm = np.log(mid).diff().ewm(alpha=self.alpha, adjust=True)
+        ewm = np.log(mid).diff().ewm(alpha=self.mp['alpha'], adjust=True)
         self.logger.debug('ewm: {}'.format(ewm))
-        mu = ewm.mean().values[-1]
-        sigma = ewm.std().values[-1]
-        ci = stats.norm.interval(alpha=self.ci_level, loc=mu, scale=sigma)
-        self.logger.debug('ewma ci: {0} [{1} {2}]'.format(mu, *ci))
-        self.ewm_stats[instrument] = {
-            'ewma': mu, 'ewmstd': sigma, 'ewmacil': ci[0], 'ewmaciu': ci[1],
+        ewma = ewm.mean().dropna()
+        ci = np.asarray(
+            stats.t.interval(alpha=self.mp['ci_level'], df=(ewma.size - 1))
+        ) * stats.sem(ewma) + np.mean(ewma)
+        self.logger.debug('ewma ci: {0} [{1} {2}]'.format(ewma, *ci))
+        self.ewma_stats[instrument] = {
+            'ewma': ewma[-1], 'ewmacil': ci[0], 'ewmaciu': ci[1],
             'spread_ratio': np.float16((rate['ask'] - rate['bid']) / mid[-1]),
             'mid': mid[-1], **rate
         }
 
     def _determine_order_side(self, instrument):
-        ec = self.ewm_stats[instrument]
-        mp = self.cf['model']['ewm']
+        ec = self.ewma_stats[instrument]
         pp = self.cf['position']
         pos = self.pos_dict.get(instrument)
         margin_lack = (
-            self.acc_dict['balance'] * pp['margin_nav_ratio']['preserve'] <
-            self.acc_dict['marginAvail'] and not pos
+            not pos and self.acc_dict['marginAvail'] <
+            self.acc_dict['balance'] * pp['margin_nav_ratio']['preserve']
         )
-        if self.rate_caches[instrument].size < mp['window'][0]:
+        if self.rate_caches[instrument].size < self.mp['window_range'][0]:
             st = {'act': None, 'state': 'LOADING'}
         elif self.inst_dict[instrument]['halted']:
             st = {'act': None, 'state': 'TRADING HALTED'}

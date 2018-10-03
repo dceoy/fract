@@ -27,7 +27,9 @@ position:
     max_spread: 0.0005    # (0, 1)
   ttl_sec: 86400          # [0, Inf]
 model:
-  ewm:
+  ewma:
     alpha: 0.4            # (0, 1)
-    ci_level: 0.99        # (0, 1)
-    window: [10, 1000]    # (0, Inf)
+    ci_level: 0.9         # (0, 1)
+    window_range:
+      - 10                # (1, Inf)
+      - 1000              # (1, Inf)

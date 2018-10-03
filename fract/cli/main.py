@@ -34,7 +34,7 @@ Options:
     --redis-db=<int>    Set a Redis database (override YAML configurations)
     --redis-max-llen=<int>
                         Limit Redis list length (override YAML configurations)
-    --model=<str>       Set trading models [default: ewm]
+    --model=<str>       Set trading models [default: ewma]
     --interval=<sec>    Wait seconds between iterations [default: 0]
     --timeout=<sec>     Set senconds for response timeout
     --with-streamer     Invoke a trader with a streamer
