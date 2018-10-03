@@ -14,7 +14,7 @@ class EwmaLogDiffTrader(RedisTrader):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.mp = self.cf['model']['ewma']
-        self.rate_caches = {i: pd.Series() for i in self.instruments}
+        self.cache_dfs = {i: pd.DataFrame() for i in self.instruments}
         self.ewma_stats = {i: dict() for i in self.instruments}
         self.logger.debug('vars(self): ' + pformat(vars(self)))
 
@@ -55,21 +55,40 @@ class EwmaLogDiffTrader(RedisTrader):
     def _update_caches(self, instrument, df_rate):
         self.latest_update_time = datetime.now()
         rate = df_rate.tail(n=1).reset_index().T.to_dict()[0]
-        mid = self.rate_caches[instrument].append(
-            (df_rate['bid'] + df_rate['ask']) / 2
-        ).tail(n=int(self.mp['window_range'][1])).astype(np.float32)
-        self.rate_caches[instrument] = mid
-        ewm = np.log(mid).diff().ewm(alpha=self.mp['alpha'], adjust=True)
+        df_spr = self.cache_dfs[instrument].append(
+            df_rate.assign(
+                spread=lambda d: d['ask'] - d['bid'],
+                mid=lambda d: (d['ask'] + d['bid']) / 2
+            ).assign(
+                spr=lambda d: d['spread'] / d['mid']
+            )
+        ).tail(n=int(self.mp['window_range'][1]))
+        self.logger.info('Window size: {}'.format(len(df_spr)))
+        self.cache_dfs[instrument] = df_spr
+        spr = np.float16(df_spr['spr'].values[-1])
+        self.logger.info('Spread-price ratio: {}'.format(spr))
+        log_return_rate = df_spr.reset_index().pipe(
+            lambda d: np.log(d['mid']).diff() / d['spr'] /
+            d['time'].diff().dt.total_seconds()
+        )
+        self.logger.info(
+            'Latest log return per sec: {}'.format(log_return_rate.values[-1])
+        )
+        ewm = log_return_rate.ewm(alpha=self.mp['alpha'])
         self.logger.debug('ewm: {}'.format(ewm))
-        ewma = ewm.mean().dropna()
-        ci = np.asarray(
-            stats.t.interval(alpha=self.mp['ci_level'], df=(ewma.size - 1))
-        ) * stats.sem(ewma) + np.mean(ewma)
-        self.logger.debug('ewma ci: {0} [{1} {2}]'.format(ewma, *ci))
+        ewma_lrr = ewm.mean().dropna().values
+        ewma_lrr_ci = np.asarray(
+            stats.t.interval(alpha=self.mp['ci_level'], df=(ewma_lrr.size - 1))
+        ) * stats.sem(ewma_lrr) + np.mean(ewma_lrr)
+        self.logger.info(
+            'EWMA {0}%CI of log return rate per sec: {1} {2}'.format(
+                int(self.mp['ci_level'] * 100), ewma_lrr[-1], ewma_lrr_ci
+            )
+        )
         self.ewma_stats[instrument] = {
-            'ewma': ewma[-1], 'ewmacil': ci[0], 'ewmaciu': ci[1],
-            'spread_ratio': np.float16((rate['ask'] - rate['bid']) / mid[-1]),
-            'mid': mid[-1], **rate
+            'ewma': ewma_lrr[-1], 'ewmacil': ewma_lrr_ci[0],
+            'ewmaciu': ewma_lrr_ci[1], 'spread_ratio': spr,
+            'mid': df_spr['mid'].values[-1], **rate
         }
 
     def _determine_order_side(self, instrument):
@@ -80,7 +99,7 @@ class EwmaLogDiffTrader(RedisTrader):
             not pos and self.acc_dict['marginAvail'] <
             self.acc_dict['balance'] * pp['margin_nav_ratio']['preserve']
         )
-        if self.rate_caches[instrument].size < self.mp['window_range'][0]:
+        if len(self.cache_dfs[instrument]) < self.mp['window_range'][0]:
             st = {'act': None, 'state': 'LOADING'}
         elif self.inst_dict[instrument]['halted']:
             st = {'act': None, 'state': 'TRADING HALTED'}
@@ -111,15 +130,13 @@ class EwmaLogDiffTrader(RedisTrader):
         else:
             st = {'act': None, 'state': '-'}
         self.print_log(
-            (
-                '|{0:^11}| RATE:{1:>21} | LOGDIFF CI{2:02d}:{3:>20} |{4:^16}|'
-            ).format(
+            '|{0:^11}| RATE:{1:>21} | LRR CI{2:02d}:{3:>20} |{4:^16}|'.format(
                 instrument,
                 np.array2string(
                     np.array([ec['bid'], ec['ask']]),
                     formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                 ),
-                int(self.ci_level * 100),
+                int(self.mp['ci_level'] * 100),
                 np.array2string(
                     np.array([ec['ewmacil'], ec['ewmaciu']]),
                     formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}

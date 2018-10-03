@@ -31,7 +31,7 @@ class RedisTrader(BaseTrader):
         cached_rates = [
             json.loads(s) for s in redis_c.lrange(instrument, 0, -1)
         ]
-        if cached_rates:
+        if len(cached_rates) > 1:
             for i in cached_rates:
                 redis_c.lpop(instrument)
             if [r for r in cached_rates if 'disconnect' in r]:
