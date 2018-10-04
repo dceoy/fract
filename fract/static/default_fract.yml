@@ -29,7 +29,7 @@ position:
 model:
   ewma:
     alpha: 0.1            # (0, 1)
-    ci_level: 0.99        # (0, 1)
+    sigma_multiplier: 6   # [0, 10]
     window_range:
       - 10                # (1, Inf)
       - 1000              # (1, Inf)

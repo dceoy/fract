@@ -6,7 +6,6 @@ from pprint import pformat
 import signal
 import numpy as np
 import pandas as pd
-from scipy import stats
 from .kvs import RedisTrader
 
 
@@ -76,18 +75,18 @@ class EwmaLogDiffTrader(RedisTrader):
         )
         ewm = log_return_rate.ewm(alpha=self.mp['alpha'])
         self.logger.debug('ewm: {}'.format(ewm))
-        ewma_lrr = ewm.mean().dropna().values
-        ewma_lrr_ci = np.asarray(
-            stats.t.interval(alpha=self.mp['ci_level'], df=(ewma_lrr.size - 1))
-        ) * stats.sem(ewma_lrr) + np.mean(ewma_lrr)
+        ewma = ewm.mean().values[-1]
+        self.logger.info('EWMA of log return rate: {}'.format(ewma))
+        ewmstd = ewm.std().values[-1]
+        ewmsi = ewma + np.array([-1, 1]) * ewmstd * self.mp['sigma_multiplier']
         self.logger.info(
-            'EWMA {0}%CI of log return rate per sec: {1} {2}'.format(
-                int(self.mp['ci_level'] * 100), ewma_lrr[-1], ewma_lrr_ci
+            'EWMA {0} sigma interval: {1}'.format(
+                self.mp['sigma_multiplier'], ewmsi
             )
         )
         self.ewma_stats[instrument] = {
-            'ewmacil': ewma_lrr_ci[0], 'ewmaciu': ewma_lrr_ci[1],
-            'ewma': ewma_lrr[-1], **df_r.tail(n=1).reset_index().T.to_dict()[0]
+            'ewma': ewma, 'ewmsi_lower': ewmsi[0], 'ewmsi_upper': ewmsi[1],
+            **df_r.tail(n=1).reset_index().T.to_dict()[0]
         }
 
     def _determine_order_side(self, instrument):
@@ -108,14 +107,14 @@ class EwmaLogDiffTrader(RedisTrader):
             st = {'act': None, 'state': 'LACK OF FUNDS'}
         elif ec['spread'] > ec['mid'] * pp['limit_price_ratio']['max_spread']:
             st = {'act': None, 'state': 'OVER-SPREAD'}
-        elif ec['ewmacil'] > 0:
+        elif ec['ewmsi_lower'] > 0:
             if pos and pos['side'] == 'buy':
                 st = {'act': None, 'state': 'LONG'}
             elif pos and pos['side'] == 'sell':
                 st = {'act': 'buy', 'state': 'SHORT >>> LONG'}
             else:
                 st = {'act': 'buy', 'state': '>>> LONG'}
-        elif ec['ewmaciu'] < 0:
+        elif ec['ewmsi_upper'] < 0:
             if pos and pos['side'] == 'sell':
                 st = {'act': None, 'state': 'SHORT'}
             elif pos and pos['side'] == 'buy':
@@ -129,16 +128,19 @@ class EwmaLogDiffTrader(RedisTrader):
         else:
             st = {'act': None, 'state': '-'}
         self.print_log(
-            '|{0:^11}| RATE:{1:>21} | LRR CI{2:02d}:{3:>20} |{4:^16}|'.format(
+            '|{0:^11}| PRICE:{1:>21} | LRR W/ {2}S:{3:>29} |{4:^16}|'.format(
                 instrument,
                 np.array2string(
                     np.array([ec['bid'], ec['ask']]),
                     formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                 ),
-                int(self.mp['ci_level'] * 100),
-                np.array2string(
-                    np.array([ec['ewmacil'], ec['ewmaciu']]),
-                    formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
+                int(self.mp['sigma_multiplier']),
+                '{0:1.5f} {1}'.format(
+                    ec['ewma'],
+                    np.array2string(
+                        np.array([ec['ewmsi_lower'], ec['ewmsi_upper']]),
+                        formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
+                    )
                 ),
                 st['state']
             )
