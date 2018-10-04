@@ -24,18 +24,6 @@ class BaseTrader(oandapy.API):
         )
         self.account_id = config_dict['oanda']['account_id']
         self.instruments = instruments or config_dict['instruments']
-        if log_dir_path:
-            self.log_dir_path = self._abspath(log_dir_path)
-            self.order_log_path = os.path.join(
-                self.log_dir_path, 'order.json.txt'
-            )
-            self.txn_log_path = os.path.join(
-                self.log_dir_path, 'txn.json.txt'
-            )
-        else:
-            self.log_dir_path = None
-            self.order_log_path = None
-            self.txn_log_path = None
         self.quiet = quiet
         self.bs = BettingSystem(strategy=self.cf['position']['bet'])
         self.min_txn_id = max(
@@ -51,6 +39,30 @@ class BaseTrader(oandapy.API):
         self.rate_dict = dict()
         self.pos_dict = dict()
         self.pos_time = dict()
+        if log_dir_path:
+            self.log_dir_path = self._abspath(log_dir_path)
+            self.order_log_path = os.path.join(
+                self.log_dir_path, 'order.json.txt'
+            )
+            self.txn_log_path = os.path.join(
+                self.log_dir_path, 'txn.json.txt'
+            )
+            self.write_log(
+                data=yaml.dump(
+                    {
+                        'instrument': self.instruments,
+                        'model': self.cf['model'],
+                        'position': self.cf['position']
+                    },
+                    default_flow_style=False
+                ),
+                path=os.path.join(self.log_dir_path, 'parameter.yml'),
+                mode='w', append_linesep=False
+            )
+        else:
+            self.log_dir_path = None
+            self.order_log_path = None
+            self.txn_log_path = None
 
     @staticmethod
     def _abspath(path):
@@ -160,7 +172,7 @@ class BaseTrader(oandapy.API):
         else:
             self.print_log(
                 '{} a position:'.format('Close' if closing else 'Open') +
-                os.linesep + pformat(r)
+                os.linesep + yaml.dump(r, default_flow_style=False)
             )
             if self.order_log_path:
                 self.write_log(data=json.dumps(r), path=self.order_log_path)
@@ -275,14 +287,6 @@ class BaseTrader(oandapy.API):
             header=(not os.path.isfile(p))
         )
 
-    def write_log(self, data, path, mode='a'):
+    def write_log(self, data, path, mode='a', append_linesep=True):
         with open(self._abspath(path), mode) as f:
-            f.write('{0}{1}'.format(data, os.linesep))
-
-    def write_parameter_log(self, dir_path, basename='parameter.yml'):
-        param = {
-            'instrument': self.instruments, 'model': self.cf['model'],
-            'position': self.cf['position']
-        }
-        with open(os.path.join(self._abspath(dir_path), basename), 'w') as f:
-            f.write(yaml.dump(param, default_flow_style=False))
+            f.write(str(data) + (os.linesep if append_linesep else ''))

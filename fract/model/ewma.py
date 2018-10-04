@@ -21,8 +21,6 @@ class EwmaLogDiffTrader(RedisTrader):
     def invoke(self):
         self.print_log('!!! OPEN DEALS !!!')
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        if self.log_dir_path:
-            self.write_parameter_log(dir_path=self.log_dir_path)
         while self.check_health():
             self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
             self._open_deals()
@@ -54,24 +52,19 @@ class EwmaLogDiffTrader(RedisTrader):
 
     def _update_caches(self, instrument, df_rate):
         self.latest_update_time = datetime.now()
-        rate = df_rate.tail(n=1).reset_index().T.to_dict()[0]
-        df_spr = self.cache_dfs[instrument].append(
+        df_r = self.cache_dfs[instrument].append(
             df_rate.assign(
                 spread=lambda d: d['ask'] - d['bid'],
                 mid=lambda d: (d['ask'] + d['bid']) / 2
-            ).assign(
-                spr=lambda d: d['spread'] / d['mid']
             )
         ).tail(n=int(self.mp['window_range'][1]))
-        self.logger.info('Window size: {}'.format(len(df_spr)))
-        self.cache_dfs[instrument] = df_spr
-        spr = np.float16(df_spr['spr'].values[-1])
-        self.logger.info('Spread-price ratio: {}'.format(spr))
-        log_return_rate = df_spr.reset_index().assign(
-            recip_spr=lambda d: (d['mid'] / d['spread'])
+        self.logger.info('Window size: {}'.format(len(df_r)))
+        self.cache_dfs[instrument] = df_r
+        log_return_rate = df_r.reset_index().assign(
+            bid_by_ask=lambda d: d['bid'] / d['ask']
         ).assign(
             log_diff=lambda d: np.log(d['mid']).diff(),
-            spr_weight=lambda d: d['recip_spr'] / d['recip_spr'].sum(),
+            spr_weight=lambda d: d['bid_by_ask'] / d['bid_by_ask'].sum(),
             delta_sec=lambda d: d['time'].diff().dt.total_seconds()
         ).dropna().pipe(
             lambda d: d['log_diff'] * d['spr_weight'] / d['delta_sec']
@@ -93,9 +86,8 @@ class EwmaLogDiffTrader(RedisTrader):
             )
         )
         self.ewma_stats[instrument] = {
-            'ewma': ewma_lrr[-1], 'ewmacil': ewma_lrr_ci[0],
-            'ewmaciu': ewma_lrr_ci[1], 'spread_ratio': spr,
-            'mid': df_spr['mid'].values[-1], **rate
+            'ewmacil': ewma_lrr_ci[0], 'ewmaciu': ewma_lrr_ci[1],
+            'ewma': ewma_lrr[-1], **df_r.tail(n=1).reset_index().T.to_dict()[0]
         }
 
     def _determine_order_side(self, instrument):
@@ -114,7 +106,7 @@ class EwmaLogDiffTrader(RedisTrader):
             st = {'act': None, 'state': 'NO FUND'}
         elif margin_lack:
             st = {'act': None, 'state': 'LACK OF FUNDS'}
-        elif ec['spread_ratio'] > pp['limit_price_ratio']['max_spread']:
+        elif ec['spread'] > ec['mid'] * pp['limit_price_ratio']['max_spread']:
             st = {'act': None, 'state': 'OVER-SPREAD'}
         elif ec['ewmacil'] > 0:
             if pos and pos['side'] == 'buy':
