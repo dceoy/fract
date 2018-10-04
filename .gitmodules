@@ -1,3 +1,0 @@
-[submodule "oandapy"]
-	path = oandapy
-	url = git@github.com:oanda/oandapy.git
