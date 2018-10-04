@@ -14,10 +14,6 @@ instruments:
   - AUD_USD
 position:
   bet: d'Alembert         # { Martingale, d'Alembert, Pyramid, Oscar's grind }
-  margin_nav_ratio:
-    init: 0.04            # (0, 1)
-    unit: 0.04            # (0, 1)
-    preserve: 0.04        # (0, 1)
   limit_price_ratio:
     take_profit: 0.008    # (0, 1)
     trailing_stop: 0.002  # (0, 1)
@@ -25,11 +21,16 @@ position:
     upper_bound: 0.001    # (0, 1)
     lower_bound: 0.001    # (0, 1)
     max_spread: 0.0005    # (0, 1)
+  margin_nav_ratio:
+    init: 0.04            # (0, 1)
+    unit: 0.04            # (0, 1)
+    preserve: 0.04        # (0, 1)
   ttl_sec: 86400          # [0, Inf]
 model:
   ewma:
+    accelerate: true      # { true, false }
     alpha: 0.1            # (0, 1)
-    sigma_multiplier: 6   # [0, 10]
+    sigma_multiplier: 2   # [0, 10]
     window_range:
       - 10                # (1, Inf)
       - 1000              # (1, Inf)

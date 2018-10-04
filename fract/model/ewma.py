@@ -111,16 +111,16 @@ class EwmaLogDiffTrader(RedisTrader):
             if pos and pos['side'] == 'buy':
                 st = {'act': None, 'state': 'LONG'}
             elif pos and pos['side'] == 'sell':
-                st = {'act': 'buy', 'state': 'SHORT >>> LONG'}
+                st = {'act': 'buy', 'state': 'SHORT -> LONG'}
             else:
-                st = {'act': 'buy', 'state': '>>> LONG'}
+                st = {'act': 'buy', 'state': '-> LONG'}
         elif ec['ewmsi_upper'] < 0:
             if pos and pos['side'] == 'sell':
                 st = {'act': None, 'state': 'SHORT'}
             elif pos and pos['side'] == 'buy':
-                st = {'act': 'sell', 'state': 'LONG >>> SHORT'}
+                st = {'act': 'sell', 'state': 'LONG -> SHORT'}
             else:
-                st = {'act': 'sell', 'state': '>>> SHORT'}
+                st = {'act': 'sell', 'state': '-> SHORT'}
         elif pos and pos['side'] == 'buy':
             st = {'act': None, 'state': 'LONG'}
         elif pos and pos['side'] == 'sell':
@@ -128,15 +128,17 @@ class EwmaLogDiffTrader(RedisTrader):
         else:
             st = {'act': None, 'state': '-'}
         self.print_log(
-            '|{0:^11}| PRICE:{1:>21} | LRR W/ {2}S:{3:>29} |{4:^16}|'.format(
-                instrument,
-                np.array2string(
-                    np.array([ec['bid'], ec['ask']]),
-                    formatter={'float_kind': lambda f: '{:8g}'.format(f)}
+            '|{0:^35}|{1:^44}|{2:^18}|'.format(
+                '{0:>7} >>{1:>21}'.format(
+                    instrument.replace('_', '/'),
+                    np.array2string(
+                        np.array([ec['bid'], ec['ask']]),
+                        formatter={'float_kind': lambda f: '{:8g}'.format(f)}
+                    )
                 ),
-                int(self.mp['sigma_multiplier']),
-                '{0:1.5f} {1}'.format(
-                    ec['ewma'],
+                'LRR[{0}S] >>{1:>10}{2:>20}'.format(
+                    int(self.mp['sigma_multiplier']),
+                    '{:1.5f}'.format(ec['ewma']),
                     np.array2string(
                         np.array([ec['ewmsi_lower'], ec['ewmsi_upper']]),
                         formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
