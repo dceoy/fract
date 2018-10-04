@@ -28,9 +28,9 @@ position:
   ttl_sec: 86400          # [0, Inf]
 model:
   ewma:
-    accelerate: true      # { true, false }
-    alpha: 0.1            # (0, 1)
-    sigma_multiplier: 2   # [0, 10]
+    acceleration: true    # { true, false }
+    alpha: 0.2            # (0, 1)
+    sigma_multiplier: 1   # [0, 10]
     window_range:
       - 10                # (1, Inf)
       - 1000              # (1, Inf)

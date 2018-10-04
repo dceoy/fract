@@ -7,7 +7,7 @@ from multiprocessing import cpu_count
 import redis
 from ..util.config import read_config_yml
 from ..util.error import FractRuntimeError
-from ..model.ewma import EwmaLogDiffTrader
+from ..model.ewma import EwmaTrader
 from .streamer import StreamDriver
 
 
@@ -25,7 +25,7 @@ def invoke_trader(config_yml, instruments=None, model='ewma', interval_sec=0,
             port=(redis_port or rd.get('port')),
             db=(redis_db if redis_db is not None else rd.get('db'))
         )
-        trader = EwmaLogDiffTrader(
+        trader = EwmaTrader(
             config_dict=cf, instruments=instruments, redis_pool=redis_pool,
             interval_sec=interval_sec, timeout_sec=timeout_sec,
             log_dir_path=log_dir_path, quiet=quiet

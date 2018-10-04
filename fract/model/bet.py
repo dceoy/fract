@@ -1,18 +1,23 @@
 #!/usr/bin/env python
 
+import logging
 from ..util.error import FractRuntimeError
 
 
 class BettingSystem(object):
-    def __init__(self, strategy):
+    def __init__(self, strategy='Martingale'):
+        self.logger = logging.getLogger(__name__)
         strategies = ['Martingale', "d'Alembert", 'Pyramid', "Oscar's grind"]
         if strategy in strategies:
+            self.logger.info('Betting strategy: {}'.format(strategy))
             self.strategy = strategy
         else:
             raise FractRuntimeError('invalid strategy name')
 
     def calculate_size(self, unit_size, init_size=None, last_size=None,
-                       last_won=None, is_all_time_high=False):
+                       last_won=None, all_time_high=False):
+        self.logger.debug('last_size: {}'.format(last_size))
+        self.logger.debug('last_won: {}'.format(last_won))
         if last_size is None or last_won is None:
             return init_size or unit_size
         elif self.strategy == 'Martingale':
@@ -27,7 +32,8 @@ class BettingSystem(object):
             else:
                 return (last_size - unit_size)
         elif self.strategy == "Oscar's grind":
-            if is_all_time_high:
+            self.logger.debug('all_time_high: {}'.format(all_time_high))
+            if all_time_high:
                 return init_size or unit_size
             elif last_won:
                 return (last_size + unit_size)

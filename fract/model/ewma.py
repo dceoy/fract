@@ -1,17 +1,19 @@
 #!/usr/bin/env python
 
-from datetime import datetime
+import logging
 import os
 from pprint import pformat
 import signal
 import numpy as np
 import pandas as pd
+from .feature import LogReturnFeature
 from .kvs import RedisTrader
 
 
-class EwmaLogDiffTrader(RedisTrader):
+class EwmaTrader(RedisTrader):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.logger = logging.getLogger(__name__)
         self.mp = self.cf['model']['ewma']
         self.cache_dfs = {i: pd.DataFrame() for i in self.instruments}
         self.ewma_stats = {i: dict() for i in self.instruments}
@@ -32,6 +34,7 @@ class EwmaLogDiffTrader(RedisTrader):
                 self.logger.info('Rate:{0}{1}'.format(os.linesep, df_r))
                 self._update_caches(instrument=i, df_rate=df_r)
                 st = self._determine_order_side(instrument=i)
+                self._print_log_line(stat=st)
                 if st['act']:
                     self.design_and_place_order(instrument=i, side=st['act'])
                 else:
@@ -50,47 +53,14 @@ class EwmaLogDiffTrader(RedisTrader):
                 self.logger.info('Updated TSV log: {}'.format(p))
 
     def _update_caches(self, instrument, df_rate):
-        self.latest_update_time = datetime.now()
-        df_r = self.cache_dfs[instrument].append(
-            df_rate.assign(
-                spread=lambda d: d['ask'] - d['bid'],
-                mid=lambda d: (d['ask'] + d['bid']) / 2
-            )
-        ).tail(n=int(self.mp['window_range'][1]))
-        self.logger.info('Window size: {}'.format(len(df_r)))
+        df_r = self.cache_dfs[instrument].append(df_rate).tail(
+            n=int(self.mp['window_range'][1])
+        )
+        self.logger.info('Cache length: {}'.format(len(df_r)))
         self.cache_dfs[instrument] = df_r
-        log_return_rate = df_r.reset_index().assign(
-            bid_by_ask=lambda d: d['bid'] / d['ask']
-        ).assign(
-            log_diff=lambda d: np.log(d['mid']).diff(),
-            spr_weight=lambda d: d['bid_by_ask'] / d['bid_by_ask'].sum(),
-            delta_sec=lambda d: d['time'].diff().dt.total_seconds()
-        ).dropna().pipe(
-            lambda d: d['log_diff'] * d['spr_weight'] / d['delta_sec']
-        )
-        self.logger.debug(
-            'Adjusted log return per second (tail): {}'.format(
-                log_return_rate.tail().values
-            )
-        )
-        ewm = log_return_rate.ewm(alpha=self.mp['alpha'])
-        self.logger.debug('ewm: {}'.format(ewm))
-        ewma = ewm.mean().values[-1]
-        self.logger.info('EWMA of log return rate: {}'.format(ewma))
-        ewmstd = ewm.std().values[-1]
-        ewmsi = ewma + np.array([-1, 1]) * ewmstd * self.mp['sigma_multiplier']
-        self.logger.info(
-            'EWMA {0} sigma interval: {1}'.format(
-                self.mp['sigma_multiplier'], ewmsi
-            )
-        )
-        self.ewma_stats[instrument] = {
-            'ewma': ewma, 'ewmsi_lower': ewmsi[0], 'ewmsi_upper': ewmsi[1],
-            **df_r.tail(n=1).reset_index().T.to_dict()[0]
-        }
 
     def _determine_order_side(self, instrument):
-        ec = self.ewma_stats[instrument]
+        ec = self._calcurate_ewma_stats(instrument=instrument)
         pp = self.cf['position']
         pos = self.pos_dict.get(instrument)
         margin_lack = (
@@ -127,24 +97,48 @@ class EwmaLogDiffTrader(RedisTrader):
             st = {'act': None, 'state': 'SHORT'}
         else:
             st = {'act': None, 'state': '-'}
+        return {**st, **ec}
+
+    def _print_log_line(self, stat):
         self.print_log(
             '|{0:^35}|{1:^44}|{2:^18}|'.format(
                 '{0:>7} >>{1:>21}'.format(
-                    instrument.replace('_', '/'),
+                    stat['instrument'].replace('_', '/'),
                     np.array2string(
-                        np.array([ec['bid'], ec['ask']]),
+                        np.array([stat['bid'], stat['ask']]),
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                     )
                 ),
-                'LRR[{0}S] >>{1:>10}{2:>20}'.format(
+                '{0:>3}[{1}S] >>{2:>10}{3:>20}'.format(
+                    ('LRA' if self.mp.get('acceleration') else 'LRV'),
                     int(self.mp['sigma_multiplier']),
-                    '{:1.5f}'.format(ec['ewma']),
+                    '{:1.5f}'.format(stat['ewma']),
                     np.array2string(
-                        np.array([ec['ewmsi_lower'], ec['ewmsi_upper']]),
+                        np.array([stat['ewmsi_lower'], stat['ewmsi_upper']]),
                         formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
                     )
                 ),
-                st['state']
+                stat['state']
             )
         )
-        return {**st, **ec}
+
+    def _calcurate_ewma_stats(self, instrument):
+        lrf = LogReturnFeature(df_rate=self.cache_dfs[instrument])
+        feature_ewm = (
+            lrf.log_return_acceleration() if self.mp.get('acceleration')
+            else lrf.log_return_velocity()
+        ).ewm(alpha=self.mp['alpha'])
+        self.logger.debug('feature_ewm: {}'.format(feature_ewm))
+        ewma = feature_ewm.mean().values[-1]
+        self.logger.info('EWMA of log return rate: {}'.format(ewma))
+        ewmstd = feature_ewm.std().values[-1]
+        ewmsi = ewma + np.array([-1, 1]) * ewmstd * self.mp['sigma_multiplier']
+        self.logger.info(
+            'EWMA {0} sigma interval: {1}'.format(
+                self.mp['sigma_multiplier'], ewmsi
+            )
+        )
+        return {
+            'ewma': ewma, 'ewmsi_lower': ewmsi[0], 'ewmsi_upper': ewmsi[1],
+            **self.cache_dfs[instrument].tail(n=1).reset_index().T.to_dict()[0]
+        }

@@ -245,7 +245,7 @@ class BaseTrader(oandapy.API):
             bet_size = self.bs.calculate_size(
                 unit_size=sizes['unit'], init_size=sizes['init'],
                 last_size=last_size, last_won=last_won,
-                is_all_time_high=df_pl['pl'].cumsum().pipe(
+                all_time_high=df_pl['pl'].cumsum().pipe(
                     lambda s: s == max(s)
                 ).values[-1]
             )
