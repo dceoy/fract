@@ -101,7 +101,7 @@ class EwmaTrader(RedisTrader):
 
     def _print_log_line(self, stat):
         self.print_log(
-            '|{0:^35}|{1:^44}|{2:^18}|'.format(
+            '|{0:^35}|{1:^48}|{2:^18}|'.format(
                 '{0:>7} >>{1:>21}'.format(
                     stat['instrument'].replace('_', '/'),
                     np.array2string(
@@ -109,9 +109,9 @@ class EwmaTrader(RedisTrader):
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                     )
                 ),
-                '{0:>3}[{1}S] >>{2:>10}{3:>20}'.format(
+                '{0:>3}[{1:1.1f}S] >>{2:>11}{3:>21}'.format(
                     ('LRA' if self.mp.get('acceleration') else 'LRV'),
-                    int(self.mp['sigma_multiplier']),
+                    self.mp['sigma_multiplier'],
                     '{:1.5f}'.format(stat['ewma']),
                     np.array2string(
                         np.array([stat['ewmsi_lower'], stat['ewmsi_upper']]),
