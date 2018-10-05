@@ -222,7 +222,7 @@ class BaseTrader(oandapy.API):
             if k in ['unit', 'init']
         }
         self.logger.debug('sizes: {}'.format(sizes))
-        txns = [t for t in self.txn_list if t['instrument'] == instrument]
+        txns = [t for t in self.txn_list if t.get('instrument') == instrument]
         df_pl = pd.DataFrame([
             {'pl': t['pl'], 'units': t['units']} for t in txns if t.get('pl')
         ])
