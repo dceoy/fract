@@ -7,7 +7,8 @@ Usage:
     fract init [--debug|--info] [--file=<yaml>]
     fract info [--debug|--info] [--file=<yaml>] <info_target> [<instrument>...]
     fract track [--debug|--info] [--file=<yaml>] [--sqlite=<path>]
-                [--granularity=<code>] [--count=<int>] [<instrument>...]
+                [--granularity=<code>] [--count=<int>] [--quiet]
+                [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
                  [--sqlite=<path>] [--redis-host=<ip>] [--redis-port=<int>]
                  [--redis-db=<int>] [--redis-max-llen=<int>] [--quiet]
@@ -97,7 +98,7 @@ def main():
         track_rate(
             config_yml=args['--file'], instruments=args['<instrument>'],
             granularity=args['--granularity'], count=args['--count'],
-            sqlite_path=args['--sqlite']
+            sqlite_path=args['--sqlite'], quiet=args['--quiet']
         )
     elif args['stream']:
         invoke_streamer(

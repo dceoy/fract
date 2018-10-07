@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 
-import json
 import os
 import logging
 import sqlite3
 import oandapy
 import pandas as pd
 import pandas.io.sql as pdsql
+import yaml
 from ..util.config import read_config_yml
 
 
-def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):
+def track_rate(config_yml, instruments, granularity, count, sqlite_path=None,
+               quiet=False):
     logger = logging.getLogger(__name__)
     logger.info('Rate tracking')
     cf = read_config_yml(path=config_yml)
@@ -72,5 +73,5 @@ def track_rate(config_yml, instruments, granularity, count, sqlite_path=None):
                 pdsql.to_sql(
                     df, 'candle', con, index=False, if_exists='append'
                 )
-    else:
-        print(json.dumps(candles))
+    if not quiet:
+        print(yaml.dump(candles, default_flow_style=False))
