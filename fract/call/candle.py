@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 import os
 import logging
 import sqlite3
@@ -11,7 +12,7 @@ from ..util.config import read_config_yml
 
 
 def track_rate(config_yml, instruments, granularity, count, sqlite_path=None,
-               quiet=False):
+               print_json=False, quiet=False):
     logger = logging.getLogger(__name__)
     logger.info('Rate tracking')
     cf = read_config_yml(path=config_yml)
@@ -74,4 +75,7 @@ def track_rate(config_yml, instruments, granularity, count, sqlite_path=None,
                     df, 'candle', con, index=False, if_exists='append'
                 )
     if not quiet:
-        print(yaml.dump(candles, default_flow_style=False))
+        print(
+            json.dumps(candles, indent=2) if print_json else
+            yaml.dump(candles, default_flow_style=False).strip()
+        )

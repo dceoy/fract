@@ -34,7 +34,7 @@ def invoke_trader(config_yml, instruments=None, model='ewma', interval_sec=0,
             logger.info('Invoke a trader with a streamer')
             streamer = StreamDriver(
                 config_dict=cf, target='rate', instruments=instruments,
-                redis_pool=redis_pool, quiet=True
+                use_redis=False, redis_pool=redis_pool, quiet=True
             )
             if cpu_count() > 1:
                 executor = ProcessPoolExecutor(max_workers=2)

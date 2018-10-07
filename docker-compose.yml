@@ -37,6 +37,7 @@ services:
     command:
       - stream
       - --file=/wd/fract.yml
+      - --use-redis
       - --target=rate
       - --quiet
     restart: always

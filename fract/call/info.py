@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 import logging
 import oandapy
 import yaml
@@ -7,7 +8,7 @@ from ..util.error import FractRuntimeError
 from ..util.config import read_config_yml
 
 
-def print_info(config_yml, instruments=[], type='accounts'):
+def print_info(config_yml, instruments=[], type='accounts', print_json=False):
     logger = logging.getLogger(__name__)
     available_types = [
         'instruments', 'account', 'accounts', 'orders', 'trades', 'positions',
@@ -71,4 +72,7 @@ def print_info(config_yml, instruments=[], type='accounts'):
     elif type == 'autochartist':
         res = oanda.get_autochartist(instruments=insts_str, period=period)
     logger.debug('Print information: {}'.format(type))
-    print(yaml.dump(res, default_flow_style=False))
+    print(
+        json.dumps(res, indent=2) if print_json else
+        yaml.dump(res, default_flow_style=False).strip()
+    )

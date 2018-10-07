@@ -54,7 +54,7 @@ class BaseTrader(oandapy.API):
                         'position': self.cf['position']
                     },
                     default_flow_style=False
-                ),
+                ).strip(),
                 path=os.path.join(self.log_dir_path, 'parameter.yml'),
                 mode='w', append_linesep=False
             )
@@ -83,7 +83,7 @@ class BaseTrader(oandapy.API):
             if t['id'] not in [t['id'] for t in self.txn_list]
         ]
         if th_new:
-            self.print_log(yaml.dump(th_new, default_flow_style=False))
+            self.print_log(yaml.dump(th_new, default_flow_style=False).strip())
             self.txn_list = self.txn_list + th_new
             if self.txn_log_path:
                 self.write_log(data=json.dumps(th_new), path=self.txn_log_path)
@@ -169,7 +169,7 @@ class BaseTrader(oandapy.API):
             if self.order_log_path:
                 self.write_log(data=e, path=self.order_log_path)
         else:
-            self.print_log(yaml.dump(r, default_flow_style=False))
+            self.print_log(yaml.dump(r, default_flow_style=False).strip())
             if self.order_log_path:
                 self.write_log(data=json.dumps(r), path=self.order_log_path)
             else:
