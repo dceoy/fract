@@ -73,11 +73,11 @@ import logging
 import os
 from docopt import docopt
 from .. import __version__
-from ..auto.streamer import invoke_streamer
-from ..auto.trader import invoke_trader
-from ..order.close import close_positions
-from ..track.info import print_info
-from ..track.rate import track_rate
+from ..call.candle import track_rate
+from ..call.info import print_info
+from ..call.order import close_positions
+from ..call.streamer import invoke_streamer
+from ..call.trader import invoke_trader
 from ..util.config import write_config_yml
 from ..util.logger import set_log_config
 
