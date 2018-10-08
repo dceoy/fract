@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import logging
 import os
+from pprint import pformat
 import time
 import numpy as np
 import oandapy
@@ -195,7 +196,7 @@ class BaseTrader(oandapy.API):
             if self.order_log_path:
                 self.write_log(data=e, path=self.order_log_path)
         else:
-            self.print_log(yaml.dump(r, default_flow_style=False).strip())
+            self.logger.info(os.linesep + pformat(r))
             if self.order_log_path:
                 self.write_log(data=json.dumps(r), path=self.order_log_path)
             else:
