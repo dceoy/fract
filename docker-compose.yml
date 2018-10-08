@@ -2,16 +2,16 @@
 version: '3'
 
 services:
-  trader:
-    container_name: fract-trader
+  fract:
+    container_name: fract
     build:
       context: .
       dockerfile: Dockerfile
-    image: dceoy/fract:dev
+    image: dceoy/fract:latest
     networks:
-      - fract-db
+      - oanda-db
     depends_on:
-      - streamer
+      - oanda-cli
       - redis
     volumes:
       - ${PWD}:/wd
@@ -22,18 +22,18 @@ services:
       - open
       - --file=/wd/fract.yml
     restart: always
-  streamer:
-    container_name: fract-streamer
-    image: dceoy/fract:dev
+  oanda-cli:
+    container_name: oanda-cli
+    image: dceoy/oanda-cli:latest
     networks:
-      - fract-db
+      - oanda-db
     depends_on:
       - redis
     volumes:
       - ${PWD}:/wd
     working_dir: /wd
     entrypoint:
-      - fract
+      - oanda-cli
     command:
       - stream
       - --file=/wd/fract.yml
@@ -45,7 +45,7 @@ services:
     container_name: redis
     image: redis:latest
     networks:
-      - fract-db
+      - oanda-db
     ports:
       - 6379:6379
     volumes:
@@ -53,7 +53,7 @@ services:
     restart: always
 
 networks:
-  fract-db:
+  oanda-db:
     external: false
 
 volumes:
