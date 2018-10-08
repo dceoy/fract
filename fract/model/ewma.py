@@ -6,6 +6,7 @@ from pprint import pformat
 import signal
 import numpy as np
 import pandas as pd
+from scipy import stats
 from .feature import LogReturnFeature
 from .kvs import RedisTrader
 
@@ -84,14 +85,14 @@ class EwmaTrader(RedisTrader):
             st = {'act': None, 'state': 'LACK OF FUNDS'}
         elif ec['spread'] > ec['mid'] * pp['limit_price_ratio']['max_spread']:
             st = {'act': None, 'state': 'OVER-SPREAD'}
-        elif ec['ewmsi_lower'] > 0:
+        elif ec['ewmci_lower'] > 0:
             if pos and pos['side'] == 'buy':
                 st = {'act': None, 'state': '{:.2g}% LONG'.format(pos_pct)}
             elif pos and pos['side'] == 'sell':
                 st = {'act': 'buy', 'state': 'SHORT -> LONG'}
             else:
                 st = {'act': 'buy', 'state': '-> LONG'}
-        elif ec['ewmsi_upper'] < 0:
+        elif ec['ewmci_upper'] < 0:
             if pos and pos['side'] == 'sell':
                 st = {'act': None, 'state': '{:.2g}% SHORT'.format(pos_pct)}
             elif pos and pos['side'] == 'buy':
@@ -116,12 +117,11 @@ class EwmaTrader(RedisTrader):
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                     )
                 ),
-                '{0:>3}[{1:1.1f}S] >>{2:>11}{3:>21}'.format(
+                '{0:>3}[CI{1:.2g}] >>{2:>11}{3:>21}'.format(
                     ('LRA' if self.mp.get('acceleration') else 'LRV'),
-                    self.mp['sigma_multiplier'],
-                    '{:1.5f}'.format(stat['ewma']),
+                    self.mp['ci_level'] * 100, '{:1.5f}'.format(stat['ewma']),
                     np.array2string(
-                        np.array([stat['ewmsi_lower'], stat['ewmsi_upper']]),
+                        np.array([stat['ewmci_lower'], stat['ewmci_upper']]),
                         formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
                     )
                 ),
@@ -138,14 +138,16 @@ class EwmaTrader(RedisTrader):
         self.logger.debug('feature_ewm: {}'.format(feature_ewm))
         ewma = feature_ewm.mean().values[-1]
         self.logger.info('EWMA of log return rate: {}'.format(ewma))
-        ewmstd = feature_ewm.std().values[-1]
-        ewmsi = ewma + np.array([-1, 1]) * ewmstd * self.mp['sigma_multiplier']
+        len_ewm = len(feature_ewm.obj.dropna())
+        ewmci = (
+            np.asarray(
+                stats.t.interval(alpha=self.mp['ci_level'], df=(len_ewm - 1))
+            ) * feature_ewm.std().values[-1] / np.sqrt(len_ewm) + ewma
+        )
         self.logger.info(
-            'EWMA {0} sigma interval: {1}'.format(
-                self.mp['sigma_multiplier'], ewmsi
-            )
+            'EWMA {0}% CI: {1}'.format(self.mp['ci_level'] * 100, ewmci)
         )
         return {
-            'ewma': ewma, 'ewmsi_lower': ewmsi[0], 'ewmsi_upper': ewmsi[1],
+            'ewma': ewma, 'ewmci_lower': ewmci[0], 'ewmci_upper': ewmci[1],
             **self.cache_dfs[instrument].tail(n=1).reset_index().T.to_dict()[0]
         }
