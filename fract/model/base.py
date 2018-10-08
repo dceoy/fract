@@ -36,6 +36,7 @@ class BaseTrader(oandapy.API):
         self.txn_list = list()
         self.inst_dict = dict()
         self.rate_dict = dict()
+        self.unit_costs = dict()
         self.pos_dict = dict()
         self.pos_time = dict()
         if log_dir_path:
@@ -68,12 +69,17 @@ class BaseTrader(oandapy.API):
         return os.path.abspath(os.path.expanduser(path))
 
     def refresh_oanda_dicts(self):
+        t0 = datetime.now()
         self.acc_dict = self.get_account(account_id=self.account_id)
-        time.sleep(0.5)
+        self.sleep(last=t0, sec=0.5)
         self._refresh_txn_list()
+        self.sleep(last=t0, sec=1)
         self._refresh_inst_dict()
+        self.sleep(last=t0, sec=1.5)
         self._refresh_rate_dict()
-        self._refresh_pos_dict()
+        self._refresh_unit_costs()
+        self.sleep(last=t0, sec=2)
+        self._refresh_pos_dict_and_pos_time()
 
     def _refresh_txn_list(self):
         th_new = [
@@ -87,10 +93,6 @@ class BaseTrader(oandapy.API):
             self.txn_list = self.txn_list + th_new
             if self.txn_log_path:
                 self.write_log(data=json.dumps(th_new), path=self.txn_log_path)
-            else:
-                time.sleep(0.5)
-        else:
-            time.sleep(0.5)
 
     def _refresh_inst_dict(self):
         self.inst_dict = {
@@ -104,7 +106,6 @@ class BaseTrader(oandapy.API):
                 ])
             )['instruments'] if 'instrument' in d
         }
-        time.sleep(0.5)
 
     def _refresh_rate_dict(self):
         self.rate_dict = {
@@ -114,9 +115,8 @@ class BaseTrader(oandapy.API):
                 instruments=','.join(self.inst_dict.keys())
             )['prices'] if 'instrument' in d
         }
-        time.sleep(0.5)
 
-    def _refresh_pos_dict(self):
+    def _refresh_pos_dict_and_pos_time(self):
         p0 = self.pos_dict
         self.pos_dict = {
             d['instrument']: d for d
@@ -128,6 +128,32 @@ class BaseTrader(oandapy.API):
                 self.pos_time[i] = None
             elif not p0.get(i) or p0[i]['side'] != self.pos_dict[i]['side']:
                 self.pos_time[i] = datetime.now()
+
+    def _refresh_unit_costs(self):
+        self.unit_costs = {
+            i: self._calculate_bp_value(instrument=i) * d['marginRate']
+            for i, d in self.inst_dict.items() if i in self.instruments
+        }
+
+    def _calculate_bp_value(self, instrument):
+        cur_pair = instrument.split('_')
+        if cur_pair[0] == self.acc_dict['accountCurrency']:
+            bpv = 1 / self.rate_dict[instrument]['ask']
+        elif cur_pair[1] == self.acc_dict['accountCurrency']:
+            bpv = self.rate_dict[instrument]['ask']
+        else:
+            inst_bpv = [
+                i for i in self.inst_dict.keys()
+                if set(i.split('_')) == {
+                    cur_pair[1], self.acc_dict['accountCurrency']
+                }
+            ][0]
+            bpv = self.rate_dict[instrument]['ask'] * (
+                self.rate_dict[inst_bpv]['ask']
+                if inst_bpv.split('_')[1] == self.acc_dict['accountCurrency']
+                else (1 / self.rate_dict[inst_bpv]['ask'])
+            )
+        return bpv
 
     def expire_positions(self, ttl_sec=86400):
         inst_times = {
@@ -205,20 +231,19 @@ class BaseTrader(oandapy.API):
         }
 
     def design_order_units(self, instrument, side):
-        margin_per_bp = (
-            self.calculate_bp_value(instrument=instrument) *
-            self.inst_dict[instrument]['marginRate']
-        )
-        avail_size = np.ceil(
-            (
-                self.acc_dict['marginAvail'] - self.acc_dict['balance'] *
-                self.cf['position']['margin_nav_ratio']['preserve']
-            ) / margin_per_bp
+        avail_size = max(
+            np.ceil(
+                (
+                    self.acc_dict['marginAvail'] - self.acc_dict['balance'] *
+                    self.cf['position']['margin_nav_ratio']['preserve']
+                ) / self.unit_costs[instrument]
+            ), 0
         )
         self.logger.debug('avail_size: {}'.format(avail_size))
         sizes = {
-            k: np.ceil(self.acc_dict['balance'] * v / margin_per_bp)
-            for k, v in self.cf['position']['margin_nav_ratio'].items()
+            k: np.ceil(
+                self.acc_dict['balance'] * v / self.unit_costs[instrument]
+            ) for k, v in self.cf['position']['margin_nav_ratio'].items()
             if k in ['unit', 'init']
         }
         self.logger.debug('sizes: {}'.format(sizes))
@@ -250,25 +275,11 @@ class BaseTrader(oandapy.API):
         self.logger.debug('bet_size: {}'.format(bet_size))
         return int(min(bet_size, avail_size))
 
-    def calculate_bp_value(self, instrument):
-        cur_pair = instrument.split('_')
-        if cur_pair[0] == self.acc_dict['accountCurrency']:
-            bpv = 1 / self.rate_dict[instrument]['ask']
-        elif cur_pair[1] == self.acc_dict['accountCurrency']:
-            bpv = self.rate_dict[instrument]['ask']
-        else:
-            inst_bpv = [
-                i for i in self.inst_dict.keys()
-                if set(i.split('_')) == {
-                    cur_pair[1], self.acc_dict['accountCurrency']
-                }
-            ][0]
-            bpv = self.rate_dict[instrument]['ask'] * (
-                self.rate_dict[inst_bpv]['ask']
-                if inst_bpv.split('_')[1] == self.acc_dict['accountCurrency']
-                else (1 / self.rate_dict[inst_bpv]['ask'])
-            )
-        return bpv
+    @staticmethod
+    def sleep(last, sec=0.5):
+        rest = sec - (datetime.now() - last).total_seconds()
+        if rest > 0:
+            time.sleep(rest)
 
     def print_log(self, data):
         if self.quiet:

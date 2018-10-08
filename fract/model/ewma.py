@@ -67,6 +67,13 @@ class EwmaTrader(RedisTrader):
             not pos and self.acc_dict['marginAvail'] <
             self.acc_dict['balance'] * pp['margin_nav_ratio']['preserve']
         )
+        if pos:
+            pos_pct = (
+                pos['units'] * self.unit_costs[instrument] * 100 /
+                self.acc_dict['balance']
+            )
+        else:
+            pos_pct = 0
         if len(self.cache_dfs[instrument]) < self.mp['window_range'][0]:
             st = {'act': None, 'state': 'LOADING'}
         elif self.inst_dict[instrument]['halted']:
@@ -79,22 +86,22 @@ class EwmaTrader(RedisTrader):
             st = {'act': None, 'state': 'OVER-SPREAD'}
         elif ec['ewmsi_lower'] > 0:
             if pos and pos['side'] == 'buy':
-                st = {'act': None, 'state': 'LONG: {}'.format(pos['units'])}
+                st = {'act': None, 'state': '{:.2g}% LONG'.format(pos_pct)}
             elif pos and pos['side'] == 'sell':
                 st = {'act': 'buy', 'state': 'SHORT -> LONG'}
             else:
                 st = {'act': 'buy', 'state': '-> LONG'}
         elif ec['ewmsi_upper'] < 0:
             if pos and pos['side'] == 'sell':
-                st = {'act': None, 'state': 'SHORT: {}'.format(pos['units'])}
+                st = {'act': None, 'state': '{:.2g}% SHORT'.format(pos_pct)}
             elif pos and pos['side'] == 'buy':
                 st = {'act': 'sell', 'state': 'LONG -> SHORT'}
             else:
                 st = {'act': 'sell', 'state': '-> SHORT'}
         elif pos and pos['side'] == 'buy':
-            st = {'act': None, 'state': 'LONG: {}'.format(pos['units'])}
+            st = {'act': None, 'state': '{:.2g}% LONG'.format(pos_pct)}
         elif pos and pos['side'] == 'sell':
-            st = {'act': None, 'state': 'SHORT: {}'.format(pos['units'])}
+            st = {'act': None, 'state': '{:.2g}% SHORT'.format(pos_pct)}
         else:
             st = {'act': None, 'state': '-'}
         return {**st, **ec}
