@@ -79,22 +79,22 @@ class EwmaTrader(RedisTrader):
             st = {'act': None, 'state': 'OVER-SPREAD'}
         elif ec['ewmsi_lower'] > 0:
             if pos and pos['side'] == 'buy':
-                st = {'act': None, 'state': 'LONG'}
+                st = {'act': None, 'state': 'LONG: {}'.format(pos['units'])}
             elif pos and pos['side'] == 'sell':
                 st = {'act': 'buy', 'state': 'SHORT -> LONG'}
             else:
                 st = {'act': 'buy', 'state': '-> LONG'}
         elif ec['ewmsi_upper'] < 0:
             if pos and pos['side'] == 'sell':
-                st = {'act': None, 'state': 'SHORT'}
+                st = {'act': None, 'state': 'SHORT: {}'.format(pos['units'])}
             elif pos and pos['side'] == 'buy':
                 st = {'act': 'sell', 'state': 'LONG -> SHORT'}
             else:
                 st = {'act': 'sell', 'state': '-> SHORT'}
         elif pos and pos['side'] == 'buy':
-            st = {'act': None, 'state': 'LONG'}
+            st = {'act': None, 'state': 'LONG: {}'.format(pos['units'])}
         elif pos and pos['side'] == 'sell':
-            st = {'act': None, 'state': 'SHORT'}
+            st = {'act': None, 'state': 'SHORT: {}'.format(pos['units'])}
         else:
             st = {'act': None, 'state': '-'}
         return {**st, **ec}
