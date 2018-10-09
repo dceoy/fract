@@ -170,20 +170,17 @@ class BaseTrader(oandapy.API):
         pos = self.pos_dict.get(instrument)
         limits = self.design_order_limits(instrument=instrument, side=side)
         self.logger.debug('limits: {}'.format(limits))
+        if pos and pos['side'] != side:
+            self.logger.info('Close a position: {}'.format(pos['side']))
+            self._place_order(closing=True, instrument=instrument)
+            self._refresh_txn_list()
         units = self.design_order_units(instrument=instrument, side=side)
         self.logger.debug('units: {}'.format(units))
-        if pos and pos['side'] != side:
-            self.logger.info('Order: {0} >>> {1}'.format(pos['side'], side))
-            self._place_order(
-                type='market', instrument=instrument, side=side,
-                units=(units + pos['units']), **limits
-            )
-        else:
-            self.logger.info('Order: {}'.format(side))
-            self._place_order(
-                type='market', instrument=instrument, side=side, units=units,
-                **limits
-            )
+        self.logger.info('Open a order: {}'.format(side))
+        self._place_order(
+            type='market', instrument=instrument, side=side, units=units,
+            **limits
+        )
 
     def _place_order(self, closing=False, **kwargs):
         try:
@@ -253,20 +250,10 @@ class BaseTrader(oandapy.API):
             {'pl': t['pl'], 'units': t['units']} for t in txns if t.get('pl')
         ])
         if df_pl.size:
-            tot = [t for t in txns if 'tradeOpened' in t]
-            if self.pos_dict.get(instrument) and tot:
-                last_size = self.pos_dict[instrument]['units']
-                last_won = (
-                    (self.rate_dict[instrument]['bid'] > tot[-1]['price'])
-                    if self.pos_dict[instrument]['side'] == 'buy' else
-                    (self.rate_dict[instrument]['ask'] < tot[-1]['price'])
-                )
-            else:
-                last_size = df_pl['units'].values[-1]
-                last_won = (df_pl['pl'].values[-1] > 0)
             bet_size = self.bs.calculate_size(
                 unit_size=sizes['unit'], init_size=sizes['init'],
-                last_size=last_size, last_won=last_won,
+                last_size=df_pl['units'].values[-1],
+                last_won=(df_pl['pl'].values[-1] > 0),
                 all_time_high=df_pl['pl'].cumsum().pipe(
                     lambda s: s == max(s)
                 ).values[-1]
