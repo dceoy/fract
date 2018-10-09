@@ -16,10 +16,10 @@ class BettingSystem(object):
 
     def calculate_size(self, unit_size, init_size=None, last_size=None,
                        last_won=None, all_time_high=False):
-        self.logger.debug('last_size: {}'.format(last_size))
         self.logger.debug('last_won: {}'.format(last_won))
-        if last_size is None or last_won is None:
-            return init_size or unit_size
+        self.logger.debug('last_size: {}'.format(last_size))
+        if last_won is None or last_size is None:
+            return last_size or init_size or unit_size
         elif self.strategy == 'Martingale':
             return (unit_size if last_won else last_size * 2)
         elif self.strategy == "d'Alembert":

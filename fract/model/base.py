@@ -245,21 +245,24 @@ class BaseTrader(oandapy.API):
             if k in ['unit', 'init']
         }
         self.logger.debug('sizes: {}'.format(sizes))
-        txns = [t for t in self.txn_list if t.get('instrument') == instrument]
         df_pl = pd.DataFrame([
-            {'pl': t['pl'], 'units': t['units']} for t in txns if t.get('pl')
+            {'pl': t['pl'], 'units': t['units']} for t in self.txn_list
+            if t.get('instrument') == instrument and t.get('pl')
         ])
-        if df_pl.size:
+        if df_pl.size == 0:
+            bet_size = sizes['init']
+        else:
+            pl = df_pl['pl']
+            repeat_same_bet = (
+                pl.iloc[-1] > 0 and any(pl.le(0)) and
+                pl[pl.index >= pl[pl.le(0)].index.max()].sum() < 0
+            )
             bet_size = self.bs.calculate_size(
                 unit_size=sizes['unit'], init_size=sizes['init'],
-                last_size=df_pl['units'].values[-1],
-                last_won=(df_pl['pl'].values[-1] > 0),
-                all_time_high=df_pl['pl'].cumsum().pipe(
-                    lambda s: s == max(s)
-                ).values[-1]
+                last_size=df_pl['units'].iloc[-1],
+                last_won=(None if repeat_same_bet else pl.iloc[-1] > 0),
+                all_time_high=(pl.cumsum().idxmax() == pl.index[-1])
             )
-        else:
-            bet_size = sizes['init']
         self.logger.debug('bet_size: {}'.format(bet_size))
         return int(min(bet_size, avail_size))
 

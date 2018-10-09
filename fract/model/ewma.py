@@ -136,13 +136,13 @@ class EwmaTrader(RedisTrader):
             else lrf.log_return_velocity()
         ).ewm(alpha=self.mp['alpha'])
         self.logger.debug('feature_ewm: {}'.format(feature_ewm))
-        ewma = feature_ewm.mean().values[-1]
+        ewma = feature_ewm.mean().iloc[-1]
         self.logger.info('EWMA of log return rate: {}'.format(ewma))
         len_ewm = len(feature_ewm.obj.dropna())
         ewmci = (
             np.asarray(
                 stats.t.interval(alpha=self.mp['ci_level'], df=(len_ewm - 1))
-            ) * feature_ewm.std().values[-1] / np.sqrt(len_ewm) + ewma
+            ) * feature_ewm.std().iloc[-1] / np.sqrt(len_ewm) + ewma
         )
         self.logger.info(
             'EWMA {0}% CI: {1}'.format(self.mp['ci_level'] * 100, ewmci)
