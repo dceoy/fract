@@ -8,7 +8,6 @@ from pprint import pformat
 import time
 import numpy as np
 import oandapy
-import pandas as pd
 import yaml
 from .bet import BettingSystem
 
@@ -245,24 +244,12 @@ class BaseTrader(oandapy.API):
             if k in ['unit', 'init']
         }
         self.logger.debug('sizes: {}'.format(sizes))
-        df_pl = pd.DataFrame([
-            {'pl': t['pl'], 'units': t['units']} for t in self.txn_list
-            if t.get('instrument') == instrument and t.get('pl')
-        ])
-        if df_pl.size == 0:
-            bet_size = sizes['init']
-        else:
-            pl = df_pl['pl']
-            repeat_same_bet = (
-                pl.iloc[-1] > 0 and any(pl.le(0)) and
-                pl[pl.index >= pl[pl.le(0)].index.max()].sum() < 0
-            )
-            bet_size = self.bs.calculate_size(
-                unit_size=sizes['unit'], init_size=sizes['init'],
-                last_size=df_pl['units'].iloc[-1],
-                last_won=(None if repeat_same_bet else pl.iloc[-1] > 0),
-                all_time_high=(pl.cumsum().idxmax() == pl.index[-1])
-            )
+        bet_size = self.bs.calculate_size_by_pl(
+            unit_size=sizes['unit'], init_size=sizes['init'],
+            inst_txns=[
+                t for t in self.txn_list if t.get('instrument') == instrument
+            ]
+        )
         self.logger.debug('bet_size: {}'.format(bet_size))
         return int(min(bet_size, avail_size))
 

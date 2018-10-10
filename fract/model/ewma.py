@@ -55,7 +55,7 @@ class EwmaTrader(RedisTrader):
 
     def _update_caches(self, instrument, df_rate):
         df_r = self.cache_dfs[instrument].append(df_rate).tail(
-            n=int(self.mp['window_range'][1])
+            n=int(self.mp['window_max'])
         )
         self.logger.info('Cache length: {}'.format(len(df_r)))
         self.cache_dfs[instrument] = df_r
@@ -64,19 +64,21 @@ class EwmaTrader(RedisTrader):
         ec = self._calcurate_ewma_stats(instrument=instrument)
         pp = self.cf['position']
         pos = self.pos_dict.get(instrument)
+        load_pct = min(
+            100,
+            len(self.cache_dfs[instrument]) / int(self.mp['window_min']) * 100
+        )
         margin_lack = (
             not pos and self.acc_dict['marginAvail'] <
             self.acc_dict['balance'] * pp['margin_nav_ratio']['preserve']
         )
-        if pos:
-            pos_pct = (
-                pos['units'] * self.unit_costs[instrument] * 100 /
-                self.acc_dict['balance']
-            )
-        else:
-            pos_pct = 0
-        if len(self.cache_dfs[instrument]) < self.mp['window_range'][0]:
-            st = {'act': None, 'state': 'LOADING'}
+        pos_pct = (
+            pos['units'] * self.unit_costs[instrument] * 100 /
+            self.acc_dict['balance']
+            if pos else 0
+        )
+        if load_pct < 100:
+            st = {'act': None, 'state': 'LOADING {:>3}%'.format(int(load_pct))}
         elif self.inst_dict[instrument]['halted']:
             st = {'act': None, 'state': 'TRADING HALTED'}
         elif self.acc_dict['balance'] == 0:
@@ -108,6 +110,11 @@ class EwmaTrader(RedisTrader):
         return {**st, **ec}
 
     def _print_log_line(self, stat):
+        feature_code = (
+            self.cf['feature'].replace(' ', '').upper()[:3]
+            if self.cf['feature'].lower().startswith('lr ') else
+            ''.join([c for c in self.cf['feature'].title() if c.isupper()])
+        )
         self.print_log(
             '|{0:^35}|{1:^48}|{2:^18}|'.format(
                 '{0:>7} >>{1:>21}'.format(
@@ -118,7 +125,7 @@ class EwmaTrader(RedisTrader):
                     )
                 ),
                 '{0:>3}[CI{1:.2g}] >>{2:>11}{3:>21}'.format(
-                    ('LRA' if self.mp.get('acceleration') else 'LRV'),
+                    feature_code,
                     self.mp['ci_level'] * 100, '{:1.5f}'.format(stat['ewma']),
                     np.array2string(
                         np.array([stat['ewmci_lower'], stat['ewmci_upper']]),
@@ -131,18 +138,15 @@ class EwmaTrader(RedisTrader):
 
     def _calcurate_ewma_stats(self, instrument):
         lrf = LogReturnFeature(df_rate=self.cache_dfs[instrument])
-        feature_ewm = (
-            lrf.log_return_acceleration() if self.mp.get('acceleration')
-            else lrf.log_return_velocity()
-        ).ewm(alpha=self.mp['alpha'])
-        self.logger.debug('feature_ewm: {}'.format(feature_ewm))
-        ewma = feature_ewm.mean().iloc[-1]
+        fewm = lrf.series(type=self.cf['feature']).ewm(alpha=self.mp['alpha'])
+        self.logger.debug('fewm: {}'.format(fewm))
+        ewma = fewm.mean().iloc[-1]
         self.logger.info('EWMA of log return rate: {}'.format(ewma))
-        len_ewm = len(feature_ewm.obj.dropna())
+        len_ewm = len(fewm.obj.dropna())
         ewmci = (
             np.asarray(
                 stats.t.interval(alpha=self.mp['ci_level'], df=(len_ewm - 1))
-            ) * feature_ewm.std().iloc[-1] / np.sqrt(len_ewm) + ewma
+            ) * fewm.std().iloc[-1] / np.sqrt(len_ewm) + ewma
         )
         self.logger.info(
             'EWMA {0}% CI: {1}'.format(self.mp['ci_level'] * 100, ewmci)

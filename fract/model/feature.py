@@ -9,6 +9,14 @@ class LogReturnFeature(object):
         self.logger = logging.getLogger(__name__)
         self.df_rate = df_rate
 
+    def series(self, type=None):
+        if type and type.lower() == 'lr velocity':
+            return self.log_return_velocity()
+        elif type and type.lower() == 'lr acceleration':
+            return self.log_return_acceleration()
+        else:
+            return self.log_return()
+
     def log_return(self, return_df=False):
         df_lr = self.df_rate.reset_index().assign(
             bid_by_ask=lambda d: d['bid'] / d['ask']

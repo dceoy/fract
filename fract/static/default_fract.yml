@@ -26,11 +26,10 @@ position:
     unit: 0.04            # (0, 1)
     preserve: 0.04        # (0, 1)
   ttl_sec: 86400          # [0, Inf]
+feature: LR Acceleration  # { Log Return, LR Velocity, LR Acceleration }
 model:
   ewma:
-    acceleration: false   # { true, false }
     alpha: 0.01           # (0, 1)
     ci_level: 0.99        # [0, 1)
-    window_range:
-      - 100               # (1, Inf)
-      - 1000              # (1, Inf)
+    window_min: 100       # [1, Inf)
+    window_max: 1000      # [1, Inf)
