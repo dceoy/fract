@@ -47,8 +47,8 @@ class BaseTrader(oandapy.API):
             self.txn_log_path = os.path.join(
                 self.log_dir_path, 'txn.json.txt'
             )
-            self.write_log(
-                data=yaml.dump(
+            self.write_data(
+                yaml.dump(
                     {
                         'instrument': self.instruments,
                         'model': self.cf['model'],
@@ -92,7 +92,7 @@ class BaseTrader(oandapy.API):
             self.print_log(yaml.dump(th_new, default_flow_style=False).strip())
             self.txn_list = self.txn_list + th_new
             if self.txn_log_path:
-                self.write_log(data=json.dumps(th_new), path=self.txn_log_path)
+                self.write_data(json.dumps(th_new), path=self.txn_log_path)
 
     def _refresh_inst_dict(self):
         self.inst_dict = {
@@ -190,11 +190,11 @@ class BaseTrader(oandapy.API):
         except Exception as e:
             self.logger.error(e)
             if self.order_log_path:
-                self.write_log(data=e, path=self.order_log_path)
+                self.write_data(e, path=self.order_log_path)
         else:
             self.logger.info(os.linesep + pformat(r))
             if self.order_log_path:
-                self.write_log(data=json.dumps(r), path=self.order_log_path)
+                self.write_data(json.dumps(r), path=self.order_log_path)
             else:
                 time.sleep(0.5)
 
@@ -265,13 +265,20 @@ class BaseTrader(oandapy.API):
         else:
             print(data, flush=True)
 
-    def write_df_log(self, df, path, mode='a'):
+    def write_data(self, data, path, mode='a', append_linesep=True):
+        with open(self._abspath(path), mode) as f:
+            f.write(str(data) + (os.linesep if append_linesep else ''))
+
+    def write_log_df(self, name, df):
+        if self.log_dir_path and df.size:
+            self.logger.debug('{0} df:{1}{2}'.format(name, os.linesep, df))
+            p = os.path.join(self.log_dir_path, '{}.tsv'.format(name))
+            self.logger.info('Write TSV log: {}'.format(p))
+            self._write_df(df=df, path=p)
+
+    def _write_df(self, df, path, mode='a'):
         p = self._abspath(path)
         df.to_csv(
             p, mode=mode, sep=(',' if p.endswith('.csv') else '\t'),
             header=(not os.path.isfile(p))
         )
-
-    def write_log(self, data, path, mode='a', append_linesep=True):
-        with open(self._abspath(path), mode) as f:
-            f.write(str(data) + (os.linesep if append_linesep else ''))

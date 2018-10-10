@@ -27,9 +27,10 @@ position:
     preserve: 0.04        # (0, 1)
   ttl_sec: 86400          # [0, Inf]
 feature: LR Acceleration  # { Log Return, LR Velocity, LR Acceleration }
+cache:
+  min_len: 100            # [1, Inf)
+  max_len: 1000           # [1, Inf)
 model:
   ewma:
     alpha: 0.01           # (0, 1)
     ci_level: 0.99        # [0, 1)
-    window_min: 100       # [1, Inf)
-    window_max: 1000      # [1, Inf)
