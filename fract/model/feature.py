@@ -33,7 +33,11 @@ class LogReturnFeature(object):
 
     def log_return_velocity(self, return_df=False):
         df_lrv = self.log_return(return_df=True).assign(
-            lrv=lambda d: d['log_return'] / d['delta_sec']
+            ldv=lambda d: d['log_diff'] / d['delta_sec']
+        ).assign(
+            lrv=lambda d: np.sign(d['ldv']) * (
+                np.abs(d['ldv']) - np.log(d['ask']) + np.log(d['bid'])
+            ).clip(lower=0)
         )
         self.logger.info(
             'Log return verocity (tail): {}'.format(
