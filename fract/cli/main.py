@@ -17,7 +17,7 @@ Usage:
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--with-streamer]
                [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-               [--log-dir=<path>] [--quiet] [<instrument>...]
+               [--log-dir=<path>] [--quiet] [--dry-run] [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
 
 Options:
@@ -43,6 +43,7 @@ Options:
     --timeout=<sec>     Set senconds for response timeout
     --with-streamer     Invoke a trader with a streamer
     --log-dir=<path>    Write output log files in a directory
+    --dry-run           Invoke a trader with dry-run mode
 
 Commands:
     init                Generate a YAML template for configuration
@@ -120,7 +121,8 @@ def main():
             timeout_sec=args['--timeout'], redis_host=args['--redis-host'],
             redis_port=args['--redis-port'], redis_db=args['--redis-db'],
             log_dir_path=args['--log-dir'],
-            with_streamer=args['--with-streamer'], quiet=args['--quiet']
+            with_streamer=args['--with-streamer'], quiet=args['--quiet'],
+            dry_run=args['--dry-run']
         )
     elif args['close']:
         close_positions(

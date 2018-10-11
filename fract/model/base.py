@@ -14,7 +14,7 @@ from .bet import BettingSystem
 
 class BaseTrader(oandapy.API):
     def __init__(self, config_dict, instruments, log_dir_path=None,
-                 quiet=False):
+                 quiet=False, dry_run=False):
         self.logger = logging.getLogger(__name__)
         self.cf = config_dict
         super().__init__(
@@ -24,6 +24,7 @@ class BaseTrader(oandapy.API):
         self.account_id = config_dict['oanda']['account_id']
         self.instruments = instruments or config_dict['instruments']
         self.quiet = quiet
+        self.dry_run = dry_run
         self.bs = BettingSystem(strategy=self.cf['position']['bet'])
         self.min_txn_id = max(
             [
@@ -41,6 +42,7 @@ class BaseTrader(oandapy.API):
         self.pos_time = dict()
         if log_dir_path:
             self.log_dir_path = self._abspath(log_dir_path)
+            os.makedirs(self.log_dir_path, exist_ok=True)
             self.order_log_path = os.path.join(
                 self.log_dir_path, 'order.json.txt'
             )
@@ -183,7 +185,12 @@ class BaseTrader(oandapy.API):
 
     def _place_order(self, closing=False, **kwargs):
         try:
-            if closing:
+            if self.dry_run:
+                r = {
+                    'func': 'close_position' if closing else 'create_order',
+                    'args': {'account_id': self.account_id, **kwargs}
+                }
+            elif closing:
                 r = self.close_position(account_id=self.account_id, **kwargs)
             else:
                 r = self.create_order(account_id=self.account_id, **kwargs)
