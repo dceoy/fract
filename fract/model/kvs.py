@@ -182,7 +182,7 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
     def _print_log_line(self, df_rate, sig_str=None, state=None):
         i = df_rate['instrument'].iloc[-1]
         self.print_log(
-            '|{0:^33}|{1:^9}|'.format(
+            '|{0:^33}|{1:^25}|'.format(
                 '{0:>7}:{1:>21}'.format(
                     i.replace('_', '/'),
                     np.array2string(
@@ -190,6 +190,8 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                     )
                 ),
-                'N:{:>3}'.format(len(df_rate))
+                'CACHE:{1:>6} ->{0:>6}'.format(
+                    len(self.cache_dfs[i]), len(df_rate)
+                )
             ) + (sig_str or '') + ('{:^18}|'.format(state) if state else '')
         )

@@ -14,7 +14,8 @@ setup(
     url='https://github.com/dceoy/fract',
     include_package_data=True,
     install_requires=[
-        'docopt', 'numpy', 'pandas', 'pyyaml', 'redis', 'scipy', 'oandapy'
+        'docopt', 'numpy', 'pandas', 'pyyaml', 'redis', 'scikit-learn',
+        'oandapy'
     ],
     dependency_links=[
         'git+https://github.com/oanda/oandapy.git#egg=oandapy'
