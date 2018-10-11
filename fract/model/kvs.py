@@ -52,7 +52,7 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
                     self._trade(df_rate=df_r)
                     self.write_log_df(
                         name='rate.{}'.format(i),
-                        df=df_r.drop(columns=['instrument', 'mid', 'spread'])
+                        df=df_r.drop(columns=['instrument'])
                     )
                 else:
                     self.logger.debug('no updated rate')
@@ -93,9 +93,7 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
                 return pd.DataFrame(
                     [d['tick'] for d in cached_rates if 'tick' in d]
                 ).assign(
-                    time=lambda d: pd.to_datetime(d['time']),
-                    spread=lambda d: d['ask'] - d['bid'],
-                    mid=lambda d: (d['ask'] + d['bid']) / 2
+                    time=lambda d: pd.to_datetime(d['time'])
                 ).set_index('time', drop=True)
         else:
             return pd.DataFrame()
@@ -134,8 +132,8 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
             self.acc_dict['balance'] * pp['margin_nav_ratio']['preserve']
         )
         spread_ratio = self.cache_dfs[instrument].tail(n=1).pipe(
-            lambda d: (d['spread'] / d['mid']).iloc[-1]
-        )
+            lambda d: (d['ask'] - d['bid']) / (d['ask'] + d['bid']) * 2
+        ).values[0]
         pos_pct = (
             pos['units'] * self.unit_costs[instrument] * 100 /
             self.acc_dict['balance']

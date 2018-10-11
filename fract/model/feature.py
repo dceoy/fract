@@ -19,7 +19,7 @@ class LogReturnFeature(object):
 
     def log_return(self, return_df=False):
         df_lr = self.df_rate.reset_index().assign(
-            log_diff=lambda d: np.log(d['mid']).diff(),
+            log_diff=lambda d: np.log((d['ask'] + d['bid']) / 2).diff(),
             delta_sec=lambda d: d['time'].diff().dt.total_seconds()
         ).assign(
             log_return=lambda d: np.sign(d['log_diff']) * (
