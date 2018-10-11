@@ -113,8 +113,7 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
         self._print_log_line(
             df_rate=df_rate, sig_str=st['sig_log_str'], state=st['state']
         )
-        if st['act']:
-            self.design_and_place_order(instrument=i, side=st['act'])
+        self.design_and_place_order(instrument=i, act=st['act'])
         self.write_log_df(
             name='sig.{}'.format(i),
             df=pd.DataFrame([st]).assign(
@@ -123,7 +122,7 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
             ).set_index('time', drop=True)
         )
 
-    def _determine_order(self, instrument, sig_side=None):
+    def _determine_order(self, instrument, sig_act=None):
         sig = self.calculate_signal(instrument=instrument)
         pp = self.cf['position']
         pos = self.pos_dict.get(instrument)
@@ -143,23 +142,25 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
             if pos else 0
         )
         if load_pct < 100:
-            stat = {'act': None, 'state': 'LOADING... {:>3}%'.format(load_pct)}
+            stat = {'act': None, 'state': 'LOADING...{:>3}%'.format(load_pct)}
         elif self.inst_dict[instrument]['halted']:
             stat = {'act': None, 'state': 'TRADING HALTED'}
+        elif sig['sig_act'] == 'close':
+            stat = {'act': 'close', 'state': 'CLOSING'}
         elif self.acc_dict['balance'] == 0:
             stat = {'act': None, 'state': 'NO FUND'}
         elif margin_lack:
             stat = {'act': None, 'state': 'LACK OF FUNDS'}
         elif spread_ratio > pp['limit_price_ratio']['max_spread']:
             stat = {'act': None, 'state': 'OVER-SPREAD'}
-        elif sig['sig_side'] == 'buy':
+        elif sig['sig_act'] == 'buy':
             if pos and pos['side'] == 'buy':
                 stat = {'act': None, 'state': '{:.2g}% LONG'.format(pos_pct)}
             elif pos and pos['side'] == 'sell':
                 stat = {'act': 'buy', 'state': 'SHORT -> LONG'}
             else:
                 stat = {'act': 'buy', 'state': '-> LONG'}
-        elif sig['sig_side'] == 'sell':
+        elif sig['sig_act'] == 'sell':
             if pos and pos['side'] == 'sell':
                 stat = {'act': None, 'state': '{:.2g}% SHORT'.format(pos_pct)}
             elif pos and pos['side'] == 'buy':
@@ -176,19 +177,19 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
 
     @abstractmethod
     def calculate_signal(self, instrument):
-        return {'sig_side': None, 'sig_log_str': ''}
+        return {'sig_act': None, 'sig_log_str': ''}
 
     def _print_log_line(self, df_rate, sig_str=None, state=None):
         i = df_rate['instrument'].iloc[-1]
         self.print_log(
-            '|{0:^35}|{1:^4}|'.format(
-                '{0:>7} >>{1:>21}'.format(
+            '|{0:^33}|{1:^9}|'.format(
+                '{0:>7}:{1:>21}'.format(
                     i.replace('_', '/'),
                     np.array2string(
                         self.cache_dfs[i][['bid', 'ask']].iloc[-1].values,
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                     )
                 ),
-                len(df_rate)
+                'N:{:>3}'.format(len(df_rate))
             ) + (sig_str or '') + ('{:^18}|'.format(state) if state else '')
         )

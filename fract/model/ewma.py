@@ -29,14 +29,17 @@ class EwmaTrader(RedisTrader):
         )
         ci_level_pct = mp['ci_level'] * 100
         self.logger.info('EWMA {0}% CI: {1}'.format(ci_level_pct, ewmci))
+        pos = self.pos_dict.get(instrument)
         if ewmci[0] > 0:
-            sig_side = 'buy'
+            sig_act = 'buy'
         elif ewmci[1] < 0:
-            sig_side = 'sell'
+            sig_act = 'sell'
+        elif pos and ewma * {'buy': 1, 'sell': -1}[pos['side']] < 0:
+            sig_act = 'close'
         else:
-            sig_side = None
-        sig_log_str = '{:^48}|'.format(
-            '{0:>3}[CI{1:.2g}] >>{2:>11}{3:>21}'.format(
+            sig_act = None
+        sig_log_str = '{:^46}|'.format(
+            '{0:>3}[CI{1:.2g}]:{2:>11}{3:>21}'.format(
                 self.feature_code, ci_level_pct, '{:1.5f}'.format(ewma),
                 np.array2string(
                     ewmci,
@@ -46,5 +49,5 @@ class EwmaTrader(RedisTrader):
         )
         return {
             'ewma': ewma, 'ewmci_lower': ewmci[0], 'ewmci_upper': ewmci[1],
-            'sig_side': sig_side, 'sig_log_str': sig_log_str
+            'sig_act': sig_act, 'sig_log_str': sig_log_str
         }

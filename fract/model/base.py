@@ -158,30 +158,30 @@ class BaseTrader(oandapy.API):
         return bpv
 
     def expire_positions(self, ttl_sec=86400):
-        inst_times = {
-            p['instrument']: self.pos_time[p['instrument']] for p in
-            self.get_positions(account_id=self.account_id)['positions']
-            if self.pos_time.get(p['instrument'])
-        }
-        for i, t in inst_times.items():
-            if (datetime.now() - t).total_seconds() > ttl_sec:
-                self._place_order(closing=True, instrument=i)
+        for i, p in self.pos_dict.items():
+            if self.pos_time.get(i):
+                et_sec = (datetime.now() - self.pos_time[i]).total_seconds()
+                self.logger.info('{0} => {1} sec elapsed'.format(p, et_sec))
+                if et_sec > ttl_sec:
+                    self.logger.info('Close a position: {}'.format(p['side']))
+                    self._place_order(closing=True, instrument=i)
 
-    def design_and_place_order(self, instrument, side):
+    def design_and_place_order(self, instrument, act):
         pos = self.pos_dict.get(instrument)
-        limits = self.design_order_limits(instrument=instrument, side=side)
-        self.logger.debug('limits: {}'.format(limits))
-        if pos and pos['side'] != side:
+        if act and pos and (act == 'close' or act != pos['side']):
             self.logger.info('Close a position: {}'.format(pos['side']))
             self._place_order(closing=True, instrument=instrument)
             self._refresh_txn_list()
-        units = self.design_order_units(instrument=instrument, side=side)
-        self.logger.debug('units: {}'.format(units))
-        self.logger.info('Open a order: {}'.format(side))
-        self._place_order(
-            type='market', instrument=instrument, side=side, units=units,
-            **limits
-        )
+        if act in ['buy', 'sell']:
+            limits = self.design_order_limits(instrument=instrument, side=act)
+            self.logger.debug('limits: {}'.format(limits))
+            units = self.design_order_units(instrument=instrument, side=act)
+            self.logger.debug('units: {}'.format(units))
+            self.logger.info('Open a order: {}'.format(act))
+            self._place_order(
+                type='market', instrument=instrument, side=act, units=units,
+                **limits
+            )
 
     def _place_order(self, closing=False, **kwargs):
         try:
