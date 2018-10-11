@@ -192,10 +192,12 @@ class RedisTrader(BaseTrader, metaclass=ABCMeta):
                     len(self.cache_dfs[i]), len(df_rate)
                 ),
                 'PL:{:>8}'.format(
-                    sum([
-                        t['pl'] for t in self.txn_list
-                        if t.get('pl') and t.get('instrument') == i
-                    ])
+                    int(
+                        sum([
+                            t['pl'] for t in self.txn_list
+                            if t.get('pl') and t.get('instrument') == i
+                        ])
+                    )
                 )
             ) + (sig_str or '') + ('{:^18}|'.format(state) if state else '')
         )

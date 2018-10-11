@@ -33,3 +33,4 @@ cache:
 model:
   ewma:
     alpha: 0.01           # (0, 1)
+    ci_level: 0.99        # [0, 1)
