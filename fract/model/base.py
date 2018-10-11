@@ -173,9 +173,9 @@ class BaseTrader(oandapy.API):
             self._place_order(closing=True, instrument=instrument)
             self._refresh_txn_list()
         if act in ['buy', 'sell']:
-            limits = self.design_order_limits(instrument=instrument, side=act)
+            limits = self._design_order_limits(instrument=instrument, side=act)
             self.logger.debug('limits: {}'.format(limits))
-            units = self.design_order_units(instrument=instrument, side=act)
+            units = self._design_order_units(instrument=instrument, side=act)
             self.logger.debug('units: {}'.format(units))
             self.logger.info('Open a order: {}'.format(act))
             self._place_order(
@@ -205,7 +205,7 @@ class BaseTrader(oandapy.API):
             else:
                 time.sleep(0.5)
 
-    def design_order_limits(self, instrument, side):
+    def _design_order_limits(self, instrument, side):
         rate = self.rate_dict[instrument][{'buy': 'ask', 'sell': 'bid'}[side]]
         trailing_stop = min(
             max(
@@ -234,7 +234,7 @@ class BaseTrader(oandapy.API):
             'lowerBound': tp['lower_bound']
         }
 
-    def design_order_units(self, instrument, side):
+    def _design_order_units(self, instrument, side):
         avail_size = max(
             np.ceil(
                 (
