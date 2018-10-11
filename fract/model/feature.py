@@ -19,25 +19,24 @@ class LogReturnFeature(object):
 
     def log_return(self, return_df=False):
         df_lr = self.df_rate.reset_index().assign(
-            bid_by_ask=lambda d: d['bid'] / d['ask']
-        ).assign(
-            log_return=lambda d: np.log(d['mid']).diff(),
-            spr_weight=lambda d: d['bid_by_ask'] / d['bid_by_ask'].mean(),
+            log_diff=lambda d: np.log(d['mid']).diff(),
             delta_sec=lambda d: d['time'].diff().dt.total_seconds()
+        ).assign(
+            log_return=lambda d: np.sign(d['log_diff']) * (
+                np.abs(d['log_diff']) - np.log(d['ask']) + np.log(d['bid'])
+            ).clip(lower=0)
         )
         self.logger.info(
-            'Adjusted log return (tail): {}'.format(
-                df_lr['log_return'].tail().values
-            )
+            'Log return (tail): {}'.format(df_lr['log_return'].tail().values)
         )
         return (df_lr if return_df else df_lr['log_return'])
 
     def log_return_velocity(self, return_df=False):
         df_lrv = self.log_return(return_df=True).assign(
-            lrv=lambda d: d['log_return'] * d['spr_weight'] / d['delta_sec']
+            lrv=lambda d: d['log_return'] / d['delta_sec']
         )
         self.logger.info(
-            'Adjusted log return verocity (tail): {}'.format(
+            'Log return verocity (tail): {}'.format(
                 df_lrv['lrv'].tail().values
             )
         )
@@ -48,7 +47,7 @@ class LogReturnFeature(object):
             lra=lambda d: d['lrv'].diff() / d['delta_sec']
         )
         self.logger.info(
-            'Adjusted log return acceleration (tail): {}'.format(
+            'Log return acceleration (tail): {}'.format(
                 df_lra['lra'].tail().values
             )
         )
