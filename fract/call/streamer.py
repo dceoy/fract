@@ -6,30 +6,35 @@ import os
 import signal
 import sqlite3
 import oandapy
+import pandas as pd
 import redis
 import yaml
 from ..util.config import read_config_yml
+from ..util.error import FractRuntimeError
 
 
 class StreamDriver(oandapy.Streamer):
     def __init__(self, config_dict, target='rate', instruments=None,
                  ignore_heartbeat=True, print_json=False, use_redis=False,
                  redis_host='127.0.0.1', redis_port=6379, redis_db=0,
-                 redis_max_llen=None, sqlite_path=None, quiet=False):
+                 redis_max_llen=None, sqlite_path=None, csv_path=None,
+                 quiet=False):
         self.logger = logging.getLogger(__name__)
         super().__init__(
             environment=config_dict['oanda']['environment'],
             access_token=config_dict['oanda']['access_token']
         )
         self.account_id = config_dict['oanda']['account_id'],
-        self.target = target
+        if target in ['rate', 'event']:
+            self.key = {'rate': 'tick', 'event': 'transaction'}[target]
+        else:
+            raise FractRuntimeError('invalid stream target: {}'.format(target))
         self.instruments = (
             instruments if instruments else config_dict['instruments']
         )
         self.ignore_heartbeat = ignore_heartbeat
         self.print_json = print_json
         self.quiet = quiet
-        self.key = {'rate': 'tick', 'event': 'transaction'}[self.target]
         if use_redis:
             self.logger.info('Set a streamer with Redis')
             self.redis_pool = redis.ConnectionPool(
@@ -58,6 +63,10 @@ class StreamDriver(oandapy.Streamer):
                 self.sqlite.executescript(sql)
         else:
             self.sqlite = None
+        if csv_path:
+            self.csv_path = os.path.abspath(os.path.expanduser(csv_path))
+        else:
+            self.csv_path = None
 
     def on_success(self, data):
         data_json_str = json.dumps(data)
@@ -81,7 +90,7 @@ class StreamDriver(oandapy.Streamer):
                         redis_c.lpop(instrument)
             if self.sqlite:
                 c = self.sqlite.cursor()
-                if 'tick' in data:
+                if self.key == 'tick':
                     c.execute(
                         'INSERT INTO tick VALUES (?,?,?,?)',
                         [
@@ -90,9 +99,9 @@ class StreamDriver(oandapy.Streamer):
                         ]
                     )
                     self.sqlite.commit()
-                elif 'transaction' in data:
+                elif self.key == 'transaction':
                     c.execute(
-                        'INSERT INTO event VALUES (?,?,?)',
+                        'INSERT INTO transaction VALUES (?,?,?)',
                         [
                             data['transaction']['instrument'],
                             data['transaction']['time'],
@@ -100,10 +109,16 @@ class StreamDriver(oandapy.Streamer):
                         ]
                     )
                     self.sqlite.commit()
-                else:
-                    self.logger.warning(data)
+            if self.csv_path:
+                pd.DataFrame([data[self.key]]).set_index(
+                    'time', drop=True
+                ).to_csv(
+                    self.csv_path, mode='a',
+                    sep=(',' if self.csv_path.endswith('.csv') else '\t'),
+                    header=(not os.path.isfile(self.csv_path))
+                )
         else:
-            self.logger.debug('Save skipped: {}'.format(data))
+            self.logger.warning('Save skipped: {}'.format(data))
 
     def on_error(self, data):
         self.logger.error(data)
@@ -111,14 +126,14 @@ class StreamDriver(oandapy.Streamer):
 
     def invoke(self):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
-        if self.target == 'rate':
+        if self.key == 'tick':
             self.logger.info('Start to stream market prices')
             self.rates(
                 account_id=self.account_id,
                 ignore_heartbeat=self.ignore_heartbeat,
                 instruments=','.join(self.instruments)
             )
-        elif self.target == 'event':
+        elif self.key == 'transaction':
             self.logger.info('Start to stream events for the account')
             self.events(
                 account_id=self.account_id,
@@ -133,7 +148,7 @@ class StreamDriver(oandapy.Streamer):
             self.sqlite.close()
 
 
-def invoke_streamer(config_yml, target='rate', instruments=None,
+def invoke_streamer(config_yml, target='rate', instruments=None, csv_path=None,
                     sqlite_path=None, use_redis=False, redis_host='127.0.0.1',
                     redis_port=6379, redis_db=0, redis_max_llen=None,
                     print_json=False, quiet=False):
@@ -147,6 +162,7 @@ def invoke_streamer(config_yml, target='rate', instruments=None,
         redis_host=(redis_host or rd.get('host')),
         redis_port=(redis_port or rd.get('port')),
         redis_db=(redis_db if redis_db is not None else rd.get('db')),
-        redis_max_llen=redis_max_llen, sqlite_path=sqlite_path, quiet=quiet
+        redis_max_llen=redis_max_llen, sqlite_path=sqlite_path,
+        csv_path=csv_path, quiet=quiet
     )
     streamer.invoke()

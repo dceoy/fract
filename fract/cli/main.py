@@ -11,8 +11,8 @@ Usage:
                 [--granularity=<code>] [--count=<int>] [--json] [--quiet]
                 [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
-                 [--sqlite=<path>] [--use-redis] [--redis-host=<ip>]
-                 [--redis-port=<int>] [--redis-db=<int>]
+                 [--csv=<path>] [--sqlite=<path>] [--use-redis]
+                 [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
                  [--redis-max-llen=<int>] [--json] [--quiet] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--with-streamer]
@@ -26,6 +26,7 @@ Options:
     --debug, --info     Execute a command with debug|info messages
     --file=<yaml>       Set a path to a YAML for configurations [$FRACT_YML]
     --quiet             Suppress messages
+    --csv=<path>        Write data in a CSV or TSV file
     --sqlite=<path>     Save data in an SQLite3 database
     --granularity=<code>
                         Set a granularity for rate tracking [default: S5]
@@ -109,9 +110,9 @@ def main():
         invoke_streamer(
             config_yml=args['--file'], target=args['--target'],
             instruments=args['<instrument>'], print_json=args['--json'],
-            sqlite_path=args['--sqlite'], use_redis=args['--use-redis'],
-            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
-            redis_db=args['--redis-db'],
+            csv_path=args['--csv'], sqlite_path=args['--sqlite'],
+            use_redis=args['--use-redis'], redis_host=args['--redis-host'],
+            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
             redis_max_llen=args['--redis-max-llen'], quiet=args['--quiet']
         )
     elif args['open']:

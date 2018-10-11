@@ -24,17 +24,19 @@ Usage:
     fract -h|--help
     fract -v|--version
     fract init [--debug|--info] [--file=<yaml>]
-    fract info [--debug|--info] [--file=<yaml>] <info_target> [<instrument>...]
+    fract info [--debug|--info] [--file=<yaml>] [--json] <info_target>
+               [<instrument>...]
     fract track [--debug|--info] [--file=<yaml>] [--sqlite=<path>]
-                [--granularity=<code>] [--count=<int>] [<instrument>...]
+                [--granularity=<code>] [--count=<int>] [--json] [--quiet]
+                [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
-                 [--sqlite=<path>] [--redis-host=<ip>] [--redis-port=<int>]
-                 [--redis-db=<int>] [--redis-max-llen=<int>] [--quiet]
-                 [<instrument>...]
+                 [--csv=<path>] [--sqlite=<path>] [--use-redis]
+                 [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
+                 [--redis-max-llen=<int>] [--json] [--quiet] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--with-streamer]
                [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-               [--log-dir=<path>] [--quiet] [<instrument>...]
+               [--log-dir=<path>] [--quiet] [--dry-run] [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
 
 Options:
@@ -43,21 +45,25 @@ Options:
     --debug, --info     Execute a command with debug|info messages
     --file=<yaml>       Set a path to a YAML for configurations [$FRACT_YML]
     --quiet             Suppress messages
+    --csv=<path>        Write data in a CSV or TSV file
     --sqlite=<path>     Save data in an SQLite3 database
     --granularity=<code>
                         Set a granularity for rate tracking [default: S5]
     --count=<int>       Set a size for rate tracking (max: 5000) [default: 60]
+    --json              Print data with JSON
     --target=<str>      Set a streaming target { rate, event } [default: rate]
+    --use-redis         Use Redis for data store
     --redis-host=<ip>   Set a Redis server host (override YAML configurations)
     --redis-port=<int>  Set a Redis server port (override YAML configurations)
     --redis-db=<int>    Set a Redis database (override YAML configurations)
     --redis-max-llen=<int>
                         Limit Redis list length (override YAML configurations)
-    --model=<str>       Set trading models [default: ewm]
+    --model=<str>       Set trading models [default: ewma]
     --interval=<sec>    Wait seconds between iterations [default: 0]
-    --timeout=<sec>     Set senconds for response timeout [default: 3600]
+    --timeout=<sec>     Set senconds for response timeout
     --with-streamer     Invoke a trader with a streamer
     --log-dir=<path>    Write output log files in a directory
+    --dry-run           Invoke a trader with dry-run mode
 
 Commands:
     init                Generate a YAML template for configuration
