@@ -50,7 +50,9 @@ class StreamDriver(oandapy.Streamer):
             self.redis_max_llen = None
         if sqlite_path:
             self.logger.info('Set a streamer with SQLite')
-            sqlite_abspath = os.path.abspath(os.path.expanduser(sqlite_path))
+            sqlite_abspath = os.path.abspath(
+                os.path.expanduser(os.path.expandvars(sqlite_path))
+            )
             if os.path.isfile(sqlite_abspath):
                 self.sqlite = sqlite3.connect(sqlite_abspath)
             else:
@@ -64,7 +66,9 @@ class StreamDriver(oandapy.Streamer):
         else:
             self.sqlite = None
         if csv_path:
-            self.csv_path = os.path.abspath(os.path.expanduser(csv_path))
+            self.csv_path = os.path.abspath(
+                os.path.expanduser(os.path.expandvars(csv_path))
+            )
         else:
             self.csv_path = None
 

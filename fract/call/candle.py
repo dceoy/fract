@@ -44,7 +44,9 @@ def track_rate(config_yml, instruments, granularity, count, sqlite_path=None,
             drop=True
         )
         logger.debug('df.shape: {}'.format(df.shape))
-        sqlite_abspath = os.path.abspath(os.path.expanduser(sqlite_path))
+        sqlite_abspath = os.path.abspath(
+            os.path.expanduser(os.path.expandvars(sqlite_path))
+        )
         if os.path.isfile(sqlite_abspath):
             with sqlite3.connect(sqlite_abspath) as con:
                 df_diff = df.merge(

@@ -1,31 +1,36 @@
 #!/usr/bin/env python
 
+from abc import ABCMeta, abstractmethod
 from datetime import datetime
 import json
 import logging
 import os
 from pprint import pformat
+import signal
 import time
 import numpy as np
 import oandapy
+import pandas as pd
 import yaml
+from ..util.error import FractRuntimeError
 from .bet import BettingSystem
+from .ewma import Ewma
 
 
-class BaseTrader(oandapy.API):
+class TraderCoreAPI(oandapy.API):
     def __init__(self, config_dict, instruments, log_dir_path=None,
                  quiet=False, dry_run=False):
         self.logger = logging.getLogger(__name__)
         self.cf = config_dict
         super().__init__(
-            environment=config_dict['oanda']['environment'],
-            access_token=config_dict['oanda']['access_token']
+            environment=self.cf['oanda']['environment'],
+            access_token=self.cf['oanda']['access_token']
         )
-        self.account_id = config_dict['oanda']['account_id']
-        self.instruments = instruments or config_dict['instruments']
+        self.account_id = self.cf['oanda']['account_id']
+        self.instruments = (instruments or self.cf['instruments'])
+        self.bs = BettingSystem(strategy=self.cf['position']['bet'])
         self.quiet = quiet
         self.dry_run = dry_run
-        self.bs = BettingSystem(strategy=self.cf['position']['bet'])
         self.min_txn_id = max(
             [
                 t['id'] for t in self.get_transaction_history(
@@ -33,15 +38,10 @@ class BaseTrader(oandapy.API):
                 )['transactions']
             ] + [0]
         ) + 1
-        self.acc_dict = dict()
-        self.txn_list = list()
-        self.inst_dict = dict()
-        self.rate_dict = dict()
-        self.unit_costs = dict()
-        self.pos_dict = dict()
-        self.pos_time = dict()
         if log_dir_path:
-            self.log_dir_path = self._abspath(log_dir_path)
+            self.log_dir_path = os.path.abspath(
+                os.path.expanduser(os.path.expandvars(log_dir_path))
+            )
             os.makedirs(self.log_dir_path, exist_ok=True)
             self.order_log_path = os.path.join(
                 self.log_dir_path, 'order.json.txt'
@@ -49,7 +49,7 @@ class BaseTrader(oandapy.API):
             self.txn_log_path = os.path.join(
                 self.log_dir_path, 'txn.json.txt'
             )
-            self.write_data(
+            self._write_data(
                 yaml.dump(
                     {
                         'instrument': self.instruments,
@@ -65,22 +65,34 @@ class BaseTrader(oandapy.API):
             self.log_dir_path = None
             self.order_log_path = None
             self.txn_log_path = None
+        self.acc_dict = dict()
+        self.txn_list = list()
+        self.inst_dict = dict()
+        self.rate_dict = dict()
+        self.unit_costs = dict()
+        self.pos_dict = dict()
+        self.pos_time = dict()
 
-    @staticmethod
-    def _abspath(path):
-        return os.path.abspath(os.path.expanduser(path))
+    def expire_positions(self, ttl_sec=86400):
+        for i, p in self.pos_dict.items():
+            if self.pos_time.get(i):
+                et_sec = (datetime.now() - self.pos_time[i]).total_seconds()
+                self.logger.info('{0} => {1} sec elapsed'.format(p, et_sec))
+                if et_sec > ttl_sec:
+                    self.logger.info('Close a position: {}'.format(p['side']))
+                    self._place_order(closing=True, instrument=i)
 
     def refresh_oanda_dicts(self):
         t0 = datetime.now()
         self.acc_dict = self.get_account(account_id=self.account_id)
-        self.sleep(last=t0, sec=0.5)
+        self._sleep(last=t0, sec=0.5)
         self._refresh_txn_list()
-        self.sleep(last=t0, sec=1)
+        self._sleep(last=t0, sec=1)
         self._refresh_inst_dict()
-        self.sleep(last=t0, sec=1.5)
+        self._sleep(last=t0, sec=1.5)
         self._refresh_rate_dict()
         self._refresh_unit_costs()
-        self.sleep(last=t0, sec=2)
+        self._sleep(last=t0, sec=2)
         self._refresh_pos_dict_and_pos_time()
 
     def _refresh_txn_list(self):
@@ -94,7 +106,7 @@ class BaseTrader(oandapy.API):
             self.print_log(yaml.dump(th_new, default_flow_style=False).strip())
             self.txn_list = self.txn_list + th_new
             if self.txn_log_path:
-                self.write_data(json.dumps(th_new), path=self.txn_log_path)
+                self._write_data(json.dumps(th_new), path=self.txn_log_path)
 
     def _refresh_inst_dict(self):
         self.inst_dict = {
@@ -157,15 +169,6 @@ class BaseTrader(oandapy.API):
             )
         return bpv
 
-    def expire_positions(self, ttl_sec=86400):
-        for i, p in self.pos_dict.items():
-            if self.pos_time.get(i):
-                et_sec = (datetime.now() - self.pos_time[i]).total_seconds()
-                self.logger.info('{0} => {1} sec elapsed'.format(p, et_sec))
-                if et_sec > ttl_sec:
-                    self.logger.info('Close a position: {}'.format(p['side']))
-                    self._place_order(closing=True, instrument=i)
-
     def design_and_place_order(self, instrument, act):
         pos = self.pos_dict.get(instrument)
         if act and pos and (act == 'close' or act != pos['side']):
@@ -197,11 +200,11 @@ class BaseTrader(oandapy.API):
         except Exception as e:
             self.logger.error(e)
             if self.order_log_path:
-                self.write_data(e, path=self.order_log_path)
+                self._write_data(e, path=self.order_log_path)
         else:
             self.logger.info(os.linesep + pformat(r))
             if self.order_log_path:
-                self.write_data(json.dumps(r), path=self.order_log_path)
+                self._write_data(json.dumps(r), path=self.order_log_path)
             else:
                 time.sleep(0.5)
 
@@ -261,7 +264,7 @@ class BaseTrader(oandapy.API):
         return int(min(bet_size, avail_size))
 
     @staticmethod
-    def sleep(last, sec=0.5):
+    def _sleep(last, sec=0.5):
         rest = sec - (datetime.now() - last).total_seconds()
         if rest > 0:
             time.sleep(rest)
@@ -272,8 +275,27 @@ class BaseTrader(oandapy.API):
         else:
             print(data, flush=True)
 
-    def write_data(self, data, path, mode='a', append_linesep=True):
-        with open(self._abspath(path), mode) as f:
+    def print_state_line(self, df_rate, add_str):
+        i = df_rate['instrument'].iloc[-1]
+        net_pl = sum([
+            t['pl'] for t in self.txn_list
+            if t.get('pl') and t.get('instrument') == i
+        ])
+        self.print_log(
+            '|{0:^33}|{1:^15}|'.format(
+                '{0:>7}:{1:>21}'.format(
+                    i.replace('_', '/'),
+                    np.array2string(
+                        df_rate[['bid', 'ask']].iloc[-1].values,
+                        formatter={'float_kind': lambda f: '{:8g}'.format(f)}
+                    )
+                ),
+                'PL:{:>8}'.format(int(net_pl))
+            ) + (add_str or '')
+        )
+
+    def _write_data(self, data, path, mode='a', append_linesep=True):
+        with open(path, mode) as f:
             f.write(str(data) + (os.linesep if append_linesep else ''))
 
     def write_log_df(self, name, df):
@@ -284,8 +306,85 @@ class BaseTrader(oandapy.API):
             self._write_df(df=df, path=p)
 
     def _write_df(self, df, path, mode='a'):
-        p = self._abspath(path)
         df.to_csv(
-            p, mode=mode, sep=(',' if p.endswith('.csv') else '\t'),
-            header=(not os.path.isfile(p))
+            path, mode=mode, sep=(',' if path.endswith('.csv') else '\t'),
+            header=(not os.path.isfile(path))
+        )
+
+    def fetch_candle(self, instrument, granularity='S5', count=5000):
+        return self.get_history(
+            account_id=self.account_id, candleFormat='bidask',
+            instrument=instrument, granularity=granularity,
+            count=min(5000, int(count))
+        )['candles']
+
+
+class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def invoke(self):
+        self.print_log('!!! OPEN DEALS !!!')
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        while self.check_health():
+            self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
+            for i in self.instruments:
+                self.refresh_oanda_dicts()
+                df_r = self.fetch_rate_df(instrument=i)
+                if df_r.size:
+                    self.update_caches(df_rate=df_r)
+                    st = self.determine_sig_state(df_rate=df_r)
+                    self.print_state_line(df_rate=df_r, add_str=st['log_str'])
+                    self.design_and_place_order(instrument=i, act=st['act'])
+                    self.write_log_df(
+                        name='rate.{}'.format(i),
+                        df=df_r.drop(columns=['instrument'])
+                    )
+                    self.write_log_df(
+                        name='sig.{}'.format(i),
+                        df=pd.DataFrame([st]).drop(
+                            columns=['log_str', 'sig_log_str']
+                        ).assign(
+                            time=df_r.index[-1], ask=df_r['ask'].iloc[-1],
+                            bid=df_r['bid'].iloc[-1]
+                        ).set_index('time', drop=True)
+                    )
+                else:
+                    self.logger.debug('no updated rate')
+
+    @abstractmethod
+    def check_health(self):
+        return True
+
+    @abstractmethod
+    def fetch_rate_df(self, instrument):
+        return pd.DataFrame()
+
+    @abstractmethod
+    def update_caches(self, df_rate):
+        pass
+
+    @abstractmethod
+    def determine_sig_state(self, df_rate):
+        return {'act': None, 'log_str': ''}
+
+    def create_ai(self, model):
+        if model == 'ewma':
+            return Ewma(config_dict=self.cf)
+        else:
+            raise FractRuntimeError('invalid model name: {}'.format(model))
+
+    def is_margin_lack(self, instrument):
+        return (
+            not self.pos_dict.get(instrument) and
+            self.acc_dict['marginAvail'] <= self.acc_dict['balance'] *
+            self.cf['position']['margin_nav_ratio']['preserve']
+        )
+
+    def is_over_spread(self, df_rate):
+        return (
+            df_rate.tail(n=1).pipe(
+                lambda d: (d['ask'] - d['bid']) / (d['ask'] + d['bid']) * 2
+            ).values[0] >=
+            self.cf['position']['limit_price_ratio']['max_spread']
         )

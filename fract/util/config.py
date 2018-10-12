@@ -30,8 +30,9 @@ def write_config_yml(path):
 
 def _config_yml_path(path=None, env='FRACT_YML', default='fract.yml'):
     logger = logging.getLogger(__name__)
-    p = os.path.abspath(os.path.expanduser(
-        [p for p in [path, os.getenv(env), default] if p is not None][0]
-    ))
+    p = [
+        os.path.abspath(os.path.expanduser(os.path.expandvars(p)))
+        for p in [path, os.getenv(env), default] if p is not None
+    ][0]
     logger.debug('abspath to a config: {}'.format(p))
     return p

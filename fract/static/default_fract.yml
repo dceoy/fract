@@ -26,10 +26,13 @@ position:
     unit: 0.01            # (0, 1)
     preserve: 0.1         # (0, 1)
   ttl_sec: 86400          # [0, Inf]
-feature: LR Velocity      # { Log Return, LR Velocity, LR Acceleration }
-cache:
-  min_len: 10             # [1, Inf)
-  max_len: 1000           # [1, Inf)
+feature:
+  type: LR Velocity       # { Log Return, LR Velocity, LR Acceleration }
+  spread_adjust: weight   # { weight, sec, min, item }
+  granularity: S5         # { S5, S10, S15, S30, M1, M2, M3, M5, M10, M15, M30, H1 }
+  cache:
+    min_len: 10           # [1, Inf)
+    max_len: 1000         # [1, Inf)
 model:
   ewma:
     alpha: 0.01           # (0, 1)
