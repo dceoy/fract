@@ -3,32 +3,24 @@
 import logging
 import os
 import shutil
-import yaml
-
-
-def read_config_yml(path):
-    with open(_config_yml_path(path=path)) as f:
-        d = yaml.load(f)
-    return d
 
 
 def write_config_yml(path):
     logger = logging.getLogger(__name__)
-    p = _config_yml_path(path=path)
-    if os.path.exists(p):
-        print('A file already exists: {}'.format(p))
+    if os.path.exists(path):
+        print('A file already exists: {}'.format(path))
     else:
-        logger.info('Write a config: {}'.format(p))
+        logger.info('Write a config: {}'.format(path))
         shutil.copyfile(
             os.path.join(
                 os.path.dirname(__file__), '../static/default_fract.yml'
             ),
-            _config_yml_path(path=p)
+            path
         )
-        print('A YAML template was generated: {}'.format(p))
+        print('A YAML template was generated: {}'.format(path))
 
 
-def _config_yml_path(path=None, env='FRACT_YML', default='fract.yml'):
+def fetch_config_yml_path(path=None, env='FRACT_YML', default='fract.yml'):
     logger = logging.getLogger(__name__)
     p = [
         os.path.abspath(os.path.expanduser(os.path.expandvars(p)))

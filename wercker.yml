@@ -1,23 +1,16 @@
 ---
 box:
-  id: dceoy/wercker-base:python
+  id: dceoy/oanda-cli:latest
   entrypoint: /bin/bash -c
 test:
   steps:
     - script:
-        name: Install requirements
-        code: |
-          apt-get -y update
-          apt-get -y install redis-server
-    - script:
         name: Install fract
         code: |
-          pip install -U git+https://github.com/oanda/oandapy.git
-          pip install -U .
+          pip install -U flake8 .
     - script:
         name: Validate the codes using flake8
         code: |
-          pip install -U flake8
           find fract -name '*.py' | xargs flake8
     - script:
         name: Test base options

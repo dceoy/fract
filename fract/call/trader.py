@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import logging
-from ..util.config import read_config_yml
+import yaml
 from ..model.kvs import RedisTrader
 
 
@@ -10,7 +10,8 @@ def invoke_trader(config_yml, instruments=None, model='ewma', interval_sec=0,
                   redis_db=0, log_dir_path=None, quiet=False, dry_run=False):
     logger = logging.getLogger(__name__)
     logger.info('Autonomous trading')
-    cf = read_config_yml(path=config_yml)
+    with open(config_yml, 'r') as f:
+        cf = yaml.load(f)
     rd = cf['redis'] if 'redis' in cf else {}
     trader = RedisTrader(
         model=model, config_dict=cf, instruments=instruments,

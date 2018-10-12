@@ -53,8 +53,9 @@ class TraderCoreAPI(oandapy.API):
                 yaml.dump(
                     {
                         'instrument': self.instruments,
-                        'model': self.cf['model'],
-                        'position': self.cf['position']
+                        'position': self.cf['position'],
+                        'feature': self.cf['feature'],
+                        'model': self.cf['model']
                     },
                     default_flow_style=False
                 ).strip(),

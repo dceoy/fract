@@ -10,6 +10,7 @@ Installation
 
 ```sh
 $ pip install -U https://github.com/oanda/oandapy/archive/master.tar.gz \
+                 https://github.com/dceoy/oandacli/archive/master.tar.gz \
                  https://github.com/dceoy/fract/archive/master.tar.gz
 ```
 
@@ -26,18 +27,18 @@ Usage:
     fract init [--debug|--info] [--file=<yaml>]
     fract info [--debug|--info] [--file=<yaml>] [--json] <info_target>
                [<instrument>...]
-    fract track [--debug|--info] [--file=<yaml>] [--sqlite=<path>]
-                [--granularity=<code>] [--count=<int>] [--json] [--quiet]
-                [<instrument>...]
+    fract track [--debug|--info] [--file=<yaml>] [--csv=<path>]
+                [--sqlite=<path>] [--granularity=<code>] [--count=<int>]
+                [--json] [--quiet] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
                  [--csv=<path>] [--sqlite=<path>] [--use-redis]
                  [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
                  [--redis-max-llen=<int>] [--json] [--quiet] [<instrument>...]
-    fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
-               [--interval=<sec>] [--timeout=<sec>] [--with-streamer]
-               [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-               [--log-dir=<path>] [--quiet] [--dry-run] [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
+    fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
+               [--interval=<sec>] [--timeout=<sec>] [--redis-host=<ip>]
+               [--redis-port=<int>] [--redis-db=<int>] [--log-dir=<path>]
+               [--quiet] [--dry-run] [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
@@ -61,7 +62,6 @@ Options:
     --model=<str>       Set trading models [default: ewma]
     --interval=<sec>    Wait seconds between iterations [default: 0]
     --timeout=<sec>     Set senconds for response timeout
-    --with-streamer     Invoke a trader with a streamer
     --log-dir=<path>    Write output log files in a directory
     --dry-run           Invoke a trader with dry-run mode
 
@@ -70,8 +70,8 @@ Commands:
     info                Print information about <info_target>
     track               Fetch past rates
     stream              Stream market prices or authorized account events
-    open                Invoke an autonomous trader
     close               Close positions (if not <instrument>, close all)
+    open                Invoke an autonomous trader
 
 Arguments:
     <info_target>       { instruments, prices, account, accounts, orders,

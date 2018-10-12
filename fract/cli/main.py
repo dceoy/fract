@@ -7,18 +7,18 @@ Usage:
     fract init [--debug|--info] [--file=<yaml>]
     fract info [--debug|--info] [--file=<yaml>] [--json] <info_target>
                [<instrument>...]
-    fract track [--debug|--info] [--file=<yaml>] [--sqlite=<path>]
-                [--granularity=<code>] [--count=<int>] [--json] [--quiet]
-                [<instrument>...]
+    fract track [--debug|--info] [--file=<yaml>] [--csv=<path>]
+                [--sqlite=<path>] [--granularity=<code>] [--count=<int>]
+                [--json] [--quiet] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
                  [--csv=<path>] [--sqlite=<path>] [--use-redis]
                  [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
                  [--redis-max-llen=<int>] [--json] [--quiet] [<instrument>...]
+    fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--redis-host=<ip>]
                [--redis-port=<int>] [--redis-db=<int>] [--log-dir=<path>]
                [--quiet] [--dry-run] [<instrument>...]
-    fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
@@ -50,8 +50,8 @@ Commands:
     info                Print information about <info_target>
     track               Fetch past rates
     stream              Stream market prices or authorized account events
-    open                Invoke an autonomous trader
     close               Close positions (if not <instrument>, close all)
+    open                Invoke an autonomous trader
 
 Arguments:
     <info_target>       { instruments, prices, account, accounts, orders,
@@ -76,13 +76,10 @@ Arguments:
 import logging
 import os
 from docopt import docopt
+from oandacli.cli.main import execute_command
 from .. import __version__
-from ..call.candle import track_rate
-from ..call.info import print_info
-from ..call.order import close_positions
-from ..call.streamer import invoke_streamer
 from ..call.trader import invoke_trader
-from ..util.config import write_config_yml
+from ..util.config import fetch_config_yml_path, write_config_yml
 from ..util.logger import set_log_config
 
 
@@ -91,39 +88,17 @@ def main():
     set_log_config(debug=args['--debug'], info=args['--info'])
     logger = logging.getLogger(__name__)
     logger.debug('args:{0}{1}'.format(os.linesep, args))
+    config_yml_path = fetch_config_yml_path(path=args['--file'])
     if args['init']:
-        write_config_yml(path=args['--file'])
-    elif args['info']:
-        print_info(
-            config_yml=args['--file'], instruments=args['<instrument>'],
-            type=args['<info_target>'], print_json=args['--json']
-        )
-    elif args['track']:
-        track_rate(
-            config_yml=args['--file'], instruments=args['<instrument>'],
-            granularity=args['--granularity'], count=args['--count'],
-            sqlite_path=args['--sqlite'], print_json=args['--json'],
-            quiet=args['--quiet']
-        )
-    elif args['stream']:
-        invoke_streamer(
-            config_yml=args['--file'], target=args['--target'],
-            instruments=args['<instrument>'], print_json=args['--json'],
-            csv_path=args['--csv'], sqlite_path=args['--sqlite'],
-            use_redis=args['--use-redis'], redis_host=args['--redis-host'],
-            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
-            redis_max_llen=args['--redis-max-llen'], quiet=args['--quiet']
-        )
+        write_config_yml(path=config_yml_path)
     elif args['open']:
         invoke_trader(
-            config_yml=args['--file'], instruments=args['<instrument>'],
+            config_yml=config_yml_path, instruments=args['<instrument>'],
             model=args['--model'], interval_sec=args['--interval'],
             timeout_sec=args['--timeout'], redis_host=args['--redis-host'],
             redis_port=args['--redis-port'], redis_db=args['--redis-db'],
             log_dir_path=args['--log-dir'], quiet=args['--quiet'],
             dry_run=args['--dry-run']
         )
-    elif args['close']:
-        close_positions(
-            config_yml=args['--file'], instruments=args['<instrument>']
-        )
+    elif any([args[k] for k in ['info', 'track', 'stream']]):
+        execute_command(args=args, config_yml_path=config_yml_path)

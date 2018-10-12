@@ -90,10 +90,11 @@ class RedisTrader(BaseTrader):
         )
         sig = self.ai.detect_signal(df_rate=self.cache_dfs[i], pos=pos)
         len_cache = len(self.cache_dfs[i])
-        load_pct = int(min(1, len_cache / self.cache_min_len) * 100)
-        if load_pct < 100:
+        if len_cache < self.cache_min_len:
             act = None
-            state = 'LOADING...{:>3}%'.format(load_pct)
+            state = 'LOADING...{:>3}%'.format(
+                (len_cache / self.cache_min_len) * 100
+            )
         elif self.inst_dict[i]['halted']:
             act = None
             state = 'TRADING HALTED'

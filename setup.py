@@ -15,10 +15,11 @@ setup(
     include_package_data=True,
     install_requires=[
         'docopt', 'numpy', 'pandas', 'pyyaml', 'redis', 'scikit-learn',
-        'oandapy'
+        'oanda-cli', 'oandapy'
     ],
     dependency_links=[
-        'git+https://github.com/oanda/oandapy.git#egg=oandapy'
+        'git+https://github.com/oanda/oandapy.git#egg=oandapy',
+        'git+https://github.com/dceoy/oanda-cli.git#egg=oanda-cli'
     ],
     entry_points={
         'console_scripts': ['fract=fract.cli.main:main'],
@@ -45,5 +46,5 @@ fract
 Automated Trading Framework using Oanda API
 
 This version requires Python 3 or later.
-    """
+"""
 )
