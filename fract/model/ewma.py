@@ -16,51 +16,69 @@ class Ewma(object):
             spread_adjust=config_dict['feature']['spread_adjust']
         )
 
-    def detect_signal(self, df_rate, pos=None):
-        fewm = self.lrf.series(df_rate=df_rate).ewm(alpha=self.alpha)
-        self.logger.debug('fewm: {}'.format(fewm))
-        ewma = fewm.mean().iloc[-1]
-        self.logger.info('EWMA feature: {}'.format(ewma))
+    def _ewm_stats(self, series):
+        ewm = series.ewm(alpha=self.alpha)
+        ewma = ewm.mean().iloc[-1]
+        self.logger.debug('ewma: {}'.format(ewma))
         if self.ci_level:
-            n_ewm = len(fewm.obj.dropna())
-            ewmci = (
-                np.asarray(
-                    stats.t.interval(alpha=self.ci_level, df=(n_ewm - 1))
-                ) * fewm.std().iloc[-1] / np.sqrt(n_ewm) + ewma
-            )
-            if ewmci[0] > 0:
-                sig_act = 'buy'
-            elif ewmci[1] < 0:
-                sig_act = 'sell'
-            elif pos and ewma * {'buy': 1, 'sell': -1}[pos['side']] < 0:
-                sig_act = 'close'
-            else:
-                sig_act = None
-            sig_log_str = '{:^46}|'.format(
-                '{0:>3}[CI{1:.2g}]:{2:>11}{3:>21}'.format(
-                    self.lrf.code, self.ci_level * 100, '{:1.5f}'.format(ewma),
-                    np.array2string(
-                        ewmci,
-                        formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
-                    )
-                )
-            )
-            return {
-                'ewma': ewma, 'ewmci_lower': ewmci[0], 'ewmci_upper': ewmci[1],
-                'sig_act': sig_act, 'sig_log_str': sig_log_str
-            }
+            n_ewm = len(series)
+            ewmci = np.asarray(
+                stats.t.interval(alpha=self.ci_level, df=(n_ewm - 1))
+            ) * ewm.std().iloc[-1] / np.sqrt(n_ewm) + ewma
+            return {'ewma': ewma, 'ewmcil': ewmci[0], 'ewmciu': ewmci[1]}
         else:
-            if ewma > 0:
-                sig_act = 'buy'
-            elif ewma < 0:
-                sig_act = 'sell'
-            elif pos:
+            return {'ewma': ewma}
+
+    def detect_signal(self, df_rate, df_candle, granularity, pos=None):
+        ewm_dict = {
+            **{
+                'tick_{}'.format(k): v for k, v in self._ewm_stats(
+                    series=self.lrf.series(df_rate=df_rate)
+                ).items()
+            },
+            **{
+                'close_{}'.format(k): v for k, v in self._ewm_stats(
+                    series=self.lrf.series(
+                        df_rate=df_candle.rename(
+                            columns={'closeAsk': 'ask', 'closeBid': 'bid'}
+                        )
+                    )
+                ).items()
+            }
+        }
+        if self.ci_level:
+            if pos and pos['side'] == 'buy' and ewm_dict['close_ewma'] < 0:
                 sig_act = 'close'
+            elif pos and pos['side'] == 'sell' and ewm_dict['close_ewma'] > 0:
+                sig_act = 'close'
+            elif ewm_dict['close_ewmcil'] > 0 and ewm_dict['tick_ewmcil'] > 0:
+                sig_act = 'buy'
+            elif ewm_dict['close_ewmcil'] > 0 and ewm_dict['tick_ewmciu'] < 0:
+                sig_act = 'buy'
+            elif ewm_dict['close_ewmciu'] < 0 and ewm_dict['tick_ewmciu'] < 0:
+                sig_act = 'sell'
+            elif ewm_dict['close_ewmciu'] < 0 and ewm_dict['tick_ewmcil'] > 0:
+                sig_act = 'sell'
             else:
                 sig_act = None
-            sig_log_str = '{:^19}|'.format(
-                '{0:>3}:{1:>11}'.format(self.lrf.code, '{:.3g}'.format(ewma))
+        else:
+            if pos and pos['side'] == 'buy' and ewm_dict['close_ewma'] < 0:
+                sig_act = 'close'
+            elif pos and pos['side'] == 'sell' and ewm_dict['close_ewma'] > 0:
+                sig_act = 'close'
+            elif ewm_dict['close_ewma'] > 0 and ewm_dict['tick_ewma'] != 0:
+                sig_act = 'buy'
+            elif ewm_dict['close_ewma'] < 0 and ewm_dict['tick_ewma'] != 0:
+                sig_act = 'sell'
+            else:
+                sig_act = None
+        sig_log_str = '{0:^25}|{1:^23}|'.format(
+            '{0:>3}[TICK]:{1:>11}'.format(
+                self.lrf.code, '{:.3g}'.format(ewm_dict['tick_ewma'])
+            ),
+            '{0:>3}[{1}]:{2:>11}'.format(
+                self.lrf.code, granularity,
+                '{:.3g}'.format(ewm_dict['close_ewma'])
             )
-            return {
-                'ewma': ewma, 'sig_act': sig_act, 'sig_log_str': sig_log_str
-            }
+        )
+        return {'sig_act': sig_act, 'sig_log_str': sig_log_str, **ewm_dict}

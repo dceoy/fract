@@ -24,6 +24,7 @@ class RedisTrader(BaseTrader):
         self.timeout_sec = int(timeout_sec) if timeout_sec else None
         self.cache_min_len = self.cf['feature']['cache']['min_len']
         self.cache_max_len = self.cf['feature']['cache']['max_len']
+        self.granularity = self.cf['feature']['granularity']
         self.ai = self.create_ai(model=model)
         self.redis_pool = redis.ConnectionPool(
             host=redis_host, port=int(redis_port), db=int(redis_db)
@@ -88,7 +89,13 @@ class RedisTrader(BaseTrader):
             pos['units'] * self.unit_costs[i] * 100 / self.acc_dict['balance']
             if pos else 0
         )
-        sig = self.ai.detect_signal(df_rate=self.cache_dfs[i], pos=pos)
+        sig = self.ai.detect_signal(
+            df_rate=self.cache_dfs[i],
+            df_candle=self.fetch_candle_df(
+                instrument=i, granularity=self.granularity
+            ),
+            granularity=self.granularity, pos=pos
+        )
         len_cache = len(self.cache_dfs[i])
         if len_cache < self.cache_min_len:
             act = None
