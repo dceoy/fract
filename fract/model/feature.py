@@ -6,12 +6,8 @@ from ..util.error import FractRuntimeError
 
 
 class LogReturnFeature(object):
-    def __init__(self, type, granularity):
+    def __init__(self, type):
         self.logger = logging.getLogger(__name__)
-        self.granularity = granularity
-        self.gsec = (
-            {'S': 1, 'M': 60, 'H': 3600}[granularity[0]] * int(granularity[1:])
-        )
         if type and type.lower() == 'lr velocity':
             self.code = 'LRV'
         elif type and type.lower() == 'lr acceleration':
@@ -39,14 +35,21 @@ class LogReturnFeature(object):
         )
         return (df_lr if return_df else df_lr['log_return'])
 
-    def _adjusted_log_diff(self, df):
-        return df.assign(
-            ls=lambda d: np.log(d['ask']) - np.log(d['bid'])
-        ).pipe(
-            lambda d: np.sign(d['log_diff']) * (
-                np.abs(d['log_diff']) - d['ls'] * (d['delta_sec'] / self.gsec)
-            ).clip(lower=0)
-        )
+    def _adjusted_log_diff(self, df, gl_sec=None):
+        if gl_sec:
+            return df.assign(
+                ls=lambda d: np.log(d['ask']) - np.log(d['bid'])
+            ).pipe(
+                lambda d: np.sign(d['log_diff']) * (
+                    np.abs(d['log_diff']) - d['ls'] * (d['delta_sec'] / gl_sec)
+                ).clip(lower=0)
+            )
+        else:
+            return df.assign(
+                w=lambda d: np.reciprocal(np.log(d['ask']) - np.log(d['bid']))
+            ).pipe(
+                lambda d: d['log_diff'] * d['w'] / d['w'].sum()
+            )
 
     def log_return_velocity(self, df_rate, return_df=False):
         df_lrv = self.log_return(

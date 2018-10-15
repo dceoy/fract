@@ -149,7 +149,7 @@ class RedisTrader(BaseTrader):
             state = '-'
         log_str = (
             sig['sig_log_str'] + '{0:^14}|{1:^18}|'.format(
-                'TICK:{:>5}'.format(len_cache), state
+                'TICK:{:>5}'.format(len(df_rate)), state
             )
         )
         return {'act': act, 'state': state, 'log_str': log_str, **sig}

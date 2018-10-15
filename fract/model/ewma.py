@@ -11,23 +11,9 @@ class Ewma(object):
         self.logger = logging.getLogger(__name__)
         self.alpha = config_dict['model']['ewma']['alpha']
         self.ci_level = config_dict['model']['ewma'].get('ci_level')
-        self.lrf = LogReturnFeature(
-            type=config_dict['feature']['type'],
-            granularity=config_dict['feature']['granularity']
-        )
-
-    def _ewm_stats(self, series):
-        ewm = series.ewm(alpha=self.alpha)
-        ewma = ewm.mean().iloc[-1]
-        self.logger.debug('ewma: {}'.format(ewma))
-        if self.ci_level:
-            n_ewm = len(series)
-            ewmci = np.asarray(
-                stats.t.interval(alpha=self.ci_level, df=(n_ewm - 1))
-            ) * ewm.std().iloc[-1] / np.sqrt(n_ewm) + ewma
-            return {'ewma': ewma, 'ewmci': ewmci}
-        else:
-            return {'ewma': ewma}
+        g = config_dict['feature']['granularity']
+        self.gl_str = '{0:0>2}{1:1}'.format(int(g[1:] if len(g) else 1), g[0])
+        self.lrf = LogReturnFeature(type=config_dict['feature']['type'])
 
     def detect_signal(self, df_rate, df_candle, pos=None):
         tick_dict = self._ewm_stats(series=self.lrf.series(df_rate=df_rate))
@@ -53,7 +39,7 @@ class Ewma(object):
                 sig_act = 'sell'
             else:
                 sig_act = None
-            sig_log_str = '{0:^44}|{1:^42}|'.format(
+            sig_log_str = '{0:^44}|{1:^43}|'.format(
                 '{0:>3}[TICK]:{1:>10}{2:>20}'.format(
                     self.lrf.code, '{:1.5f}'.format(tick_dict['ewma']),
                     np.array2string(
@@ -61,8 +47,8 @@ class Ewma(object):
                         formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
                     )
                 ),
-                '{0:>3}[{1}]:{2:>10}{3:>20}'.format(
-                    self.lrf.code, self.lrf.granularity,
+                '{0:>3}[{1:>3}]:{2:>10}{3:>20}'.format(
+                    self.lrf.code, self.gl_str,
                     '{:1.5f}'.format(close_dict['ewma']),
                     np.array2string(
                         close_dict['ewmci'],
@@ -81,12 +67,12 @@ class Ewma(object):
                 sig_act = 'sell'
             else:
                 sig_act = None
-            sig_log_str = '{0:^25}|{1:^23}|'.format(
+            sig_log_str = '{0:^25}|{1:^24}|'.format(
                 '{0:>3}[TICK]:{1:>11}'.format(
                     self.lrf.code, '{:.3g}'.format(tick_dict['ewma'])
                 ),
-                '{0:>3}[{1}]:{2:>11}'.format(
-                    self.lrf.code, self.lrf.granularity,
+                '{0:>3}[{1:>3}]:{2:>11}'.format(
+                    self.lrf.code, self.gl_str,
                     '{:.3g}'.format(close_dict['ewma'])
                 )
             )
@@ -99,3 +85,16 @@ class Ewma(object):
             'close_ewmcil': close_dict['ewmci'][0],
             'close_ewmciu': close_dict['ewmci'][1]
         }
+
+    def _ewm_stats(self, series):
+        ewm = series.ewm(alpha=self.alpha)
+        ewma = ewm.mean().iloc[-1]
+        self.logger.debug('ewma: {}'.format(ewma))
+        if self.ci_level:
+            n_ewm = len(series)
+            ewmci = np.asarray(
+                stats.t.interval(alpha=self.ci_level, df=(n_ewm - 1))
+            ) * ewm.std().iloc[-1] / np.sqrt(n_ewm) + ewma
+            return {'ewma': ewma, 'ewmci': ewmci}
+        else:
+            return {'ewma': ewma}
