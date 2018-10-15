@@ -92,9 +92,10 @@ class RedisTrader(BaseTrader):
         sig = self.ai.detect_signal(
             df_rate=self.cache_dfs[i],
             df_candle=self.fetch_candle_df(
-                instrument=i, granularity=self.granularity
+                instrument=i, granularity=self.granularity,
+                count=self.cache_min_len
             ),
-            granularity=self.granularity, pos=pos
+            pos=pos
         )
         len_cache = len(self.cache_dfs[i])
         if len_cache < self.cache_min_len:

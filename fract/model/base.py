@@ -312,17 +312,16 @@ class TraderCoreAPI(oandapy.API):
             header=(not os.path.isfile(path))
         )
 
-    def fetch_candle_df(self, **kwargs):
-        return pd.DataFrame(self._fetch_candles(**kwargs)).assign(
+    def fetch_candle_df(self, instrument, granularity='S5', count=5000):
+        return pd.DataFrame(
+            self.get_history(
+                account_id=self.account_id, candleFormat='bidask',
+                instrument=instrument, granularity=granularity,
+                count=min(5000, int(count))
+            )['candles']
+        ).assign(
             time=lambda d: pd.to_datetime(d['time'])
         ).set_index('time', drop=True)
-
-    def _fetch_candles(self, instrument, granularity='S5', count=5000):
-        return self.get_history(
-            account_id=self.account_id, candleFormat='bidask',
-            instrument=instrument, granularity=granularity,
-            count=min(5000, int(count))
-        )['candles']
 
 
 class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):

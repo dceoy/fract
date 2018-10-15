@@ -13,7 +13,7 @@ class Ewma(object):
         self.ci_level = config_dict['model']['ewma'].get('ci_level')
         self.lrf = LogReturnFeature(
             type=config_dict['feature']['type'],
-            spread_adjust=config_dict['feature']['spread_adjust']
+            granularity=config_dict['feature']['granularity']
         )
 
     def _ewm_stats(self, series):
@@ -29,7 +29,10 @@ class Ewma(object):
         else:
             return {'ewma': ewma}
 
-    def detect_signal(self, df_rate, df_candle, granularity, pos=None):
+    def detect_signal(self, df_rate, df_candle, pos=None):
+        df_close_rate = df_candle.rename(
+            columns={'closeAsk': 'ask', 'closeBid': 'bid'}
+        )[['ask', 'bid']]
         ewm_dict = {
             **{
                 'tick_{}'.format(k): v for k, v in self._ewm_stats(
@@ -38,11 +41,7 @@ class Ewma(object):
             },
             **{
                 'close_{}'.format(k): v for k, v in self._ewm_stats(
-                    series=self.lrf.series(
-                        df_rate=df_candle.rename(
-                            columns={'closeAsk': 'ask', 'closeBid': 'bid'}
-                        )
-                    )
+                    series=self.lrf.series(df_rate=df_close_rate)
                 ).items()
             }
         }
@@ -77,7 +76,7 @@ class Ewma(object):
                 self.lrf.code, '{:.3g}'.format(ewm_dict['tick_ewma'])
             ),
             '{0:>3}[{1}]:{2:>11}'.format(
-                self.lrf.code, granularity,
+                self.lrf.code, self.lrf.granularity,
                 '{:.3g}'.format(ewm_dict['close_ewma'])
             )
         )
