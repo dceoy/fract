@@ -283,7 +283,7 @@ class TraderCoreAPI(oandapy.API):
             if t.get('pl') and t.get('instrument') == i
         ])
         self.print_log(
-            '|{0:^33}|{1:^15}|'.format(
+            '|{0:^33}|{1:^13}|'.format(
                 '{0:>7}:{1:>21}'.format(
                     i.replace('_', '/'),
                     np.array2string(
@@ -291,7 +291,7 @@ class TraderCoreAPI(oandapy.API):
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                     )
                 ),
-                'PL:{:>8}'.format(int(net_pl))
+                'PL:{:>6}'.format(int(net_pl))
             ) + (add_str or '')
         )
 

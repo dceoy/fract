@@ -85,7 +85,7 @@ class RedisTrader(BaseTrader):
     def determine_sig_state(self, df_rate):
         i = df_rate['instrument'].iloc[-1]
         pos = self.pos_dict.get(i)
-        pos_pct = (
+        pos_pct = int(
             pos['units'] * self.unit_costs[i] * 100 / self.acc_dict['balance']
             if pos else 0
         )
@@ -101,7 +101,7 @@ class RedisTrader(BaseTrader):
         if len_cache < self.cache_min_len:
             act = None
             state = 'LOADING...{:>3}%'.format(
-                (len_cache / self.cache_min_len) * 100
+                int(len_cache / self.cache_min_len * 100)
             )
         elif self.inst_dict[i]['halted']:
             act = None
@@ -148,8 +148,8 @@ class RedisTrader(BaseTrader):
             act = None
             state = '-'
         log_str = (
-            '{0:^25}|{1:^18}|'.format(
-                'CACHE:{1:>6} ->{0:>6}'.format(len_cache, len(df_rate)), state
-            ) + sig['sig_log_str']
+            sig['sig_log_str'] + '{0:^14}|{1:^18}|'.format(
+                'TICK:{:>5}'.format(len_cache), state
+            )
         )
         return {'act': act, 'state': state, 'log_str': log_str, **sig}
