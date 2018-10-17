@@ -320,7 +320,7 @@ class TraderCoreAPI(oandapy.API):
                 count=min(5000, int(count))
             )['candles']
         ).assign(
-            time=lambda d: pd.to_datetime(d['time'])
+            time=lambda d: pd.to_datetime(d['time']), instrument=instrument
         ).set_index('time', drop=True)
 
 

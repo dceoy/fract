@@ -93,7 +93,7 @@ class RedisTrader(BaseTrader):
             df_rate=self.cache_dfs[i],
             df_candle=self.fetch_candle_df(
                 instrument=i, granularity=self.granularity,
-                count=self.cache_min_len
+                count=self.cache_max_len
             ),
             pos=pos
         )
@@ -121,7 +121,7 @@ class RedisTrader(BaseTrader):
         elif sig['sig_act'] == 'buy':
             if pos and pos['side'] == 'buy':
                 act = None
-                state = '{:.2g}% LONG'.format(pos_pct)
+                state = '{:.1f}% LONG'.format(pos_pct)
             elif pos and pos['side'] == 'sell':
                 act = 'buy'
                 state = 'SHORT -> LONG'
@@ -131,7 +131,7 @@ class RedisTrader(BaseTrader):
         elif sig['sig_act'] == 'sell':
             if pos and pos['side'] == 'sell':
                 act = None
-                state = '{:.2g}% SHORT'.format(pos_pct)
+                state = '{:.1f}% SHORT'.format(pos_pct)
             elif pos and pos['side'] == 'buy':
                 act = 'sell'
                 state = 'LONG -> SHORT'
@@ -140,10 +140,10 @@ class RedisTrader(BaseTrader):
                 state = '-> SHORT'
         elif pos and pos['side'] == 'buy':
             act = None
-            state = '{:.2g}% LONG'.format(pos_pct)
+            state = '{:.1f}% LONG'.format(pos_pct)
         elif pos and pos['side'] == 'sell':
             act = None
-            state = '{:.2g}% SHORT'.format(pos_pct)
+            state = '{:.1f}% SHORT'.format(pos_pct)
         else:
             act = None
             state = '-'

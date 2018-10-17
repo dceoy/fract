@@ -41,18 +41,18 @@ class Ewma(object):
                 sig_act = None
             sig_log_str = '{0:^44}|{1:^43}|'.format(
                 '{0:>3}[TICK]:{1:>10}{2:>20}'.format(
-                    self.lrf.code, '{:1.5f}'.format(tick_dict['ewma']),
+                    self.lrf.code, '{:.2g}'.format(tick_dict['ewma']),
                     np.array2string(
                         tick_dict['ewmci'],
-                        formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
+                        formatter={'float_kind': lambda f: '{:.2g}'.format(f)}
                     )
                 ),
                 '{0:>3}[{1:>3}]:{2:>10}{3:>20}'.format(
                     self.lrf.code, self.gl_str,
-                    '{:1.5f}'.format(close_dict['ewma']),
+                    '{:.2g}'.format(close_dict['ewma']),
                     np.array2string(
                         close_dict['ewmci'],
-                        formatter={'float_kind': lambda f: '{:1.5f}'.format(f)}
+                        formatter={'float_kind': lambda f: '{:.2g}'.format(f)}
                     )
                 )
             )
