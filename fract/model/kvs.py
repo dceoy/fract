@@ -22,8 +22,7 @@ class RedisTrader(BaseTrader):
         self.logger = logging.getLogger(__name__)
         self.interval_sec = int(interval_sec)
         self.timeout_sec = int(timeout_sec) if timeout_sec else None
-        self.cache_min_len = self.cf['feature']['cache']['min_len']
-        self.cache_max_len = self.cf['feature']['cache']['max_len']
+        self.n_cache = self.cf['feature']['cache_length']
         self.granularity = self.cf['feature']['granularity']
         self.ai = self.create_ai(model=model)
         self.redis_pool = redis.ConnectionPool(
@@ -78,7 +77,7 @@ class RedisTrader(BaseTrader):
     def update_caches(self, df_rate):
         self.logger.info('Rate:{0}{1}'.format(os.linesep, df_rate))
         i = df_rate['instrument'].iloc[-1]
-        df_c = self.cache_dfs[i].append(df_rate).tail(n=self.cache_max_len)
+        df_c = self.cache_dfs[i].append(df_rate).tail(n=self.n_cache)
         self.logger.info('Cache length: {}'.format(len(df_c)))
         self.cache_dfs[i] = df_c
 
@@ -92,18 +91,11 @@ class RedisTrader(BaseTrader):
         sig = self.ai.detect_signal(
             df_rate=self.cache_dfs[i],
             df_candle=self.fetch_candle_df(
-                instrument=i, granularity=self.granularity,
-                count=self.cache_max_len
+                instrument=i, granularity=self.granularity, count=self.n_cache
             ),
             pos=pos
         )
-        len_cache = len(self.cache_dfs[i])
-        if len_cache < self.cache_min_len:
-            act = None
-            state = 'LOADING...{:>3}%'.format(
-                int(len_cache / self.cache_min_len * 100)
-            )
-        elif self.inst_dict[i]['halted']:
+        if self.inst_dict[i]['halted']:
             act = None
             state = 'TRADING HALTED'
         elif sig['sig_act'] == 'close':

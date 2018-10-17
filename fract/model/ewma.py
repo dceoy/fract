@@ -39,20 +39,20 @@ class Ewma(object):
                 sig_act = 'sell'
             else:
                 sig_act = None
-            sig_log_str = '{0:^44}|{1:^43}|'.format(
-                '{0:>3}[TICK]:{1:>10}{2:>20}'.format(
-                    self.lrf.code, '{:.2g}'.format(tick_dict['ewma']),
+            sig_log_str = '{0:^41}|{1:^40}|'.format(
+                '{0:>3}[TICK]:{1:>9}{2:>18}'.format(
+                    self.lrf.code, '{:.1g}'.format(tick_dict['ewma']),
                     np.array2string(
                         tick_dict['ewmci'],
-                        formatter={'float_kind': lambda f: '{:.2g}'.format(f)}
+                        formatter={'float_kind': lambda f: '{:.1g}'.format(f)}
                     )
                 ),
-                '{0:>3}[{1:>3}]:{2:>10}{3:>20}'.format(
+                '{0:>3}[{1:>3}]:{2:>9}{3:>18}'.format(
                     self.lrf.code, self.gl_str,
-                    '{:.2g}'.format(close_dict['ewma']),
+                    '{:.1g}'.format(close_dict['ewma']),
                     np.array2string(
                         close_dict['ewmci'],
-                        formatter={'float_kind': lambda f: '{:.2g}'.format(f)}
+                        formatter={'float_kind': lambda f: '{:.1g}'.format(f)}
                     )
                 )
             )
@@ -67,13 +67,13 @@ class Ewma(object):
                 sig_act = 'sell'
             else:
                 sig_act = None
-            sig_log_str = '{0:^25}|{1:^24}|'.format(
-                '{0:>3}[TICK]:{1:>11}'.format(
-                    self.lrf.code, '{:.3g}'.format(tick_dict['ewma'])
+            sig_log_str = '{0:^24}|{1:^23}|'.format(
+                '{0:>3}[TICK]:{1:>10}'.format(
+                    self.lrf.code, '{:.2g}'.format(tick_dict['ewma'])
                 ),
-                '{0:>3}[{1:>3}]:{2:>11}'.format(
+                '{0:>3}[{1:>3}]:{2:>10}'.format(
                     self.lrf.code, self.gl_str,
-                    '{:.3g}'.format(close_dict['ewma'])
+                    '{:.2g}'.format(close_dict['ewma'])
                 )
             )
         return {

@@ -29,9 +29,7 @@ position:
 feature:
   type: LR Velocity       # { Log Return, LR Velocity, LR Acceleration }
   granularity: M1         # { S5, S10, S15, S30, M1, M2, M3, M5, M10, M15, M30, H1 }
-  cache:
-    min_len: 10           # [1, Inf)
-    max_len: 1000         # [1, Inf)
+  cache_length: 1000      # [1, 5000]
 model:
   ewma:
     alpha: 0.02           # (0, 1)
