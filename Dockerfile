@@ -5,7 +5,8 @@ ADD https://github.com/dceoy/oanda-cli/archive/master.tar.gz /tmp/oanda-cli.tar.
 ADD . /tmp/fract
 
 RUN set -e \
-      && pip install -U --no-cache-dir /tmp/oandapy.tar.gz /tmp/oanda-cli.tar.gz /tmp/fract \
+      && pip install -U --no-cache-dir \
+        /tmp/oandapy.tar.gz /tmp/oanda-cli.tar.gz /tmp/fract \
       && rm -rf /tmp/oandapy.tar.gz /tmp/oanda-cli.tar.gz /tmp/fract
 
 ENTRYPOINT ["fract"]
