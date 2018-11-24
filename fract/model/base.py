@@ -158,8 +158,7 @@ class TraderCoreAPI(oandapy.API):
             bpv = self.rate_dict[instrument]['ask']
         else:
             inst_bpv = [
-                i for i in self.inst_dict.keys()
-                if set(i.split('_')) == {
+                i for i in self.inst_dict.keys() if set(i.split('_')) == {
                     cur_pair[1], self.acc_dict['accountCurrency']
                 }
             ][0]
