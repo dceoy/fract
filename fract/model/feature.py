@@ -7,20 +7,20 @@ from ..util.error import FractRuntimeError
 
 class LogReturnFeature(object):
     def __init__(self, type):
-        self.logger = logging.getLogger(__name__)
+        self.__logger = logging.getLogger(__name__)
         if type and type.lower() == 'lr velocity':
-            self.code = 'LRV'
+            self.__code = 'LRV'
         elif type and type.lower() == 'lr acceleration':
-            self.code = 'LRA'
+            self.__code = 'LRA'
         elif type and type.lower() == 'lr':
-            self.code = 'LR'
+            self.__code = 'LR'
         else:
             raise FractRuntimeError('invalid feature type: {}'.format(type))
 
     def series(self, df_rate):
-        if self.code == 'LRV':
+        if self.__code == 'LRV':
             return self.log_return_velocity(df_rate=df_rate)
-        elif self.code == 'LRA':
+        elif self.__code == 'LRA':
             return self.log_return_acceleration(df_rate=df_rate)
         else:
             return self.log_return(df_rate=df_rate)
@@ -30,7 +30,7 @@ class LogReturnFeature(object):
             log_diff=lambda d: np.log((d['ask'] + d['bid']) / 2).diff(),
             delta_sec=lambda d: d['time'].diff().dt.total_seconds()
         ).assign(log_return=lambda d: self._adjusted_log_diff(df=d))
-        self.logger.info(
+        self.__logger.info(
             'Log return (tail): {}'.format(df_lr['log_return'].tail().values)
         )
         return (df_lr if return_df else df_lr['log_return'])
@@ -57,7 +57,7 @@ class LogReturnFeature(object):
         ).assign(
             lrv=lambda d: d['log_return'] / d['delta_sec']
         )
-        self.logger.info(
+        self.__logger.info(
             'Log return verocity (tail): {}'.format(
                 df_lrv['lrv'].tail().values
             )
@@ -70,7 +70,7 @@ class LogReturnFeature(object):
         ).assign(
             lra=lambda d: d['lrv'].diff() / d['delta_sec']
         )
-        self.logger.info(
+        self.__logger.info(
             'Log return acceleration (tail): {}'.format(
                 df_lra['lra'].tail().values
             )

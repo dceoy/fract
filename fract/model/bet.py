@@ -7,7 +7,7 @@ from ..util.error import FractRuntimeError
 
 class BettingSystem(object):
     def __init__(self, strategy='Martingale'):
-        self.logger = logging.getLogger(__name__)
+        self.__logger = logging.getLogger(__name__)
         strategies = ['Martingale', "d'Alembert", 'Pyramid', "Oscar's grind"]
         matched_st = [
             s for s in strategies
@@ -15,7 +15,7 @@ class BettingSystem(object):
         ]
         if matched_st:
             self.strategy = matched_st[0]
-            self.logger.info('Betting strategy: {}'.format(self.strategy))
+            self.__logger.info('Betting strategy: {}'.format(self.strategy))
         else:
             raise FractRuntimeError('invalid strategy name')
 
@@ -41,8 +41,8 @@ class BettingSystem(object):
 
     def calculate_size(self, unit_size, init_size=None, last_size=None,
                        last_won=None, all_time_high=False):
-        self.logger.debug('last_won: {}'.format(last_won))
-        self.logger.debug('last_size: {}'.format(last_size))
+        self.__logger.debug('last_won: {}'.format(last_won))
+        self.__logger.debug('last_size: {}'.format(last_size))
         if last_won is None:
             return last_size or init_size or unit_size
         elif self.strategy == 'Martingale':
@@ -57,7 +57,7 @@ class BettingSystem(object):
             else:
                 return (last_size - unit_size)
         elif self.strategy == "Oscar's grind":
-            self.logger.debug('all_time_high: {}'.format(all_time_high))
+            self.__logger.debug('all_time_high: {}'.format(all_time_high))
             if all_time_high:
                 return init_size or unit_size
             elif last_won:
