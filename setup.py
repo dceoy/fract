@@ -15,7 +15,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'docopt', 'numpy', 'pandas', 'pyyaml', 'redis', 'scikit-learn',
-        'oanda-cli', 'oandapy'
+        'statsmodels'
     ],
     dependency_links=[
         'git+https://github.com/oanda/oandapy.git#egg=oandapy',
