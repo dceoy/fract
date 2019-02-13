@@ -9,6 +9,7 @@ import time
 import pandas as pd
 import redis
 from .base import BaseTrader
+from .sieve import select_autocorrelated_granularity
 
 
 class RedisTrader(BaseTrader):
@@ -22,15 +23,15 @@ class RedisTrader(BaseTrader):
         self.__logger = logging.getLogger(__name__)
         self.__interval_sec = int(interval_sec)
         self.__timeout_sec = int(timeout_sec) if timeout_sec else None
-        self.__n_cache = self.__cf['feature']['cache_length']
-        self.__granularity = self.__cf['feature']['granularity']
+        self.__n_cache = self.cf['feature']['cache_length']
+        self.__granularities = self.cf['feature']['granularities']
         self.__ai = self.create_ai(model=model)
         self.__redis_pool = redis.ConnectionPool(
             host=redis_host, port=int(redis_port), db=int(redis_db)
         )
         self.__is_active = True
         self.__latest_update_time = None
-        self.__cache_dfs = {i: pd.DataFrame() for i in self.__instruments}
+        self.__cache_dfs = {i: pd.DataFrame() for i in self.instruments}
         self.__logger.debug('vars(self): ' + pformat(vars(self)))
 
     def check_health(self):
@@ -85,28 +86,30 @@ class RedisTrader(BaseTrader):
 
     def determine_sig_state(self, df_rate):
         i = df_rate['instrument'].iloc[-1]
-        pos = self.__pos_dict.get(i)
+        pos = self.pos_dict.get(i)
         pos_pct = int(
             (
-                pos['units'] * self.__unit_costs[i] * 100 /
-                self.__acc_dict['balance']
+                pos['units'] * self.unit_costs[i] * 100 /
+                self.acc_dict['balance']
             ) if pos else 0
         )
+        candle_dfs = {
+            g: self.fetch_candle_df(
+                instrument=i, granularity=g, count=self.__n_cache
+            ) for g in self.__granularities
+        }
+        gl = select_autocorrelated_granularity(candle_dfs)
         sig = self.__ai.detect_signal(
-            df_rate=self.__cache_dfs[i],
-            df_candle=self.fetch_candle_df(
-                instrument=i, granularity=self.__granularity,
-                count=self.__n_cache
-            ),
-            pos=pos
+            df_rate=self.__cache_dfs[i], df_candle=candle_dfs[gl],
+            granularity=gl, pos=pos
         )
-        if self.__inst_dict[i]['halted']:
+        if self.inst_dict[i]['halted']:
             act = None
             state = 'TRADING HALTED'
         elif sig['sig_act'] == 'close':
             act = 'close'
             state = 'CLOSING'
-        elif self.__acc_dict['balance'] == 0:
+        elif self.acc_dict['balance'] == 0:
             act = None
             state = 'NO FUND'
         elif self.is_margin_lack(instrument=i):

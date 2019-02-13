@@ -3,6 +3,7 @@
 import logging
 import numpy as np
 from scipy import stats
+from .sieve import granularity2str
 from .feature import LogReturnFeature
 
 
@@ -11,13 +12,10 @@ class Ewma(object):
         self.__logger = logging.getLogger(__name__)
         self.__alpha = config_dict['model']['ewma']['alpha']
         self.__ci_level = config_dict['model']['ewma'].get('ci_level')
-        g = config_dict['feature']['granularity']
-        self.__gl_str = '{0:0>2}{1:1}'.format(
-            int(g[1:] if len(g) else 1), g[0]
-        )
         self.__lrf = LogReturnFeature(type=config_dict['feature']['type'])
 
-    def detect_signal(self, df_rate, df_candle, pos=None):
+    def detect_signal(self, df_rate, df_candle, granularity, pos=None):
+        gl_str = granularity2str(granularity=granularity)
         tick_dict = self._ewm_stats(series=self.__lrf.series(df_rate=df_rate))
         close_dict = self._ewm_stats(
             series=self.__lrf.series(
@@ -50,7 +48,7 @@ class Ewma(object):
                     )
                 ),
                 '{0:>3}[{1:>3}]:{2:>9}{3:>18}'.format(
-                    self.__lrf.code, self.__gl_str,
+                    self.__lrf.code, gl_str,
                     '{:.1g}'.format(close_dict['ewma']),
                     np.array2string(
                         close_dict['ewmci'],
@@ -74,7 +72,7 @@ class Ewma(object):
                     self.__lrf.code, '{:.2g}'.format(tick_dict['ewma'])
                 ),
                 '{0:>3}[{1:>3}]:{2:>10}'.format(
-                    self.__lrf.code, self.__gl_str,
+                    self.__lrf.code, gl_str,
                     '{:.2g}'.format(close_dict['ewma'])
                 )
             )

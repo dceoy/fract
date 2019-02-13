@@ -9,18 +9,18 @@ class LogReturnFeature(object):
     def __init__(self, type):
         self.__logger = logging.getLogger(__name__)
         if type and type.lower() == 'lr velocity':
-            self.__code = 'LRV'
+            self.code = 'LRV'
         elif type and type.lower() == 'lr acceleration':
-            self.__code = 'LRA'
+            self.code = 'LRA'
         elif type and type.lower() == 'lr':
-            self.__code = 'LR'
+            self.code = 'LR'
         else:
             raise FractRuntimeError('invalid feature type: {}'.format(type))
 
     def series(self, df_rate):
-        if self.__code == 'LRV':
+        if self.code == 'LRV':
             return self.log_return_velocity(df_rate=df_rate)
-        elif self.__code == 'LRA':
+        elif self.code == 'LRA':
             return self.log_return_acceleration(df_rate=df_rate)
         else:
             return self.log_return(df_rate=df_rate)

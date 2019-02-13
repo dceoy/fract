@@ -21,14 +21,14 @@ class TraderCoreAPI(oandapy.API):
     def __init__(self, config_dict, instruments, log_dir_path=None,
                  quiet=False, dry_run=False):
         self.__logger = logging.getLogger(__name__)
-        self.__cf = config_dict
+        self.cf = config_dict
         super().__init__(
-            environment=self.__cf['oanda']['environment'],
-            access_token=self.__cf['oanda']['access_token']
+            environment=self.cf['oanda']['environment'],
+            access_token=self.cf['oanda']['access_token']
         )
-        self.__account_id = self.__cf['oanda']['account_id']
-        self.__instruments = (instruments or self.__cf['instruments'])
-        self.__bs = BettingSystem(strategy=self.__cf['position']['bet'])
+        self.__account_id = self.cf['oanda']['account_id']
+        self.instruments = (instruments or self.cf['instruments'])
+        self.__bs = BettingSystem(strategy=self.cf['position']['bet'])
         self.__quiet = quiet
         self.__dry_run = dry_run
         self.__min_txn_id = max(
@@ -52,10 +52,10 @@ class TraderCoreAPI(oandapy.API):
             self._write_data(
                 yaml.dump(
                     {
-                        'instrument': self.__instruments,
-                        'position': self.__cf['position'],
-                        'feature': self.__cf['feature'],
-                        'model': self.__cf['model']
+                        'instrument': self.instruments,
+                        'position': self.cf['position'],
+                        'feature': self.cf['feature'],
+                        'model': self.cf['model']
                     },
                     default_flow_style=False
                 ).strip(),
@@ -66,16 +66,16 @@ class TraderCoreAPI(oandapy.API):
             self.__log_dir_path = None
             self.__order_log_path = None
             self.__txn_log_path = None
-        self.__acc_dict = dict()
+        self.acc_dict = dict()
         self.__txn_list = list()
-        self.__inst_dict = dict()
+        self.inst_dict = dict()
         self.__rate_dict = dict()
-        self.__unit_costs = dict()
-        self.__pos_dict = dict()
+        self.unit_costs = dict()
+        self.pos_dict = dict()
         self.__pos_time = dict()
 
     def expire_positions(self, ttl_sec=86400):
-        for i, p in self.__pos_dict.items():
+        for i, p in self.pos_dict.items():
             if self.__pos_time.get(i):
                 et_sec = (datetime.now() - self.__pos_time[i]).total_seconds()
                 self.__logger.info('{0} => {1} sec elapsed'.format(p, et_sec))
@@ -87,7 +87,7 @@ class TraderCoreAPI(oandapy.API):
 
     def refresh_oanda_dicts(self):
         t0 = datetime.now()
-        self.__acc_dict = self.get_account(account_id=self.__account_id)
+        self.acc_dict = self.get_account(account_id=self.__account_id)
         self._sleep(last=t0, sec=0.5)
         self._refresh_txn_list()
         self._sleep(last=t0, sec=1)
@@ -112,7 +112,7 @@ class TraderCoreAPI(oandapy.API):
                 self._write_data(json.dumps(th_new), path=self.__txn_log_path)
 
     def _refresh_inst_dict(self):
-        self.__inst_dict = {
+        self.inst_dict = {
             d['instrument']: d
             for d in self.get_instruments(
                 account_id=self.__account_id,
@@ -129,50 +129,50 @@ class TraderCoreAPI(oandapy.API):
             d['instrument']: d
             for d in self.get_prices(
                 account_id=self.__account_id,
-                instruments=','.join(self.__inst_dict.keys())
+                instruments=','.join(self.inst_dict.keys())
             )['prices'] if 'instrument' in d
         }
 
     def _refresh_pos_dict_and_pos_time(self):
-        p0 = self.__pos_dict
-        self.__pos_dict = {
+        p0 = self.pos_dict
+        self.pos_dict = {
             d['instrument']: d for d
             in self.get_positions(account_id=self.__account_id)['positions']
             if 'instrument' in d
         }
-        for i in self.__instruments:
-            if not self.__pos_dict.get(i):
+        for i in self.instruments:
+            if not self.pos_dict.get(i):
                 self.__pos_time[i] = None
-            elif not p0.get(i) or p0[i]['side'] != self.__pos_dict[i]['side']:
+            elif not p0.get(i) or p0[i]['side'] != self.pos_dict[i]['side']:
                 self.__pos_time[i] = datetime.now()
 
     def _refresh_unit_costs(self):
-        self.__unit_costs = {
+        self.unit_costs = {
             i: self._calculate_bp_value(instrument=i) * d['marginRate']
-            for i, d in self.__inst_dict.items() if i in self.__instruments
+            for i, d in self.inst_dict.items() if i in self.instruments
         }
 
     def _calculate_bp_value(self, instrument):
         cur_pair = instrument.split('_')
-        if cur_pair[0] == self.__acc_dict['accountCurrency']:
+        if cur_pair[0] == self.acc_dict['accountCurrency']:
             bpv = 1 / self.__rate_dict[instrument]['ask']
-        elif cur_pair[1] == self.__acc_dict['accountCurrency']:
+        elif cur_pair[1] == self.acc_dict['accountCurrency']:
             bpv = self.__rate_dict[instrument]['ask']
         else:
             inst_bpv = [
-                i for i in self.__inst_dict.keys() if set(i.split('_')) == {
-                    cur_pair[1], self.__acc_dict['accountCurrency']
+                i for i in self.inst_dict.keys() if set(i.split('_')) == {
+                    cur_pair[1], self.acc_dict['accountCurrency']
                 }
             ][0]
             bpv = self.__rate_dict[instrument]['ask'] * (
                 self.__rate_dict[inst_bpv]['ask']
-                if inst_bpv.split('_')[1] == self.__acc_dict['accountCurrency']
+                if inst_bpv.split('_')[1] == self.acc_dict['accountCurrency']
                 else (1 / self.__rate_dict[inst_bpv]['ask'])
             )
         return bpv
 
     def design_and_place_order(self, instrument, act):
-        pos = self.__pos_dict.get(instrument)
+        pos = self.pos_dict.get(instrument)
         if act and pos and (act == 'close' or act != pos['side']):
             self.__logger.info('Close a position: {}'.format(pos['side']))
             self._place_order(closing=True, instrument=instrument)
@@ -215,12 +215,12 @@ class TraderCoreAPI(oandapy.API):
             {'buy': 'ask', 'sell': 'bid'}[side]
         ]
         ts_in_cf = int(
-            self.__cf['position']['limit_price_ratio']['trailing_stop'] *
-            rate / np.float32(self.__inst_dict[instrument]['pip'])
+            self.cf['position']['limit_price_ratio']['trailing_stop'] *
+            rate / np.float32(self.inst_dict[instrument]['pip'])
         )
         trailing_stop = min(
-            max(ts_in_cf, self.__inst_dict[instrument]['minTrailingStop']),
-            self.__inst_dict[instrument]['maxTrailingStop']
+            max(ts_in_cf, self.inst_dict[instrument]['minTrailingStop']),
+            self.inst_dict[instrument]['maxTrailingStop']
         )
         tp = {
             k: np.float16(
@@ -229,7 +229,7 @@ class TraderCoreAPI(oandapy.API):
                     'stop_loss': {'buy': -1, 'sell': 1}[side],
                     'upper_bound': 1, 'lower_bound': -1
                 }[k]
-            ) for k, v in self.__cf['position']['limit_price_ratio'].items()
+            ) for k, v in self.cf['position']['limit_price_ratio'].items()
             if k in ['take_profit', 'stop_loss', 'upper_bound', 'lower_bound']
         }
         return {
@@ -242,17 +242,16 @@ class TraderCoreAPI(oandapy.API):
         avail_size = max(
             np.ceil(
                 (
-                    self.__acc_dict['marginAvail'] -
-                    self.__acc_dict['balance'] *
-                    self.__cf['position']['margin_nav_ratio']['preserve']
-                ) / self.__unit_costs[instrument]
+                    self.acc_dict['marginAvail'] - self.acc_dict['balance'] *
+                    self.cf['position']['margin_nav_ratio']['preserve']
+                ) / self.unit_costs[instrument]
             ), 0
         )
         self.__logger.debug('avail_size: {}'.format(avail_size))
         sizes = {
             k: np.ceil(
-                self.__acc_dict['balance'] * v / self.__unit_costs[instrument]
-            ) for k, v in self.__cf['position']['margin_nav_ratio'].items()
+                self.acc_dict['balance'] * v / self.unit_costs[instrument]
+            ) for k, v in self.cf['position']['margin_nav_ratio'].items()
             if k in ['unit', 'init']
         }
         self.__logger.debug('sizes: {}'.format(sizes))
@@ -328,13 +327,14 @@ class TraderCoreAPI(oandapy.API):
 class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.__logger = logging.getLogger(__name__)
 
     def invoke(self):
         self.print_log('!!! OPEN DEALS !!!')
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         while self.check_health():
-            self.expire_positions(ttl_sec=self.__cf['position']['ttl_sec'])
-            for i in self.__instruments:
+            self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
+            for i in self.instruments:
                 self.refresh_oanda_dicts()
                 df_r = self.fetch_rate_df(instrument=i)
                 if df_r.size:
@@ -374,17 +374,17 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
     def determine_sig_state(self, df_rate):
         return {'act': None, 'log_str': ''}
 
-    def create_ai(self, model):
+    def create_ai(self, model, **kwargs):
         if model == 'ewma':
-            return Ewma(config_dict=self.__cf)
+            return Ewma(config_dict=self.cf, **kwargs)
         else:
             raise FractRuntimeError('invalid model name: {}'.format(model))
 
     def is_margin_lack(self, instrument):
         return (
-            not self.__pos_dict.get(instrument) and
-            self.__acc_dict['marginAvail'] <= self.__acc_dict['balance'] *
-            self.__cf['position']['margin_nav_ratio']['preserve']
+            not self.pos_dict.get(instrument) and
+            self.acc_dict['marginAvail'] <= self.acc_dict['balance'] *
+            self.cf['position']['margin_nav_ratio']['preserve']
         )
 
     def is_over_spread(self, df_rate):
@@ -392,5 +392,5 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
             df_rate.tail(n=1).pipe(
                 lambda d: (d['ask'] - d['bid']) / (d['ask'] + d['bid']) * 2
             ).values[0] >=
-            self.__cf['position']['limit_price_ratio']['max_spread']
+            self.cf['position']['limit_price_ratio']['max_spread']
         )
