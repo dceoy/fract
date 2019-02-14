@@ -12,7 +12,7 @@ class LogReturnFeature(object):
             self.code = 'LRV'
         elif type and type.lower() == 'lr acceleration':
             self.code = 'LRA'
-        elif type and type.lower() == 'lr':
+        elif type and type.lower() in ['lr', 'log return']:
             self.code = 'LR'
         else:
             raise FractRuntimeError('invalid feature type: {}'.format(type))

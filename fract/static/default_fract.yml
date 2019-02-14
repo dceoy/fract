@@ -94,7 +94,7 @@ position:
     preserve: 0.1         # (0, 1)
   ttl_sec: 86400          # [0, Inf]
 feature:
-  type: LR Velocity       # { Log Return, LR Velocity, LR Acceleration }
+  type: Log Return        # { Log Return, LR Velocity, LR Acceleration }
   cache_length: 1000      # [1, 5000]
   granularities:
     - S5

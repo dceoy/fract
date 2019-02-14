@@ -24,6 +24,6 @@ def select_autocorrelated_granularity(candle_dfs, method='Ljung-Box'):
                     x=(d['closeAsk'] + d['closeBid'])
                 )[1]
             }).reset_index() for g, d in candle_dfs.items()
-        ]).groupby('granularity').mean().pvalue.idxmin()
+        ]).groupby('granularity').median().pvalue.idxmin()
     else:
         raise FractRuntimeError('invalid method name: {}'.format(method))
