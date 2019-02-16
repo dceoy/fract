@@ -299,7 +299,16 @@ class TraderCoreAPI(oandapy.API):
         with open(path, mode) as f:
             f.write(str(data) + (os.linesep if append_linesep else ''))
 
-    def write_log_df(self, name, df):
+    def write_turn_log(self, df_rate, **kwargs):
+        i = df_rate['instrument'].iloc[-1]
+        df_r = df_rate.drop(columns=['instrument'])
+        self._write_log_df(name='rate.{}'.format(i), df=df_r)
+        if kwargs:
+            self._write_log_df(
+                name='sig.{}'.format(i), df=df_r.tail(n=1).assign(**kwargs)
+            )
+
+    def _write_log_df(self, name, df):
         if self.__log_dir_path and df.size:
             self.__logger.debug('{0} df:{1}{2}'.format(name, os.linesep, df))
             p = os.path.join(self.__log_dir_path, '{}.tsv'.format(name))
@@ -312,22 +321,39 @@ class TraderCoreAPI(oandapy.API):
             header=(not os.path.isfile(path))
         )
 
-    def fetch_candle_df(self, instrument, granularity='S5', count=5000):
+    def fetch_candle_dict(self, instrument, granularities, count=5000):
+        return {
+            g: pd.DataFrame(
+                self.get_history(
+                    account_id=self.__account_id, candleFormat='bidask',
+                    instrument=instrument, granularity=g,
+                    count=min(5000, int(count))
+                )['candles']
+            ).assign(
+                time=lambda d: pd.to_datetime(d['time']), instrument=instrument
+            ).set_index('time') for g in granularities
+        }
+
+    def fetch_latest_rate_df(self, instrument):
         return pd.DataFrame(
-            self.get_history(
-                account_id=self.__account_id, candleFormat='bidask',
-                instrument=instrument, granularity=granularity,
-                count=min(5000, int(count))
-            )['candles']
+            self.get_prices(
+                account_id=self.__account_id, instruments=instrument
+            )['prices']
         ).assign(
-            time=lambda d: pd.to_datetime(d['time']), instrument=instrument
-        ).set_index('time', drop=True)
+            time=lambda d: pd.to_datetime(d['time'])
+        ).set_index('time')
 
 
 class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
-    def __init__(self, **kwargs):
+    def __init__(self, model, **kwargs):
         super().__init__(**kwargs)
-        self.__logger = logging.getLogger(__name__)
+        self.__ai = self.create_ai(model=model)
+
+    def _create_ai(self, model, **kwargs):
+        if model == 'ewma':
+            return Ewma(config_dict=self.cf, **kwargs)
+        else:
+            raise FractRuntimeError('invalid model name: {}'.format(model))
 
     def invoke(self):
         self.print_log('!!! OPEN DEALS !!!')
@@ -336,58 +362,81 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
             self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
             for i in self.instruments:
                 self.refresh_oanda_dicts()
-                df_r = self.fetch_rate_df(instrument=i)
-                if df_r.size:
-                    self.update_caches(df_rate=df_r)
-                    st = self.determine_sig_state(df_rate=df_r)
-                    self.print_state_line(df_rate=df_r, add_str=st['log_str'])
-                    self.design_and_place_order(instrument=i, act=st['act'])
-                    self.write_log_df(
-                        name='rate.{}'.format(i),
-                        df=df_r.drop(columns=['instrument'])
-                    )
-                    self.write_log_df(
-                        name='sig.{}'.format(i),
-                        df=pd.DataFrame([st]).drop(
-                            columns=['log_str', 'sig_log_str']
-                        ).assign(
-                            time=df_r.index[-1], ask=df_r['ask'].iloc[-1],
-                            bid=df_r['bid'].iloc[-1]
-                        ).set_index('time', drop=True)
-                    )
-                else:
-                    self.__logger.debug('no updated rate')
+                self.make_decision(instrument=i)
 
     @abstractmethod
     def check_health(self):
         return True
 
     @abstractmethod
-    def fetch_rate_df(self, instrument):
-        return pd.DataFrame()
-
-    @abstractmethod
-    def update_caches(self, df_rate):
+    def make_decision(self, instrument):
         pass
 
-    @abstractmethod
-    def determine_sig_state(self, df_rate):
-        return {'act': None, 'log_str': ''}
-
-    def create_ai(self, model, **kwargs):
-        if model == 'ewma':
-            return Ewma(config_dict=self.cf, **kwargs)
+    def determine_sig_state(self, df_rate, candle_dict):
+        i = df_rate['instrument'].iloc[-1]
+        pos = self.pos_dict.get(i)
+        pos_pct = int(
+            (
+                pos['units'] * self.unit_costs[i] * 100 /
+                self.acc_dict['balance']
+            ) if pos else 0
+        )
+        sig = self.__ai.detect_signal(candle_dict=candle_dict, pos=pos)
+        if self.inst_dict[i]['halted']:
+            act = None
+            state = 'TRADING HALTED'
+        elif sig['sig_act'] == 'close':
+            act = 'close'
+            state = 'CLOSING'
+        elif self.acc_dict['balance'] == 0:
+            act = None
+            state = 'NO FUND'
+        elif self._is_margin_lack(instrument=i):
+            act = None
+            state = 'LACK OF FUNDS'
+        elif self._is_over_spread(df_rate=df_rate):
+            act = None
+            state = 'OVER-SPREAD'
+        elif sig['sig_act'] == 'buy':
+            if pos and pos['side'] == 'buy':
+                act = None
+                state = '{:.1f}% LONG'.format(pos_pct)
+            elif pos and pos['side'] == 'sell':
+                act = 'buy'
+                state = 'SHORT -> LONG'
+            else:
+                act = 'buy'
+                state = '-> LONG'
+        elif sig['sig_act'] == 'sell':
+            if pos and pos['side'] == 'sell':
+                act = None
+                state = '{:.1f}% SHORT'.format(pos_pct)
+            elif pos and pos['side'] == 'buy':
+                act = 'sell'
+                state = 'LONG -> SHORT'
+            else:
+                act = 'sell'
+                state = '-> SHORT'
+        elif pos and pos['side'] == 'buy':
+            act = None
+            state = '{:.1f}% LONG'.format(pos_pct)
+        elif pos and pos['side'] == 'sell':
+            act = None
+            state = '{:.1f}% SHORT'.format(pos_pct)
         else:
-            raise FractRuntimeError('invalid model name: {}'.format(model))
+            act = None
+            state = '-'
+        log_str = sig['sig_log_str'] + '{:^18}|'.format(state)
+        return {'act': act, 'state': state, 'log_str': log_str, **sig}
 
-    def is_margin_lack(self, instrument):
+    def _is_margin_lack(self, instrument):
         return (
             not self.pos_dict.get(instrument) and
             self.acc_dict['marginAvail'] <= self.acc_dict['balance'] *
             self.cf['position']['margin_nav_ratio']['preserve']
         )
 
-    def is_over_spread(self, df_rate):
+    def _is_over_spread(self, df_rate):
         return (
             df_rate.tail(n=1).pipe(
                 lambda d: (d['ask'] - d['bid']) / (d['ask'] + d['bid']) * 2

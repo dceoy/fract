@@ -9,7 +9,6 @@ import time
 import pandas as pd
 import redis
 from .base import BaseTrader
-from .sieve import select_autocorrelated_granularity
 
 
 class RedisTrader(BaseTrader):
@@ -17,15 +16,17 @@ class RedisTrader(BaseTrader):
                  redis_port=6379, redis_db=0, interval_sec=1, timeout_sec=3600,
                  log_dir_path=None, quiet=False, dry_run=False):
         super().__init__(
-            config_dict=config_dict, instruments=instruments,
+            model=model, config_dict=config_dict, instruments=instruments,
             log_dir_path=log_dir_path, quiet=quiet, dry_run=dry_run
         )
         self.__logger = logging.getLogger(__name__)
         self.__interval_sec = int(interval_sec)
         self.__timeout_sec = int(timeout_sec) if timeout_sec else None
         self.__n_cache = self.cf['feature']['cache_length']
-        self.__granularities = self.cf['feature']['granularities']
-        self.__ai = self.create_ai(model=model)
+        self.__use_tick = 'TICK' in self.cf['feature']['granularities']
+        self.__granularities = [
+            a for a in self.cf['feature']['granularities'] if a != 'TICK'
+        ]
         self.__redis_pool = redis.ConnectionPool(
             host=redis_host, port=int(redis_port), db=int(redis_db)
         )
@@ -54,7 +55,22 @@ class RedisTrader(BaseTrader):
                 time.sleep(self.__interval_sec)
             return self.__is_active
 
-    def fetch_rate_df(self, instrument):
+    def make_decision(self, instrument):
+        df_r = self._fetch_rate_df(instrument=instrument)
+        if df_r.size:
+            self._update_caches(df_rate=df_r)
+            c_dict = self._prepare_candle_dict(instrument=instrument)
+            st = self.determine_sig_state(df_rate=df_r, candle_dict=c_dict)
+            self.print_state_line(df_rate=df_r, add_str=st['log_str'])
+            self.design_and_place_order(instrument=instrument, act=st['act'])
+            self.turn_log(
+                df_rate=df_r,
+                **{k: v for k, v in st.items() if not k.endswith('log_str')}
+            )
+        else:
+            self.__logger.debug('no updated rate')
+
+    def _fetch_rate_df(self, instrument):
         redis_c = redis.StrictRedis(connection_pool=self.__redis_pool)
         cached_rates = [
             json.loads(s) for s in redis_c.lrange(instrument, 0, -1)
@@ -73,83 +89,23 @@ class RedisTrader(BaseTrader):
                     [d['tick'] for d in cached_rates if 'tick' in d]
                 ).assign(
                     time=lambda d: pd.to_datetime(d['time'])
-                ).set_index('time', drop=True)
+                ).set_index('time')
         else:
             return pd.DataFrame()
 
-    def update_caches(self, df_rate):
+    def _update_caches(self, df_rate):
         self.__logger.info('Rate:{0}{1}'.format(os.linesep, df_rate))
         i = df_rate['instrument'].iloc[-1]
         df_c = self.__cache_dfs[i].append(df_rate).tail(n=self.__n_cache)
         self.__logger.info('Cache length: {}'.format(len(df_c)))
         self.__cache_dfs[i] = df_c
 
-    def determine_sig_state(self, df_rate):
-        i = df_rate['instrument'].iloc[-1]
-        pos = self.pos_dict.get(i)
-        pos_pct = int(
-            (
-                pos['units'] * self.unit_costs[i] * 100 /
-                self.acc_dict['balance']
-            ) if pos else 0
+    def _prepare_candle_dict(self, instrument):
+        cs = self.fetch_candle_dict(
+            instrument=instrument, granularities=self.__granularities,
+            count=self.__n_cache
         )
-        candle_dfs = {
-            g: self.fetch_candle_df(
-                instrument=i, granularity=g, count=self.__n_cache
-            ) for g in self.__granularities
-        }
-        gl = select_autocorrelated_granularity(candle_dfs)
-        sig = self.__ai.detect_signal(
-            df_rate=self.__cache_dfs[i], df_candle=candle_dfs[gl],
-            granularity=gl, pos=pos
-        )
-        if self.inst_dict[i]['halted']:
-            act = None
-            state = 'TRADING HALTED'
-        elif sig['sig_act'] == 'close':
-            act = 'close'
-            state = 'CLOSING'
-        elif self.acc_dict['balance'] == 0:
-            act = None
-            state = 'NO FUND'
-        elif self.is_margin_lack(instrument=i):
-            act = None
-            state = 'LACK OF FUNDS'
-        elif self.is_over_spread(df_rate=df_rate):
-            act = None
-            state = 'OVER-SPREAD'
-        elif sig['sig_act'] == 'buy':
-            if pos and pos['side'] == 'buy':
-                act = None
-                state = '{:.1f}% LONG'.format(pos_pct)
-            elif pos and pos['side'] == 'sell':
-                act = 'buy'
-                state = 'SHORT -> LONG'
-            else:
-                act = 'buy'
-                state = '-> LONG'
-        elif sig['sig_act'] == 'sell':
-            if pos and pos['side'] == 'sell':
-                act = None
-                state = '{:.1f}% SHORT'.format(pos_pct)
-            elif pos and pos['side'] == 'buy':
-                act = 'sell'
-                state = 'LONG -> SHORT'
-            else:
-                act = 'sell'
-                state = '-> SHORT'
-        elif pos and pos['side'] == 'buy':
-            act = None
-            state = '{:.1f}% LONG'.format(pos_pct)
-        elif pos and pos['side'] == 'sell':
-            act = None
-            state = '{:.1f}% SHORT'.format(pos_pct)
+        if self.__use_tick:
+            return {'TICK': self.__cache_dfs[instrument], **cs}
         else:
-            act = None
-            state = '-'
-        log_str = (
-            sig['sig_log_str'] + '{0:^14}|{1:^18}|'.format(
-                'TICK:{:>5}'.format(len(df_rate)), state
-            )
-        )
-        return {'act': act, 'state': state, 'log_str': log_str, **sig}
+            return cs

@@ -16,9 +16,9 @@ Usage:
                  [--redis-max-llen=<int>] [--json] [--quiet] [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
-               [--interval=<sec>] [--timeout=<sec>] [--redis-host=<ip>]
-               [--redis-port=<int>] [--redis-db=<int>] [--log-dir=<path>]
-               [--quiet] [--dry-run] [<instrument>...]
+               [--interval=<sec>] [--timeout=<sec>] [--standalone]
+               [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
+               [--log-dir=<path>] [--quiet] [--dry-run] [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
@@ -42,6 +42,7 @@ Options:
     --model=<str>       Set trading models [default: ewma]
     --interval=<sec>    Wait seconds between iterations [default: 0]
     --timeout=<sec>     Set senconds for response timeout
+    --standalone        Invoke a trader with standalone mode
     --log-dir=<path>    Write output log files in a directory
     --dry-run           Invoke a trader with dry-run mode
 
@@ -95,10 +96,10 @@ def main():
         invoke_trader(
             config_yml=config_yml_path, instruments=args['<instrument>'],
             model=args['--model'], interval_sec=args['--interval'],
-            timeout_sec=args['--timeout'], redis_host=args['--redis-host'],
-            redis_port=args['--redis-port'], redis_db=args['--redis-db'],
-            log_dir_path=args['--log-dir'], quiet=args['--quiet'],
-            dry_run=args['--dry-run']
+            timeout_sec=args['--timeout'], standalone=args['--standalone'],
+            redis_host=args['--redis-host'], redis_port=args['--redis-port'],
+            redis_db=args['--redis-db'], log_dir_path=args['--log-dir'],
+            quiet=args['--quiet'], dry_run=args['--dry-run']
         )
     elif any([args[k] for k in ['info', 'track', 'stream']]):
         execute_command(args=args, config_yml_path=config_yml_path)

@@ -97,6 +97,7 @@ feature:
   type: Log Return        # { Log Return, LR Velocity, LR Acceleration }
   cache_length: 1000      # [1, 5000]
   granularities:
+    - TICK
     - S5
     - S10
     - S15
