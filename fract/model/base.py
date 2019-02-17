@@ -321,18 +321,16 @@ class TraderCoreAPI(oandapy.API):
             header=(not os.path.isfile(path))
         )
 
-    def fetch_candle_dict(self, instrument, granularities, count=5000):
-        return {
-            g: pd.DataFrame(
-                self.get_history(
-                    account_id=self.__account_id, candleFormat='bidask',
-                    instrument=instrument, granularity=g,
-                    count=min(5000, int(count))
-                )['candles']
-            ).assign(
-                time=lambda d: pd.to_datetime(d['time']), instrument=instrument
-            ).set_index('time') for g in granularities
-        }
+    def fetch_candle_df(self, instrument, granularity='S5', count=5000):
+        return pd.DataFrame(
+            self.get_history(
+                account_id=self.__account_id, candleFormat='bidask',
+                instrument=instrument, granularity=granularity,
+                count=min(5000, int(count))
+            )['candles']
+        ).assign(
+            time=lambda d: pd.to_datetime(d['time']), instrument=instrument
+        ).set_index('time', drop=True)
 
     def fetch_latest_rate_df(self, instrument):
         return pd.DataFrame(
@@ -372,7 +370,7 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
     def make_decision(self, instrument):
         pass
 
-    def determine_sig_state(self, df_rate, candle_dict):
+    def determine_sig_state(self, df_rate):
         i = df_rate['instrument'].iloc[-1]
         pos = self.pos_dict.get(i)
         pos_pct = int(
@@ -381,7 +379,9 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
                 self.acc_dict['balance']
             ) if pos else 0
         )
-        sig = self.__ai.detect_signal(candle_dict=candle_dict, pos=pos)
+        sig = self.__ai.detect_signal(
+            history_dict=self.fetch_history_dict(instrument=i), pos=pos
+        )
         if self.inst_dict[i]['halted']:
             act = None
             state = 'TRADING HALTED'
@@ -428,6 +428,10 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
             state = '-'
         log_str = sig['sig_log_str'] + '{:^18}|'.format(state)
         return {'act': act, 'state': state, 'log_str': log_str, **sig}
+
+    @abstractmethod
+    def fetch_history_dict(self, instrument):
+        pass
 
     def _is_margin_lack(self, instrument):
         return (

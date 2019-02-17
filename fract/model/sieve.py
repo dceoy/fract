@@ -10,13 +10,9 @@ class LRFeatureSieve(LogReturnFeature):
     def __init__(self, type):
         super().__init__(type)
 
-    def extract_best_feature(self, candle_dict, method='Ljung-Box'):
+    def extract_best_feature(self, history_dict, method='Ljung-Box'):
         feature_dict = {
-            g: self.__lrf.series(
-                df_rate=d.rename(
-                    columns={'closeAsk': 'ask', 'closeBid': 'bid'}
-                )[['ask', 'bid']]
-            ) for g, d in candle_dict.items()
+            g: self.__lrf.series(df_rate=d) for g, d in history_dict.items()
         }
         if len(feature_dict) <= 1:
             granularity = list(feature_dict.keys())[0]

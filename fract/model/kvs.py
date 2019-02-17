@@ -59,8 +59,7 @@ class RedisTrader(BaseTrader):
         df_r = self._fetch_rate_df(instrument=instrument)
         if df_r.size:
             self._update_caches(df_rate=df_r)
-            c_dict = self._prepare_candle_dict(instrument=instrument)
-            st = self.determine_sig_state(df_rate=df_r, candle_dict=c_dict)
+            st = self.determine_sig_state(df_rate=df_r)
             self.print_state_line(df_rate=df_r, add_str=st['log_str'])
             self.design_and_place_order(instrument=instrument, act=st['act'])
             self.turn_log(
@@ -69,6 +68,18 @@ class RedisTrader(BaseTrader):
             )
         else:
             self.__logger.debug('no updated rate')
+
+    def fetch_history_dict(self, instrument):
+        return {
+            'TICK': self.__cache_dfs[instrument],
+            **{
+                g: self.fetch_candle_df(
+                    instrument=instrument, granularity=g, count=self.__n_cache
+                ).rename(
+                    columns={'closeAsk': 'ask', 'closeBid': 'bid'}
+                )[['ask', 'bid']] for g in self.__granularities
+            }
+        }
 
     def _fetch_rate_df(self, instrument):
         redis_c = redis.StrictRedis(connection_pool=self.__redis_pool)
@@ -99,13 +110,3 @@ class RedisTrader(BaseTrader):
         df_c = self.__cache_dfs[i].append(df_rate).tail(n=self.__n_cache)
         self.__logger.info('Cache length: {}'.format(len(df_c)))
         self.__cache_dfs[i] = df_c
-
-    def _prepare_candle_dict(self, instrument):
-        cs = self.fetch_candle_dict(
-            instrument=instrument, granularities=self.__granularities,
-            count=self.__n_cache
-        )
-        if self.__use_tick:
-            return {'TICK': self.__cache_dfs[instrument], **cs}
-        else:
-            return cs
