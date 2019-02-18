@@ -283,10 +283,10 @@ class TraderCoreAPI(oandapy.API):
             if t.get('pl') and t.get('instrument') == i
         ])
         self.print_log(
-            '|{0:^11}|{1:^33}|{2:^13}|'.format(
+            '|{0:^11}|{1:^29}|{2:^13}|'.format(
                 i,
-                '{0:>7}:{1:>21}'.format(
-                    'BID/ASK',
+                '{0:>3}:{1:>21}'.format(
+                    'B/A',
                     np.array2string(
                         df_rate[['bid', 'ask']].iloc[-1].values,
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
@@ -344,8 +344,17 @@ class TraderCoreAPI(oandapy.API):
 
 
 class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
-    def __init__(self, model, **kwargs):
+    def __init__(self, model, standalone=True, **kwargs):
         super().__init__(**kwargs)
+        self.__logger = logging.getLogger(__name__)
+        self.__n_cache = self.cf['feature']['cache_length']
+        self.__use_tick = (
+            'TICK' in self.cf['feature']['granularities'] and not standalone
+        )
+        self.__granularities = [
+            a for a in self.cf['feature']['granularities'] if a != 'TICK'
+        ]
+        self.__cache_dfs = {i: pd.DataFrame() for i in self.instruments}
         if model == 'ewma':
             self.__ai = Ewma(config_dict=self.cf)
         else:
@@ -368,6 +377,13 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
     def make_decision(self, instrument):
         pass
 
+    def update_caches(self, df_rate):
+        self.__logger.info('Rate:{0}{1}'.format(os.linesep, df_rate))
+        i = df_rate['instrument'].iloc[-1]
+        df_c = self.__cache_dfs[i].append(df_rate).tail(n=self.__n_cache)
+        self.__logger.info('Cache length: {}'.format(len(df_c)))
+        self.__cache_dfs[i] = df_c
+
     def determine_sig_state(self, df_rate):
         i = df_rate['instrument'].iloc[-1]
         pos = self.pos_dict.get(i)
@@ -378,7 +394,7 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
             ) if pos else 0
         )
         sig = self.__ai.detect_signal(
-            history_dict=self.fetch_history_dict(instrument=i), pos=pos
+            history_dict=self._fetch_history_dict(instrument=i), pos=pos
         )
         if self.inst_dict[i]['halted']:
             act = None
@@ -424,12 +440,29 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
         else:
             act = None
             state = '-'
-        log_str = sig['sig_log_str'] + '{:^18}|'.format(state)
+        log_str = (
+            (
+                '{:^14}|'.format('TICK:{:>5}'.format(len(df_rate)))
+                if self.__use_tick else ''
+            ) + sig['sig_log_str'] + '{:^18}|'.format(state)
+        )
         return {'act': act, 'state': state, 'log_str': log_str, **sig}
 
-    @abstractmethod
-    def fetch_history_dict(self, instrument):
-        pass
+    def _fetch_history_dict(self, instrument):
+        df_c = self.__cache_dfs[instrument]
+        return {
+            **(
+                {'TICK': df_c}
+                if self.__use_tick and len(df_c) == self.__n_cache else dict()
+            ),
+            **{
+                g: self.fetch_candle_df(
+                    instrument=instrument, granularity=g, count=self.__n_cache
+                ).rename(
+                    columns={'closeAsk': 'ask', 'closeBid': 'bid'}
+                )[['ask', 'bid']] for g in self.__granularities
+            }
+        }
 
     def _is_margin_lack(self, instrument):
         return (
