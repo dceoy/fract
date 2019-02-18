@@ -62,7 +62,7 @@ class RedisTrader(BaseTrader):
             st = self.determine_sig_state(df_rate=df_r)
             self.print_state_line(df_rate=df_r, add_str=st['log_str'])
             self.design_and_place_order(instrument=instrument, act=st['act'])
-            self.turn_log(
+            self.write_turn_log(
                 df_rate=df_r,
                 **{k: v for k, v in st.items() if not k.endswith('log_str')}
             )
@@ -70,8 +70,12 @@ class RedisTrader(BaseTrader):
             self.__logger.debug('no updated rate')
 
     def fetch_history_dict(self, instrument):
+        df_c = self.__cache_dfs[instrument]
         return {
-            'TICK': self.__cache_dfs[instrument],
+            **(
+                {'TICK': df_c}
+                if self.__use_tick and len(df_c) == self.__n_cache else dict()
+            ),
             **{
                 g: self.fetch_candle_df(
                     instrument=instrument, granularity=g, count=self.__n_cache

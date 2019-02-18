@@ -30,7 +30,7 @@ class StandaloneTrader(BaseTrader):
         st = self.determine_sig_state(df_rate=df_r)
         self.print_state_line(df_rate=df_r, add_str=st['log_str'])
         self.design_and_place_order(instrument=instrument, act=st['act'])
-        self.turn_log(
+        self.write_turn_log(
             df_rate=df_r,
             **{k: v for k, v in st.items() if not k.endswith('log_str')}
         )

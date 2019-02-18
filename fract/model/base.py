@@ -345,11 +345,8 @@ class TraderCoreAPI(oandapy.API):
 class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
     def __init__(self, model, **kwargs):
         super().__init__(**kwargs)
-        self.__ai = self.create_ai(model=model)
-
-    def _create_ai(self, model, **kwargs):
         if model == 'ewma':
-            return Ewma(config_dict=self.cf, **kwargs)
+            self.__ai = Ewma(config_dict=self.cf)
         else:
             raise FractRuntimeError('invalid model name: {}'.format(model))
 

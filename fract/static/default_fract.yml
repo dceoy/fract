@@ -94,7 +94,7 @@ position:
     preserve: 0.1         # (0, 1)
   ttl_sec: 86400          # [0, Inf]
 feature:
-  type: Log Return        # { Log Return, LR Velocity, LR Acceleration }
+  type: LR Velocity       # { Log Return, LR Velocity, LR Acceleration }
   cache_length: 1000      # [1, 5000]
   granularities:
     - TICK
@@ -110,14 +110,14 @@ feature:
     - M15
     - M30
     - H1
-  # - H2
-  # - H3
-  # - H4
-  # - H6
-  # - H8
-  # - H12
-  # - D
+#   - H2
+#   - H3
+#   - H4
+#   - H6
+#   - H8
+#   - H12
+#   - D
 model:
   ewma:
-    alpha: 0.02           # (0, 1)
-    ci_level: 0.99        # [0, 1)
+    alpha: 0.01           # (0, 1)
+    ci_level: 0.9         # [0, 1)
