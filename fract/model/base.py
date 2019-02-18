@@ -283,9 +283,10 @@ class TraderCoreAPI(oandapy.API):
             if t.get('pl') and t.get('instrument') == i
         ])
         self.print_log(
-            '|{0:^33}|{1:^13}|'.format(
+            '|{0:^11}|{1:^33}|{2:^13}|'.format(
+                i,
                 '{0:>7}:{1:>21}'.format(
-                    i.replace('_', '/'),
+                    'BID/ASK',
                     np.array2string(
                         df_rate[['bid', 'ask']].iloc[-1].values,
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
