@@ -27,29 +27,26 @@ class LogReturnFeature(object):
 
     def log_return(self, df_rate, return_df=False):
         df_lr = df_rate.reset_index().assign(
-            log_diff=lambda d: np.log((d['ask'] + d['bid']) / 2).diff(),
+            log_diff=lambda d: np.log(d[['ask', 'bid']].mean(axis=1)).diff(),
             delta_sec=lambda d: d['time'].diff().dt.total_seconds()
-        ).assign(log_return=lambda d: self._adjusted_log_diff(df=d))
+        ).assign(
+            log_return=lambda d: self._weighted_log_diff(df=d)
+        )
         self.__logger.info(
             'Log return (tail): {}'.format(df_lr['log_return'].tail().values)
         )
         return (df_lr if return_df else df_lr['log_return'])
 
-    def _adjusted_log_diff(self, df, gl_sec=None):
-        if gl_sec:
-            return df.assign(
-                ls=lambda d: np.log(d['ask']) - np.log(d['bid'])
+    def _weighted_log_diff(self, df):
+        return df.assign(
+            weight=lambda d: np.reciprocal(
+                np.log(d['ask']) - np.log(d['bid'])
             ).pipe(
-                lambda d: np.sign(d['log_diff']) * (
-                    np.abs(d['log_diff']) - d['ls'] * (d['delta_sec'] / gl_sec)
-                ).clip(lower=0)
+                lambda s: (s / s.sum()) * (d['volume'] / d['volume'].sum())
             )
-        else:
-            return df.assign(
-                w=lambda d: np.reciprocal(np.log(d['ask']) - np.log(d['bid']))
-            ).pipe(
-                lambda d: d['log_diff'] * d['w'] / d['w'].sum()
-            )
+        ).pipe(
+            lambda d: d['log_diff'] * d['weight']
+        )
 
     def log_return_velocity(self, df_rate, return_df=False):
         df_lrv = self.log_return(

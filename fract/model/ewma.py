@@ -11,10 +11,10 @@ class Ewma(object):
         self.__logger = logging.getLogger(__name__)
         self.__alpha = config_dict['model']['ewma']['alpha']
         self.__ci_level = config_dict['model']['ewma'].get('ci_level')
-        self.__lrf = LRFeatureSieve(type=config_dict['feature']['type'])
+        self.__lrfs = LRFeatureSieve(type=config_dict['feature']['type'])
 
     def detect_signal(self, history_dict, pos=None):
-        best_f = self.__lrf.extract_best_feature(history_dict=history_dict)
+        best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
         sig_dict = self._ewm_stats(series=best_f['series'])
         if pos and (
                 (pos['side'] == 'buy' and sig_dict['ewma'] < 0) or
@@ -28,7 +28,7 @@ class Ewma(object):
             sig_act = None
         sig_log_str = '{:^40}|'.format(
             '{0:>3}[{1:>3}]:{2:>9}{3:>18}'.format(
-                self.__lrf.code, best_f['granularity_str'],
+                self.__lrfs.code, best_f['granularity_str'],
                 '{:.1g}'.format(sig_dict['ewma']),
                 np.array2string(
                     sig_dict['ewmci'],

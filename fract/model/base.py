@@ -452,7 +452,7 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
         df_c = self.__cache_dfs[instrument]
         return {
             **(
-                {'TICK': df_c}
+                {'TICK': df_c.assign(volume=1)}
                 if self.__use_tick and len(df_c) == self.__n_cache else dict()
             ),
             **{
@@ -460,7 +460,7 @@ class BaseTrader(TraderCoreAPI, metaclass=ABCMeta):
                     instrument=instrument, granularity=g, count=self.__n_cache
                 ).rename(
                     columns={'closeAsk': 'ask', 'closeBid': 'bid'}
-                )[['ask', 'bid']] for g in self.__granularities
+                )[['ask', 'bid', 'volume']] for g in self.__granularities
             }
         }
 
