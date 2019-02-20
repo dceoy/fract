@@ -16,14 +16,14 @@ class Ewma(object):
     def detect_signal(self, history_dict, pos=None):
         best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
         sig_dict = self._ewm_stats(series=best_f['series'])
-        if pos and (
-                (pos['side'] == 'buy' and sig_dict['ewma'] < 0) or
-                (pos['side'] == 'sell' and sig_dict['ewma'] > 0)):
-            sig_act = 'close'
-        elif sig_dict['ewmci'][0] > 0:
+        if sig_dict['ewmci'][0] > 0:
             sig_act = 'buy'
         elif sig_dict['ewmci'][1] < 0:
             sig_act = 'sell'
+        elif pos and (
+                (pos['side'] == 'buy' and sig_dict['ewma'] < 0) or
+                (pos['side'] == 'sell' and sig_dict['ewma'] > 0)):
+            sig_act = 'close'
         else:
             sig_act = None
         sig_log_str = '{:^40}|'.format(
