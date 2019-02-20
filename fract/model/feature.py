@@ -42,7 +42,7 @@ class LogReturnFeature(object):
             weight=lambda d: np.reciprocal(
                 np.log(d['ask']) - np.log(d['bid'])
             ).pipe(
-                lambda s: (s / s.sum()) * (d['volume'] / d['volume'].sum())
+                lambda s: (s / s.mean()) * (d['volume'] / d['volume'].mean())
             )
         ).pipe(
             lambda d: d['log_diff'] * d['weight']
