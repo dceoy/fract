@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+import numpy as np
 import os
 import pandas as pd
 import statsmodels.api as sm
@@ -9,9 +10,10 @@ from .feature import LogReturnFeature
 
 
 class LRFeatureSieve(LogReturnFeature):
-    def __init__(self, type):
+    def __init__(self, type, weight_decay=0):
         super().__init__(type)
         self.__logger = logging.getLogger(__name__)
+        self.__weight_decay = weight_decay
 
     def extract_best_feature(self, history_dict, method='Ljung-Box'):
         feature_dict = {
@@ -20,14 +22,18 @@ class LRFeatureSieve(LogReturnFeature):
         if len(feature_dict) <= 1:
             granularity = list(feature_dict.keys())[0]
         elif method == 'Ljung-Box':
-            df_pval = pd.concat([
+            p_scores = pd.concat([
                 pd.DataFrame({
                     'granularity': g,
                     'pvalue': sm.stats.diagnostic.acorr_ljungbox(x=s)[1]
-                }) for g, s in feature_dict.items()
-            ]).groupby('granularity').median()['pvalue']
-            self.__logger.debug('df_pval:{0}{1}'.format(os.linesep, df_pval))
-            granularity = df_pval.idxmin()
+                }).assign(
+                    p_score=lambda d: d['pvalue'] / np.power(
+                        1 - self.__weight_decay, np.arange(len(d))
+                    )
+                ) for g, s in feature_dict.items()
+            ]).groupby('granularity').mean()['p_score']
+            self.__logger.debug('p_scores:{0}{1}'.format(os.linesep, p_scores))
+            granularity = p_scores.idxmin()
         else:
             raise FractRuntimeError('invalid method name: {}'.format(method))
         return {

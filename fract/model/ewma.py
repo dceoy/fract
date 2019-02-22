@@ -11,7 +11,10 @@ class Ewma(object):
         self.__logger = logging.getLogger(__name__)
         self.__alpha = config_dict['model']['ewma']['alpha']
         self.__ci_level = config_dict['model']['ewma'].get('ci_level')
-        self.__lrfs = LRFeatureSieve(type=config_dict['feature']['type'])
+        self.__lrfs = LRFeatureSieve(
+            type=config_dict['feature']['type'],
+            weight_decay=config_dict['model']['ewma']['alpha']
+        )
 
     def detect_signal(self, history_dict, pos=None):
         best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
