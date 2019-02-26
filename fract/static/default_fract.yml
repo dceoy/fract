@@ -95,7 +95,7 @@ position:
   ttl_sec: 86400          # [0, Inf]
 feature:
   type: LR Velocity       # { Log Return, LR Velocity, LR Acceleration }
-  cache_length: 5000      # [1, 5000]
+  cache_length: 1000      # [1, 5000]
   granularities:
     - TICK
     - S5
@@ -119,5 +119,5 @@ feature:
 #   - D
 model:
   ewma:
-    alpha: 0.01           # [0, 1)
-    ci_level: 0.99        # [0, 1)
+    alpha: 0.02           # (0, 1)
+    sigma_band: 1         # [0, Inf)
