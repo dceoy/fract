@@ -7,7 +7,7 @@ from fract import __version__
 setup(
     name='fract',
     version=__version__,
-    description='Automated Trading Framework using Oanda API',
+    description='Automated Trader using Oanda V20 REST API',
     packages=find_packages(),
     author='Daichi Narushima',
     author_email='dnarsil+github@gmail.com',
@@ -15,10 +15,9 @@ setup(
     include_package_data=True,
     install_requires=[
         'docopt', 'numpy', 'pandas', 'pyyaml', 'redis', 'scikit-learn',
-        'statsmodels'
+        'statsmodels', 'v20'
     ],
     dependency_links=[
-        'git+https://github.com/oanda/oandapy.git#egg=oandapy',
         'git+https://github.com/dceoy/oanda-cli.git#egg=oanda-cli'
     ],
     entry_points={
@@ -43,8 +42,6 @@ setup(
 fract
 -----
 
-Automated Trading Framework using Oanda API
-
-This version requires Python 3 or later.
+Automated Trader using Oanda V20 REST API
 """
 )

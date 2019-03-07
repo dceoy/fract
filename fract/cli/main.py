@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Stream, track, and trade forex with Oanda API
+"""Automated Trader using Oanda V20 REST API
 
 Usage:
     fract -h|--help
@@ -7,13 +7,14 @@ Usage:
     fract init [--debug|--info] [--file=<yaml>]
     fract info [--debug|--info] [--file=<yaml>] [--json] <info_target>
                [<instrument>...]
-    fract track [--debug|--info] [--file=<yaml>] [--csv=<path>]
+    fract track [--debug|--info] [--file=<yaml>] [--csv-dir=<path>]
                 [--sqlite=<path>] [--granularity=<code>] [--count=<int>]
                 [--json] [--quiet] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
                  [--csv=<path>] [--sqlite=<path>] [--use-redis]
-                 [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-                 [--redis-max-llen=<int>] [--json] [--quiet] [<instrument>...]
+                 [--redis-host=<ip>] [--redis-port=<int>]
+                 [--redis-db=<int>] [--redis-max-llen=<int>] [--quiet]
+                 [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--standalone]
@@ -24,15 +25,16 @@ Options:
     -h, --help          Print help and exit
     -v, --version       Print version and exit
     --debug, --info     Execute a command with debug|info messages
-    --file=<yaml>       Set a path to a YAML for configurations [$FRACT_YML]
+    --file=<yaml>       Set a path to a YAML for configurations [$OANDA_YML]
     --quiet             Suppress messages
-    --csv=<path>        Write data in a CSV or TSV file
+    --csv-dir=<path>    Write data with daily CSV in a directory
     --sqlite=<path>     Save data in an SQLite3 database
     --granularity=<code>
                         Set a granularity for rate tracking [default: S5]
     --count=<int>       Set a size for rate tracking (max: 5000) [default: 60]
     --json              Print data with JSON
-    --target=<str>      Set a streaming target { rate, event } [default: rate]
+    --target=<str>      Set a streaming target [default: pricing]
+                        { pricing, transaction }
     --use-redis         Use Redis for data store
     --redis-host=<ip>   Set a Redis server host (override YAML configurations)
     --redis-port=<int>  Set a Redis server port (override YAML configurations)
@@ -47,7 +49,7 @@ Options:
     --dry-run           Invoke a trader with dry-run mode
 
 Commands:
-    init                Generate a YAML template for configuration
+    init                Create a YAML template for configuration
     info                Print information about <info_target>
     track               Fetch past rates
     stream              Stream market prices or authorized account events
@@ -56,10 +58,8 @@ Commands:
 
 Arguments:
     <info_target>       { instruments, prices, account, accounts, orders,
-                          trades, positions, position, transaction_history,
-                          eco_calendar, historical_position_ratios,
-                          historical_spreads, commitments_of_traders,
-                          orderbook, autochartists }
+                          trades, positions, position, transactions,
+                          order_book, position_book }
     <instrument>        { AUD_CAD, AUD_CHF, AUD_HKD, AUD_JPY, AUD_NZD, AUD_SGD,
                           AUD_USD, CAD_CHF, CAD_HKD, CAD_JPY, CAD_SGD, CHF_HKD,
                           CHF_JPY, CHF_ZAR, EUR_AUD, EUR_CAD, EUR_CHF, EUR_CZK,

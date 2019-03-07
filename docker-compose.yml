@@ -38,7 +38,7 @@ services:
       - stream
       - --file=/wd/fract.yml
       - --use-redis
-      - --target=rate
+      - --target=pricing
       - --quiet
     restart: always
   redis:

@@ -1,8 +1,8 @@
 ---
 oanda:                    # required
-  access_token: ''        # required
-  account_id: ''          # required
-  environment: live       # required
+  environment: trade      # { trade, practice }
+  token: ''
+  account_id: ''
 redis:
   host: 127.0.0.1
   port: 6379
@@ -28,16 +28,10 @@ instruments:
 # - EUR_AUD
 # - EUR_CAD
 # - EUR_CHF
-# - EUR_CZK
-# - EUR_DKK
 # - EUR_GBP
 # - EUR_HKD
-# - EUR_HUF
 # - EUR_JPY
-# - EUR_NOK
 # - EUR_NZD
-# - EUR_PLN
-# - EUR_SEK
 # - EUR_SGD
 # - EUR_TRY
 # - EUR_ZAR
@@ -47,7 +41,6 @@ instruments:
 # - GBP_HKD
 # - GBP_JPY
 # - GBP_NZD
-# - GBP_PLN
 # - GBP_SGD
 # - GBP_ZAR
 # - HKD_JPY
@@ -63,19 +56,8 @@ instruments:
 # - TRY_JPY
 # - USD_CAD
 # - USD_CHF
-# - USD_CNH
-# - USD_CZK
-# - USD_DKK
 # - USD_HKD
-# - USD_HUF
-# - USD_INR
-# - USD_MXN
-# - USD_NOK
-# - USD_PLN
-# - USD_SAR
-# - USD_SEK
 # - USD_SGD
-# - USD_THB
 # - USD_TRY
 # - USD_ZAR
 # - ZAR_JPY

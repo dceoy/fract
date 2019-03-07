@@ -1,6 +1,6 @@
 ---
 box:
-  id: dceoy/oanda-cli:latest
+  id: dceoy/jupyter:latest
   entrypoint: /bin/bash -c
 test:
   steps:
@@ -11,7 +11,6 @@ test:
     - script:
         name: Validate the codes using flake8
         code: |
-          pip install -U flake8
           find fract -name '*.py' | xargs flake8
     - script:
         name: Test base options
