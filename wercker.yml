@@ -7,7 +7,7 @@ test:
     - script:
         name: Install fract
         code: |
-          pip install -U .
+          pip install -U https://github.com/dceoy/oanda-cli/archive/master.tar.gz .
     - script:
         name: Validate the codes using flake8
         code: |

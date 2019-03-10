@@ -20,11 +20,12 @@ class BettingSystem(object):
             raise FractRuntimeError('invalid strategy name')
 
     def calculate_size_by_pl(self, unit_size, init_size=None, inst_txns=[]):
-        pl_txns = [t for t in inst_txns if 'pl' in t]
-        if not pl_txns:
+        pl_list = [float(t.pl) for t in inst_txns if float(t.pl) != 0]
+        size_list = [abs(int(t.units)) for t in inst_txns if int(t.units) != 0]
+        if not (pl_list and size_list):
             return init_size or unit_size
-        elif pl_txns[-1]['pl']:
-            pl = pd.Series([t['pl'] for t in pl_txns if t['pl']])
+        elif abs(pl_list[-1]):
+            pl = pd.Series(pl_list)
             last_won = (
                 None if (
                     pl.iloc[-1] > 0 and any(pl.le(0)) and
@@ -33,11 +34,11 @@ class BettingSystem(object):
             )
             return self.calculate_size(
                 unit_size=unit_size, init_size=init_size,
-                last_size=pl_txns[-1]['units'], last_won=last_won,
+                last_size=size_list[-1], last_won=last_won,
                 all_time_high=(pl.cumsum().idxmax() == pl.index[-1])
             )
         else:
-            return pl_txns[-1]['units']
+            return size_list[-1]
 
     def calculate_size(self, unit_size, init_size=None, last_size=None,
                        last_won=None, all_time_high=False):

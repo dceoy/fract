@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from datetime import datetime
-import json
+import ujson
 import logging
 from pprint import pformat
 import time
@@ -66,22 +66,26 @@ class RedisTrader(BaseTrader):
     def _fetch_rate_df(self, instrument):
         redis_c = redis.StrictRedis(connection_pool=self.__redis_pool)
         cached_rates = [
-            json.loads(s) for s in redis_c.lrange(instrument, 0, -1)
+            ujson.loads(s) for s in redis_c.lrange(instrument, 0, -1)
         ]
         if len(cached_rates) > 0:
             self.__latest_update_time = datetime.now()
             for i in cached_rates:
                 redis_c.lpop(instrument)
-            if [r for r in cached_rates if 'disconnect' in r]:
+            if [r for r in cached_rates if not r['tradeable']]:
                 self.__logger.warning('cached_rates: {}'.format(cached_rates))
                 self.__is_active = False
                 return pd.DataFrame()
             else:
                 self.__logger.debug('cached_rates: {}'.format(cached_rates))
-                return pd.DataFrame(
-                    [d['tick'] for d in cached_rates if 'tick' in d]
-                ).assign(
-                    time=lambda d: pd.to_datetime(d['time'])
+                return pd.DataFrame([
+                    {
+                        'time': r['time'], 'bid': r['closeoutBid'],
+                        'ask': r['closeoutAsk']
+                    } for r in cached_rates
+                ]).assign(
+                    time=lambda d: pd.to_datetime(d['time']),
+                    instrument=instrument
                 ).set_index('time')
         else:
             return pd.DataFrame()
