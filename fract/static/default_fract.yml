@@ -1,5 +1,5 @@
 ---
-oanda:                    # required
+oanda:
   environment: trade      # { trade, practice }
   token: ''
   account_id: ''

@@ -57,10 +57,10 @@ class TraderCore(object):
             self.__order_log_path = None
             self.__txn_log_path = None
         self.__last_txn_id = None
-        self.__acc = None
         self.pos_dict = dict()
         self.balance = None
         self.margin_avail = None
+        self.__account_currency = None
         self.__txn_list = list()
         self.__inst_dict = dict()
         self.price_dict = dict()
@@ -69,22 +69,22 @@ class TraderCore(object):
     def _refresh_account_dicts(self):
         res = self.__api.account.get(accountID=self.__account_id)
         log_response(res, logger=self.__logger)
-        self.__acc = res.body['account']
-        self.balance = float(self.__acc.balance)
-        self.margin_avail = float(self.__acc.marginAvailable)
-        sides = ['long', 'short']
+        acc = res.body['account']
+        self.balance = float(acc.balance)
+        self.margin_avail = float(acc.marginAvailable)
+        self.__account_currency = acc.currency
         pos_dict0 = self.pos_dict
         self.pos_dict = {
-            d['instrument']: [
-                {'side': s, 'units': int(d[s].units)}
-                for s in sides if d[s].tradeIDs
-            ][0]
-            for d in [vars(p) for p in self.__acc.positions]
-            if any([d[s].tradeIDs for s in sides])
+            p.instrument: (
+                {'side': 'long', 'units': int(p.long.units)} if p.long.tradeIDs
+                else {'side': 'short', 'units': int(p.short.units)}
+            ) for p in acc.positions if p.long.tradeIDs or p.short.tradeIDs
         }
         for i, d in self.pos_dict.items():
             p0 = pos_dict0.get(i)
-            if not (p0 and all([p0[k] != d[k] for k in ['side', 'units']])):
+            if p0 and all([p0[k] == d[k] for k in ['side', 'units']]):
+                self.pos_dict[i]['dt'] = p0['dt']
+            else:
                 self.pos_dict[i]['dt'] = datetime.now()
 
     def expire_positions(self, ttl_sec=86400):
@@ -166,7 +166,7 @@ class TraderCore(object):
     def _refresh_inst_dict(self):
         res = self.__api.account.instruments(accountID=self.__account_id)
         log_response(res, logger=self.__logger)
-        self.__inst_dict = {c.name: c for c in res.body['instruments']}
+        self.__inst_dict = {c.name: vars(c) for c in res.body['instruments']}
 
     def _refresh_price_dict(self):
         res = self.__api.pricing.get(
@@ -176,31 +176,31 @@ class TraderCore(object):
         log_response(res, logger=self.__logger)
         self.price_dict = {
             p.instrument: {
-                'time': p.time, 'bid': p.closeoutBid, 'ask': p.closeoutAsk,
+                'bid': p.closeoutBid, 'ask': p.closeoutAsk,
                 'tradeable': p.tradeable
             } for p in res.body['prices']
         }
 
     def _refresh_unit_costs(self):
         self.unit_costs = {
-            i: self._calculate_bp_value(instrument=i) * float(c.marginRate)
-            for i, c in self.__inst_dict.items() if i in self.instruments
+            i: self._calculate_bp_value(instrument=i) * float(e['marginRate'])
+            for i, e in self.__inst_dict.items() if i in self.instruments
         }
 
     def _calculate_bp_value(self, instrument):
         cur_pair = instrument.split('_')
-        if cur_pair[0] == self.__acc.currency:
+        if cur_pair[0] == self.__account_currency:
             bpv = 1 / self.price_dict[instrument]['ask']
-        elif cur_pair[1] == self.__acc.currency:
+        elif cur_pair[1] == self.__account_currency:
             bpv = self.price_dict[instrument]['ask']
         else:
             inst_bpv = [
                 i for i in self.__inst_dict.keys()
-                if set(i.split('_')) == {cur_pair[1], self.__acc.currency}
+                if set(i.split('_')) == {cur_pair[1], self.__account_currency}
             ][0]
             bpv = self.price_dict[instrument]['ask'] * (
                 self.price_dict[inst_bpv]['ask']
-                if inst_bpv.split('_')[1] == self.__acc.currency
+                if inst_bpv.split('_')[1] == self.__account_currency
                 else (1 / self.price_dict[inst_bpv]['ask'])
             )
         return bpv
@@ -229,11 +229,11 @@ class TraderCore(object):
         r = self.price_dict[instrument][{'long': 'ask', 'short': 'bid'}[side]]
         ts_in_cf = int(
             self.cf['position']['limit_price_ratio']['trailing_stop'] * r /
-            np.float_power(10, float(ie.pipLocation))
+            np.float_power(10, float(ie['pipLocation']))
         )
         trailing_stop = min(
-            max(ts_in_cf, float(ie.minimumTrailingStopDistance)),
-            float(ie.maximumTrailingStopDistance)
+            max(ts_in_cf, float(ie['minimumTrailingStopDistance'])),
+            float(ie['maximumTrailingStopDistance'])
         )
         tp = {
             k: np.float16(
@@ -252,7 +252,7 @@ class TraderCore(object):
         }
 
     def _design_order_units(self, instrument, side):
-        max_size = int(self.__inst_dict[instrument].maximumOrderUnits)
+        max_size = int(self.__inst_dict[instrument]['maximumOrderUnits'])
         avail_size = max(
             np.ceil(
                 (
