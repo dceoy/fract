@@ -61,10 +61,9 @@ class TraderCore(object):
         self.pos_dict = dict()
         self.balance = None
         self.margin_avail = None
-        self.__ptime_dict = dict()
         self.__txn_list = list()
-        self.inst_dict = dict()
-        self.__rate_dict = dict()
+        self.__inst_dict = dict()
+        self.price_dict = dict()
         self.unit_costs = dict()
 
     def _refresh_account_dicts(self):
@@ -74,6 +73,7 @@ class TraderCore(object):
         self.balance = float(self.__acc.balance)
         self.margin_avail = float(self.__acc.marginAvailable)
         sides = ['long', 'short']
+        pos_dict0 = self.pos_dict
         self.pos_dict = {
             d['instrument']: [
                 {'side': s, 'units': int(d[s].units)}
@@ -82,34 +82,38 @@ class TraderCore(object):
             for d in [vars(p) for p in self.__acc.positions]
             if any([d[s].tradeIDs for s in sides])
         }
-        t0 = self.__ptime_dict
-        self.__ptime_dict = {i: d for i, d in t0.items() if i in self.pos_dict}
-        dt_now = datetime.now()
         for i, d in self.pos_dict.items():
-            units = {s: d[s]['units'] for s in sides}
-            if not t0.get(i) or t0[i]['units'] != units:
-                self.__ptime_dict[i] = {'time': dt_now, 'units': units}
+            p0 = pos_dict0.get(i)
+            if not (p0 and all([p0[k] != d[k] for k in ['side', 'units']])):
+                self.pos_dict[i]['dt'] = datetime.now()
 
     def expire_positions(self, ttl_sec=86400):
-        for i, d in self.__ptime_dict.items():
-            es = (datetime.now() - d['time']).total_seconds()
-            self.__logger.info('{0} => {1} sec elapsed'.format(d['units'], es))
+        for i, d in self.pos_dict.items():
+            es = (datetime.now() - d['dt']).total_seconds()
+            self.__logger.info(
+                '{0}: {1} => {2} sec elapsed'.format(d['units'], d['side'], es)
+            )
             if es > ttl_sec:
-                self.__logger.info('Close a position: {}'.format(d['units']))
+                self.__logger.info('Close a position: {}'.format(d['side']))
                 self._place_order(closing=True, instrument=i)
 
     def _place_order(self, closing=False, **kwargs):
-        f_args = {
-            'accountID': self.__account_id, **kwargs,
-            **{
-                ('ALL' if kwargs['instrument'] in self.pos_dict else 'NONE')
-                if closing else dict()
+        if closing:
+            p = self.pos_dict.get(kwargs['instrument'])
+            f_args = {
+                'accountID': self.__account_id, **kwargs,
+                **{
+                    '{}Units'.format(k):
+                    ('ALL' if p and p['side'] == k else 'NONE')
+                    for k in ['long', 'short']
+                }
             }
-        }
+        else:
+            f_args = {'accountID': self.__account_id, **kwargs}
         try:
             if self.__dry_run:
                 r = {
-                    'func': 'position.close' if closing else 'order.create',
+                    'func': ('position.close' if closing else 'order.create'),
                     'args': f_args
                 }
             elif closing:
@@ -140,7 +144,7 @@ class TraderCore(object):
         self._sleep(last=t0, sec=1)
         self._refresh_inst_dict()
         self._sleep(last=t0, sec=1.5)
-        self._refresh_rate_dict()
+        self._refresh_price_dict()
         self._refresh_unit_costs()
 
     def _refresh_txn_list(self):
@@ -153,7 +157,7 @@ class TraderCore(object):
         log_response(res, logger=self.__logger)
         self.__last_txn_id = res.body['lastTransactionID']
         if res.body.get('transactions'):
-            t_new = res.body['transactions']
+            t_new = [vars(t) for t in res.body['transactions']]
             self.print_log(yaml.dump(t_new, default_flow_style=False).strip())
             self.__txn_list = self.__txn_list + t_new
             if self.__txn_log_path:
@@ -162,40 +166,42 @@ class TraderCore(object):
     def _refresh_inst_dict(self):
         res = self.__api.account.instruments(accountID=self.__account_id)
         log_response(res, logger=self.__logger)
-        self.inst_dict = {c.name: c for c in res.body['instruments']}
+        self.__inst_dict = {c.name: c for c in res.body['instruments']}
 
-    def _refresh_rate_dict(self):
+    def _refresh_price_dict(self):
         res = self.__api.pricing.get(
             accountID=self.__account_id,
-            instruments=','.join(self.inst_dict.keys())
+            instruments=','.join(self.__inst_dict.keys())
         )
         log_response(res, logger=self.__logger)
-        self.__rate_dict = {
-            p.instrument: {'bid': p.closeoutBid, 'ask': p.closeoutAsk}
-            for p in res.body['prices']
+        self.price_dict = {
+            p.instrument: {
+                'time': p.time, 'bid': p.closeoutBid, 'ask': p.closeoutAsk,
+                'tradeable': p.tradeable
+            } for p in res.body['prices']
         }
 
     def _refresh_unit_costs(self):
         self.unit_costs = {
             i: self._calculate_bp_value(instrument=i) * float(c.marginRate)
-            for i, c in self.inst_dict.items() if i in self.instruments
+            for i, c in self.__inst_dict.items() if i in self.instruments
         }
 
     def _calculate_bp_value(self, instrument):
         cur_pair = instrument.split('_')
         if cur_pair[0] == self.__acc.currency:
-            bpv = 1 / self.__rate_dict[instrument]['ask']
+            bpv = 1 / self.price_dict[instrument]['ask']
         elif cur_pair[1] == self.__acc.currency:
-            bpv = self.__rate_dict[instrument]['ask']
+            bpv = self.price_dict[instrument]['ask']
         else:
             inst_bpv = [
-                i for i in self.inst_dict.keys()
+                i for i in self.__inst_dict.keys()
                 if set(i.split('_')) == {cur_pair[1], self.__acc.currency}
             ][0]
-            bpv = self.__rate_dict[instrument]['ask'] * (
-                self.__rate_dict[inst_bpv]['ask']
+            bpv = self.price_dict[instrument]['ask'] * (
+                self.price_dict[inst_bpv]['ask']
                 if inst_bpv.split('_')[1] == self.__acc.currency
-                else (1 / self.__rate_dict[inst_bpv]['ask'])
+                else (1 / self.price_dict[inst_bpv]['ask'])
             )
         return bpv
 
@@ -214,13 +220,13 @@ class TraderCore(object):
             self._place_order(
                 order={
                     'type': 'MARKET', 'instrument': instrument, 'units': units,
-                    'timeInForce': 'GTC', 'positionFill': 'DEFAULT', **limits
+                    'timeInForce': 'FOK', 'positionFill': 'DEFAULT', **limits
                 }
             )
 
     def _design_order_limits(self, instrument, side):
-        ie = self.inst_dict[instrument]
-        r = self.__rate_dict[instrument][{'long': 'ask', 'short': 'bid'}[side]]
+        ie = self.__inst_dict[instrument]
+        r = self.price_dict[instrument][{'long': 'ask', 'short': 'bid'}[side]]
         ts_in_cf = int(
             self.cf['position']['limit_price_ratio']['trailing_stop'] * r /
             np.float_power(10, float(ie.pipLocation))
@@ -240,13 +246,13 @@ class TraderCore(object):
         }
         tif = {'timeInForce': 'GTC'}
         return {
-            'takeProfitOnFill': {'price':  tp['take_profit'], **tif},
-            'stopLossOnFill': {'price': tp['stop_loss'], **tif},
-            'trailingStopLossOnFill': {'distance': trailing_stop, **tif}
+            'takeProfitOnFill': {'price':  str(tp['take_profit']), **tif},
+            'stopLossOnFill': {'price': str(tp['stop_loss']), **tif},
+            'trailingStopLossOnFill': {'distance': str(trailing_stop), **tif}
         }
 
     def _design_order_units(self, instrument, side):
-        max_size = int(self.inst_dict[instrument].maximumOrderUnits)
+        max_size = int(self.__inst_dict[instrument].maximumOrderUnits)
         avail_size = max(
             np.ceil(
                 (
@@ -264,13 +270,16 @@ class TraderCore(object):
         self.__logger.debug('sizes: {}'.format(sizes))
         bet_size = self.__bs.calculate_size_by_pl(
             unit_size=sizes['unit'], init_size=sizes['init'],
-            inst_txns=[
-                t for t in self.__txn_list if t.instrument == instrument
+            inst_pl_txns=[
+                t for t in self.__txn_list if (
+                    t.get('instrument') == instrument and t.get('pl') and
+                    t.get('units')
+                )
             ]
         )
         self.__logger.debug('bet_size: {}'.format(bet_size))
-        return int(
-            min(bet_size, avail_size, max_size) *
+        return str(
+            int(min(bet_size, avail_size, max_size)) *
             {'long': 1, 'short': -1}[side]
         )
 
@@ -289,7 +298,8 @@ class TraderCore(object):
     def print_state_line(self, df_rate, add_str):
         i = df_rate['instrument'].iloc[-1]
         net_pl = sum([
-            float(t.pl) for t in self.__txn_list if t.instrument == i
+            float(t['pl']) for t in self.__txn_list
+            if t.get('instrument') == i and t.get('pl')
         ])
         self.print_log(
             '|{0:^11}|{1:^29}|{2:^13}|'.format(
@@ -338,13 +348,15 @@ class TraderCore(object):
         )
         log_response(res, logger=self.__logger)
         return pd.DataFrame([
-            {'time': c.time, 'bid': c.bid.c, 'ask': c.ask.c}
-            for c in res.body['candles'] if c.complete
+            {
+                'time': c.time, 'bid': c.bid.c, 'ask': c.ask.c,
+                'volume': c.volume
+            } for c in res.body['candles'] if c.complete
         ]).assign(
             time=lambda d: pd.to_datetime(d['time']), instrument=instrument
         ).set_index('time', drop=True)
 
-    def fetch_latest_rate_df(self, instrument):
+    def fetch_latest_price_df(self, instrument):
         res = self.__api.pricing.get(
             accountID=self.__account_id, instruments=instrument
         )
@@ -408,7 +420,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         sig = self.__ai.detect_signal(
             history_dict=self._fetch_history_dict(instrument=i), pos=pos
         )
-        if not self.inst_dict[i].tradeable:
+        if not self.price_dict[i]['tradeable']:
             act = None
             state = 'TRADING HALTED'
         elif sig['sig_act'] == 'closing':

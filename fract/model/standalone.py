@@ -23,7 +23,7 @@ class StandaloneTrader(BaseTrader):
         return True
 
     def make_decision(self, instrument):
-        df_r = self.fetch_latest_rate_df(instrument=instrument)
+        df_r = self.fetch_latest_price_df(instrument=instrument)
         st = self.determine_sig_state(df_rate=df_r)
         self.print_state_line(df_rate=df_r, add_str=st['log_str'])
         self.design_and_place_order(instrument=instrument, act=st['act'])
