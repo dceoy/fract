@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import logging
-import yaml
+from oandacli.util.config import read_yml
 from ..model.kvs import RedisTrader
 from ..model.standalone import StandaloneTrader
 
@@ -12,8 +12,7 @@ def invoke_trader(config_yml, instruments=None, model='ewma', interval_sec=0,
                   dry_run=False):
     logger = logging.getLogger(__name__)
     logger.info('Autonomous trading')
-    with open(config_yml, 'r') as f:
-        cf = yaml.load(f)
+    cf = read_yml(path=config_yml)
     if standalone:
         trader = StandaloneTrader(
             model=model, config_dict=cf, instruments=instruments,

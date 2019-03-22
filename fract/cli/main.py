@@ -77,11 +77,11 @@ Arguments:
 import logging
 import os
 from docopt import docopt
+from oandacli.util.config import fetch_config_yml_path, write_config_yml
 from oandacli.cli.main import execute_command
+from oandacli.util.logger import set_log_config
 from .. import __version__
 from ..call.trader import invoke_trader
-from ..util.config import fetch_config_yml_path, write_config_yml
-from ..util.logger import set_log_config
 
 
 def main():
@@ -89,9 +89,16 @@ def main():
     set_log_config(debug=args['--debug'], info=args['--info'])
     logger = logging.getLogger(__name__)
     logger.debug('args:{0}{1}'.format(os.linesep, args))
-    config_yml_path = fetch_config_yml_path(path=args['--file'])
+    config_yml_path = fetch_config_yml_path(
+        path=args['--file'], env='FRACT_YML', default='fract.yml'
+    )
     if args['init']:
-        write_config_yml(path=config_yml_path)
+        write_config_yml(
+            dest_path=config_yml_path,
+            template_path=os.path.join(
+                os.path.dirname(__file__), '../static/default_fract.yml'
+            )
+        )
     elif args['open']:
         invoke_trader(
             config_yml=config_yml_path, instruments=args['<instrument>'],
