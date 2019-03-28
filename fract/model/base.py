@@ -227,28 +227,38 @@ class TraderCore(object):
     def _design_order_limits(self, instrument, side):
         ie = self.__inst_dict[instrument]
         r = self.price_dict[instrument][{'long': 'ask', 'short': 'bid'}[side]]
-        ts_in_cf = int(
-            self.cf['position']['limit_price_ratio']['trailing_stop'] * r /
-            np.float_power(10, float(ie['pipLocation']))
-        )
-        trailing_stop = min(
-            max(ts_in_cf, float(ie['minimumTrailingStopDistance'])),
+        ts_range = [
+            float(ie['minimumTrailingStopDistance']),
             float(ie['maximumTrailingStopDistance'])
+        ]
+        ts_dist_ratio = int(
+            r * self.cf['position']['limit_price_ratio']['trailing_stop'] /
+            ts_range[0]
         )
+        if ts_dist_ratio <= 1:
+            trailing_stop = ie['minimumTrailingStopDistance']
+        else:
+            ts_dist = np.float16(ts_range[0] * ts_dist_ratio)
+            if ts_dist >= ts_range[1]:
+                trailing_stop = ie['maximumTrailingStopDistance']
+            else:
+                trailing_stop = str(ts_dist)
         tp = {
-            k: np.float16(
-                r + r * v * {
-                    'take_profit': {'long': 1, 'short': -1}[side],
-                    'stop_loss': {'long': -1, 'short': 1}[side]
-                }[k]
+            k: str(
+                np.float16(
+                    r + r * v * {
+                        'take_profit': {'long': 1, 'short': -1}[side],
+                        'stop_loss': {'long': -1, 'short': 1}[side]
+                    }[k]
+                )
             ) for k, v in self.cf['position']['limit_price_ratio'].items()
             if k in ['take_profit', 'stop_loss']
         }
         tif = {'timeInForce': 'GTC'}
         return {
-            'takeProfitOnFill': {'price':  str(tp['take_profit']), **tif},
-            'stopLossOnFill': {'price': str(tp['stop_loss']), **tif},
-            'trailingStopLossOnFill': {'distance': str(trailing_stop), **tif}
+            'takeProfitOnFill': {'price': tp['take_profit'], **tif},
+            'stopLossOnFill': {'price': tp['stop_loss'], **tif},
+            'trailingStopLossOnFill': {'distance': trailing_stop, **tif}
         }
 
     def _design_order_units(self, instrument, side):
