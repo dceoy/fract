@@ -108,5 +108,5 @@ def main():
             redis_db=args['--redis-db'], log_dir_path=args['--log-dir'],
             quiet=args['--quiet'], dry_run=args['--dry-run']
         )
-    elif any([args[k] for k in ['info', 'track', 'stream']]):
+    else:
         execute_command(args=args, config_yml_path=config_yml_path)
