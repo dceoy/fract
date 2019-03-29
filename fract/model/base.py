@@ -11,6 +11,7 @@ import time
 import numpy as np
 from oandacli.util.config import create_api, log_response
 import pandas as pd
+from v20 import V20ConnectionError, V20Timeout
 import yaml
 from ..util.error import FractRuntimeError
 from .bet import BettingSystem
@@ -380,9 +381,11 @@ class TraderCore(object):
 
 
 class BaseTrader(TraderCore, metaclass=ABCMeta):
-    def __init__(self, model, standalone=True, **kwargs):
+    def __init__(self, model, standalone=True, ignore_api_error=False,
+                 **kwargs):
         super().__init__(**kwargs)
         self.__logger = logging.getLogger(__name__)
+        self.__ignore_api_error = ignore_api_error
         self.__n_cache = self.cf['feature']['cache_length']
         self.__use_tick = (
             'TICK' in self.cf['feature']['granularities'] and not standalone
@@ -400,10 +403,16 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         self.print_log('!!! OPEN DEALS !!!')
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         while self.check_health():
-            self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
-            for i in self.instruments:
-                self.refresh_oanda_dicts()
-                self.make_decision(instrument=i)
+            try:
+                self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
+                for i in self.instruments:
+                    self.refresh_oanda_dicts()
+                    self.make_decision(instrument=i)
+            except (V20ConnectionError, V20Timeout) as e:
+                if self.__ignore_api_error:
+                    self.__logger.error(e)
+                else:
+                    raise e
 
     @abstractmethod
     def check_health(self):

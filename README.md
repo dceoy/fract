@@ -31,14 +31,15 @@ Usage:
                 [--json] [--quiet] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
                  [--csv=<path>] [--sqlite=<path>] [--use-redis]
-                 [--redis-host=<ip>] [--redis-port=<int>]
-                 [--redis-db=<int>] [--redis-max-llen=<int>] [--quiet]
+                 [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
+                 [--redis-max-llen=<int>] [--ignore-api-error] [--quiet]
                  [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--standalone]
                [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-               [--log-dir=<path>] [--quiet] [--dry-run] [<instrument>...]
+               [--log-dir=<path>] [--ignore-api-error] [--quiet] [--dry-run]
+               [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
@@ -60,6 +61,7 @@ Options:
     --redis-db=<int>    Set a Redis database (override YAML configurations)
     --redis-max-llen=<int>
                         Limit Redis list length (override YAML configurations)
+    --ignore-api-error  Ignore Oanda API connection errors
     --model=<str>       Set trading models [default: ewma]
     --interval=<sec>    Wait seconds between iterations [default: 0]
     --timeout=<sec>     Set senconds for response timeout
@@ -92,3 +94,12 @@ Arguments:
                           USD_JPY, USD_MXN, USD_NOK, USD_PLN, USD_SAR, USD_SEK,
                           USD_SGD, USD_THB, USD_TRY, USD_ZAR, ZAR_JPY }
 ```
+
+The following commands are the same as those of `oanda-cli`.
+
+- `info`
+- `track`
+- `stream`
+- `close`
+
+See [oanda-cli](https://github.com/dceoy/oanda-cli) for more detail.

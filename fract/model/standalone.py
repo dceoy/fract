@@ -8,11 +8,12 @@ from .base import BaseTrader
 
 class StandaloneTrader(BaseTrader):
     def __init__(self, model, config_dict, instruments, interval_sec=1,
-                 log_dir_path=None, quiet=False, dry_run=False):
+                 log_dir_path=None, ignore_api_error=False, quiet=False,
+                 dry_run=False):
         super().__init__(
-            model=model, standalone=True, config_dict=config_dict,
-            instruments=instruments, log_dir_path=log_dir_path, quiet=quiet,
-            dry_run=dry_run
+            model=model, standalone=True, ignore_api_error=ignore_api_error,
+            config_dict=config_dict, instruments=instruments,
+            log_dir_path=log_dir_path, quiet=quiet, dry_run=dry_run
         )
         self.__logger = logging.getLogger(__name__)
         self.__interval_sec = int(interval_sec)

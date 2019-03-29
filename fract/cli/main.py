@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Automated Trader using Oanda V20 REST API
+"""
+Automated Trader using Oanda V20 REST API
 
 Usage:
     fract -h|--help
@@ -12,14 +13,15 @@ Usage:
                 [--json] [--quiet] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
                  [--csv=<path>] [--sqlite=<path>] [--use-redis]
-                 [--redis-host=<ip>] [--redis-port=<int>]
-                 [--redis-db=<int>] [--redis-max-llen=<int>] [--quiet]
+                 [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
+                 [--redis-max-llen=<int>] [--ignore-api-error] [--quiet]
                  [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--standalone]
                [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-               [--log-dir=<path>] [--quiet] [--dry-run] [<instrument>...]
+               [--log-dir=<path>] [--ignore-api-error] [--quiet] [--dry-run]
+               [<instrument>...]
 
 Options:
     -h, --help          Print help and exit
@@ -41,6 +43,7 @@ Options:
     --redis-db=<int>    Set a Redis database (override YAML configurations)
     --redis-max-llen=<int>
                         Limit Redis list length (override YAML configurations)
+    --ignore-api-error  Ignore Oanda API connection errors
     --model=<str>       Set trading models [default: ewma]
     --interval=<sec>    Wait seconds between iterations [default: 0]
     --timeout=<sec>     Set senconds for response timeout
@@ -106,7 +109,8 @@ def main():
             timeout_sec=args['--timeout'], standalone=args['--standalone'],
             redis_host=args['--redis-host'], redis_port=args['--redis-port'],
             redis_db=args['--redis-db'], log_dir_path=args['--log-dir'],
-            quiet=args['--quiet'], dry_run=args['--dry-run']
+            ignore_api_error=args['--ignore-api-error'], quiet=args['--quiet'],
+            dry_run=args['--dry-run']
         )
     else:
         execute_command(args=args, config_yml_path=config_yml_path)
