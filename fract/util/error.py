@@ -1,5 +1,5 @@
 #!/usr/bin/env python
 
 
-class FractRuntimeError(RuntimeError):
+class APIResponseError(RuntimeError):
     pass

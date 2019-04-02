@@ -21,8 +21,8 @@ class RedisTrader(BaseTrader):
             log_dir_path=log_dir_path, quiet=quiet, dry_run=dry_run
         )
         self.__logger = logging.getLogger(__name__)
-        self.__interval_sec = int(interval_sec)
-        self.__timeout_sec = int(timeout_sec) if timeout_sec else None
+        self.__interval_sec = float(interval_sec)
+        self.__timeout_sec = float(timeout_sec) if timeout_sec else None
         self.__redis_pool = redis.ConnectionPool(
             host=redis_host, port=int(redis_port), db=int(redis_db)
         )
@@ -40,9 +40,7 @@ class RedisTrader(BaseTrader):
             td = datetime.now() - self.__latest_update_time
             if self.__timeout_sec and td.total_seconds() > self.__timeout_sec:
                 self.__logger.warning(
-                    'Timeout: no data update ({} sec)'.format(
-                        self.__timeout_sec
-                    )
+                    'Timeout: {} sec'.format(self.__timeout_sec)
                 )
                 self.__is_active = False
                 self.__redis_pool.disconnect()
@@ -61,6 +59,7 @@ class RedisTrader(BaseTrader):
                 df_rate=df_r,
                 **{k: v for k, v in st.items() if not k.endswith('log_str')}
             )
+            self.__latest_update_time = datetime.now()
         else:
             self.__logger.debug('no updated rate')
 
@@ -70,7 +69,6 @@ class RedisTrader(BaseTrader):
             ujson.loads(s) for s in redis_c.lrange(instrument, 0, -1)
         ]
         if len(cached_rates) > 0:
-            self.__latest_update_time = datetime.now()
             for i in cached_rates:
                 redis_c.lpop(instrument)
             if [r for r in cached_rates if not r['tradeable']]:

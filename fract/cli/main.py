@@ -12,10 +12,10 @@ Usage:
                 [--sqlite=<path>] [--granularity=<code>] [--count=<int>]
                 [--json] [--quiet] [<instrument>...]
     fract stream [--debug|--info] [--file=<yaml>] [--target=<str>]
-                 [--csv=<path>] [--sqlite=<path>] [--use-redis]
-                 [--redis-host=<ip>] [--redis-port=<int>] [--redis-db=<int>]
-                 [--redis-max-llen=<int>] [--ignore-api-error] [--quiet]
-                 [<instrument>...]
+                 [--timeout=<sec>] [--csv=<path>] [--sqlite=<path>]
+                 [--use-redis] [--redis-host=<ip>] [--redis-port=<int>]
+                 [--redis-db=<int>] [--redis-max-llen=<int>]
+                 [--ignore-api-error] [--quiet] [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--standalone]
@@ -37,6 +37,8 @@ Options:
     --json              Print data with JSON
     --target=<str>      Set a streaming target [default: pricing]
                         { pricing, transaction }
+    --timeout=<sec>     Set senconds for response timeout
+    --csv=<path>        Write data with CSV into a file
     --use-redis         Use Redis for data store
     --redis-host=<ip>   Set a Redis server host (override YAML configurations)
     --redis-port=<int>  Set a Redis server port (override YAML configurations)
@@ -46,7 +48,6 @@ Options:
     --ignore-api-error  Ignore Oanda API connection errors
     --model=<str>       Set trading models [default: ewma]
     --interval=<sec>    Wait seconds between iterations [default: 0]
-    --timeout=<sec>     Set senconds for response timeout
     --standalone        Invoke a trader with standalone mode
     --log-dir=<path>    Write output log files in a directory
     --dry-run           Invoke a trader with dry-run mode

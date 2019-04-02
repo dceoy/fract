@@ -16,8 +16,9 @@ def invoke_trader(config_yml, instruments=None, model='ewma', interval_sec=0,
     if standalone:
         trader = StandaloneTrader(
             model=model, config_dict=cf, instruments=instruments,
-            interval_sec=interval_sec, log_dir_path=log_dir_path,
-            ignore_api_error=ignore_api_error, quiet=quiet, dry_run=False
+            interval_sec=interval_sec, timeout_sec=timeout_sec,
+            log_dir_path=log_dir_path, ignore_api_error=ignore_api_error,
+            quiet=quiet, dry_run=False
         )
     else:
         rd = cf['redis'] if 'redis' in cf else {}

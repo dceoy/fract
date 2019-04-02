@@ -5,7 +5,6 @@ import numpy as np
 import os
 import pandas as pd
 import statsmodels.api as sm
-from ..util.error import FractRuntimeError
 from .feature import LogReturnFeature
 
 
@@ -35,7 +34,7 @@ class LRFeatureSieve(LogReturnFeature):
             self.__logger.debug('p_scores:{0}{1}'.format(os.linesep, p_scores))
             granularity = p_scores.idxmin()
         else:
-            raise FractRuntimeError('invalid method name: {}'.format(method))
+            raise ValueError('invalid method name: {}'.format(method))
         return {
             'series': feature_dict[granularity], 'granularity': granularity,
             'granularity_str': self._granularity2str(granularity=granularity)

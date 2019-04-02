@@ -2,7 +2,6 @@
 
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
-import ujson
 import logging
 import os
 from pprint import pformat
@@ -11,9 +10,10 @@ import time
 import numpy as np
 from oandacli.util.config import create_api, log_response
 import pandas as pd
+import ujson
 from v20 import V20ConnectionError, V20Timeout
 import yaml
-from ..util.error import FractRuntimeError
+from ..util.error import APIResponseError
 from .bet import BettingSystem
 from .ewma import Ewma
 
@@ -70,7 +70,12 @@ class TraderCore(object):
     def _refresh_account_dicts(self):
         res = self.__api.account.get(accountID=self.__account_id)
         log_response(res, logger=self.__logger)
-        acc = res.body['account']
+        if 'account' in res.body:
+            acc = res.body['account']
+        else:
+            raise APIResponseError(
+                'unexpected response:' + os.linesep + pformat(res.body)
+            )
         self.balance = float(acc.balance)
         self.margin_avail = float(acc.marginAvailable)
         self.__account_currency = acc.currency
@@ -111,31 +116,29 @@ class TraderCore(object):
             }
         else:
             f_args = {'accountID': self.__account_id, **kwargs}
-        try:
-            if self.__dry_run:
-                r = {
+        if self.__dry_run:
+            self.__logger.info(
+                os.linesep + pformat({
                     'func': ('position.close' if closing else 'order.create'),
                     'args': f_args
-                }
-            elif closing:
-                r = self.__api.position.close(**f_args)
-            else:
-                r = self.__api.order.create(**f_args)
-        except Exception as e:
-            self.__logger.error(e)
-            if self.__order_log_path:
-                self._write_data(e, path=self.__order_log_path)
+                })
+            )
         else:
-            if self.__dry_run:
-                self.__logger.info(os.linesep + pformat(r))
+            if closing:
+                res = self.__api.position.close(**f_args)
             else:
-                log_response(r, logger=self.__logger)
-                if self.__order_log_path:
-                    self._write_data(
-                        ujson.dumps(r.body), path=self.__order_log_path
-                    )
-                else:
-                    time.sleep(0.5)
+                res = self.__api.order.create(**f_args)
+            log_response(res, logger=self.__logger)
+            if not (100 <= res.status <= 399):
+                raise APIResponseError(
+                    'unexpected response:' + os.linesep + pformat(res.body)
+                )
+            elif self.__order_log_path:
+                self._write_data(
+                    ujson.dumps(res.body), path=self.__order_log_path
+                )
+            else:
+                time.sleep(0.5)
 
     def refresh_oanda_dicts(self):
         t0 = datetime.now()
@@ -156,7 +159,12 @@ class TraderCore(object):
             else self.__api.transaction.list(accountID=self.__account_id)
         )
         log_response(res, logger=self.__logger)
-        self.__last_txn_id = res.body['lastTransactionID']
+        if 'lastTransactionID' in res.body:
+            self.__last_txn_id = res.body['lastTransactionID']
+        else:
+            raise APIResponseError(
+                'unexpected response:' + os.linesep + pformat(res.body)
+            )
         if res.body.get('transactions'):
             t_new = [vars(t) for t in res.body['transactions']]
             self.print_log(yaml.dump(t_new, default_flow_style=False).strip())
@@ -167,7 +175,14 @@ class TraderCore(object):
     def _refresh_inst_dict(self):
         res = self.__api.account.instruments(accountID=self.__account_id)
         log_response(res, logger=self.__logger)
-        self.__inst_dict = {c.name: vars(c) for c in res.body['instruments']}
+        if 'instruments' in res.body:
+            self.__inst_dict = {
+                c.name: vars(c) for c in res.body['instruments']
+            }
+        else:
+            raise APIResponseError(
+                'unexpected response:' + os.linesep + pformat(res.body)
+            )
 
     def _refresh_price_dict(self):
         res = self.__api.pricing.get(
@@ -175,12 +190,17 @@ class TraderCore(object):
             instruments=','.join(self.__inst_dict.keys())
         )
         log_response(res, logger=self.__logger)
-        self.price_dict = {
-            p.instrument: {
-                'bid': p.closeoutBid, 'ask': p.closeoutAsk,
-                'tradeable': p.tradeable
-            } for p in res.body['prices']
-        }
+        if 'prices' in res.body:
+            self.price_dict = {
+                p.instrument: {
+                    'bid': p.closeoutBid, 'ask': p.closeoutAsk,
+                    'tradeable': p.tradeable
+                } for p in res.body['prices']
+            }
+        else:
+            raise APIResponseError(
+                'unexpected response:' + os.linesep + pformat(res.body)
+            )
 
     def _refresh_unit_costs(self):
         self.unit_costs = {
@@ -358,26 +378,36 @@ class TraderCore(object):
             count=int(count)
         )
         log_response(res, logger=self.__logger)
-        return pd.DataFrame([
-            {
-                'time': c.time, 'bid': c.bid.c, 'ask': c.ask.c,
-                'volume': c.volume
-            } for c in res.body['candles'] if c.complete
-        ]).assign(
-            time=lambda d: pd.to_datetime(d['time']), instrument=instrument
-        ).set_index('time', drop=True)
+        if 'candles' in res.body:
+            return pd.DataFrame([
+                {
+                    'time': c.time, 'bid': c.bid.c, 'ask': c.ask.c,
+                    'volume': c.volume
+                } for c in res.body['candles'] if c.complete
+            ]).assign(
+                time=lambda d: pd.to_datetime(d['time']), instrument=instrument
+            ).set_index('time', drop=True)
+        else:
+            raise APIResponseError(
+                'unexpected response:' + os.linesep + pformat(res.body)
+            )
 
     def fetch_latest_price_df(self, instrument):
         res = self.__api.pricing.get(
             accountID=self.__account_id, instruments=instrument
         )
         log_response(res, logger=self.__logger)
-        return pd.DataFrame([
-            {'time': r.time, 'bid': r.closeoutBid, 'ask': r.closeoutAsk}
-            for r in res.body['prices']
-        ]).assign(
-            time=lambda d: pd.to_datetime(d['time']), instrument=instrument
-        ).set_index('time')
+        if 'prices' in res.body:
+            return pd.DataFrame([
+                {'time': r.time, 'bid': r.closeoutBid, 'ask': r.closeoutAsk}
+                for r in res.body['prices']
+            ]).assign(
+                time=lambda d: pd.to_datetime(d['time']), instrument=instrument
+            ).set_index('time')
+        else:
+            raise APIResponseError(
+                'unexpected response:' + os.linesep + pformat(res.body)
+            )
 
 
 class BaseTrader(TraderCore, metaclass=ABCMeta):
@@ -397,7 +427,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         if model == 'ewma':
             self.__ai = Ewma(config_dict=self.cf)
         else:
-            raise FractRuntimeError('invalid model name: {}'.format(model))
+            raise ValueError('invalid model name: {}'.format(model))
 
     def invoke(self):
         self.print_log('!!! OPEN DEALS !!!')
@@ -408,7 +438,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
                 for i in self.instruments:
                     self.refresh_oanda_dicts()
                     self.make_decision(instrument=i)
-            except (V20ConnectionError, V20Timeout) as e:
+            except (V20ConnectionError, V20Timeout, APIResponseError) as e:
                 if self.__ignore_api_error:
                     self.__logger.error(e)
                 else:

@@ -2,7 +2,6 @@
 
 import logging
 import numpy as np
-from ..util.error import FractRuntimeError
 
 
 class LogReturnFeature(object):
@@ -15,7 +14,7 @@ class LogReturnFeature(object):
         elif type and type.lower() in ['lr', 'log return']:
             self.code = 'LR'
         else:
-            raise FractRuntimeError('invalid feature type: {}'.format(type))
+            raise ValueError('invalid feature type: {}'.format(type))
 
     def series(self, df_rate):
         if self.code == 'LRV':

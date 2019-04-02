@@ -2,7 +2,6 @@
 
 import logging
 import pandas as pd
-from ..util.error import FractRuntimeError
 
 
 class BettingSystem(object):
@@ -17,7 +16,7 @@ class BettingSystem(object):
             self.strategy = matched_st[0]
             self.__logger.info('Betting strategy: {}'.format(self.strategy))
         else:
-            raise FractRuntimeError('invalid strategy name')
+            raise ValueError('invalid strategy name')
 
     def calculate_size_by_pl(self, unit_size, init_size=None, inst_pl_txns=[]):
         pl_list = [float(t['pl']) for t in inst_pl_txns if float(t['pl']) != 0]
@@ -68,4 +67,4 @@ class BettingSystem(object):
             else:
                 return last_size
         else:
-            raise FractRuntimeError('invalid strategy name')
+            raise ValueError('invalid strategy name')
