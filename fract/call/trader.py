@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import logging
+
 from oandacli.util.config import read_yml
+
 from ..model.kvs import RedisTrader
 from ..model.standalone import StandaloneTrader
 

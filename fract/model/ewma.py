@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import logging
+
 import numpy as np
+
 from .sieve import LRFeatureSieve
 
 

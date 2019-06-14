@@ -1,18 +1,21 @@
 #!/usr/bin/env python
 
-from abc import ABCMeta, abstractmethod
-from datetime import datetime
 import logging
 import os
-from pprint import pformat
 import signal
 import time
+from abc import ABCMeta, abstractmethod
+from datetime import datetime
+from pprint import pformat
+
 import numpy as np
-from oandacli.util.config import create_api, log_response
 import pandas as pd
-import ujson
-from v20 import V20ConnectionError, V20Timeout
 import yaml
+
+import ujson
+from oandacli.util.config import create_api, log_response
+from v20 import V20ConnectionError, V20Timeout
+
 from ..util.error import APIResponseError
 from .bet import BettingSystem
 from .ewma import Ewma
@@ -300,13 +303,14 @@ class TraderCore(object):
         }
         self.__logger.debug('sizes: {}'.format(sizes))
         bet_size = self.__bs.calculate_size_by_pl(
-            unit_size=sizes['unit'], init_size=sizes['init'],
+            unit_size=sizes['unit'],
             inst_pl_txns=[
                 t for t in self.__txn_list if (
                     t.get('instrument') == instrument and t.get('pl') and
                     t.get('units')
                 )
-            ]
+            ],
+            init_size=sizes['init']
         )
         self.__logger.debug('bet_size: {}'.format(bet_size))
         return str(

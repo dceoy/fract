@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import logging
+
 import pandas as pd
 
 
@@ -18,7 +19,7 @@ class BettingSystem(object):
         else:
             raise ValueError('invalid strategy name')
 
-    def calculate_size_by_pl(self, unit_size, init_size=None, inst_pl_txns=[]):
+    def calculate_size_by_pl(self, unit_size, inst_pl_txns, init_size=None):
         pl_list = [float(t['pl']) for t in inst_pl_txns if float(t['pl']) != 0]
         size_list = [
             abs(int(t['units'])) for t in inst_pl_txns if int(t['units']) != 0

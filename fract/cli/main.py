@@ -80,10 +80,13 @@ Arguments:
 
 import logging
 import os
+
 from docopt import docopt
-from oandacli.util.config import fetch_config_yml_path, write_config_yml
+
 from oandacli.cli.main import execute_command
+from oandacli.util.config import fetch_config_yml_path, write_config_yml
 from oandacli.util.logger import set_log_config
+
 from .. import __version__
 from ..call.trader import invoke_trader
 

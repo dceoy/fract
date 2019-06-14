@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
-from datetime import datetime
-import ujson
 import logging
-from pprint import pformat
 import time
+from datetime import datetime
+from pprint import pformat
+
 import pandas as pd
+
 import redis
+import ujson
+
 from .base import BaseTrader
 
 
@@ -69,7 +72,7 @@ class RedisTrader(BaseTrader):
             ujson.loads(s) for s in redis_c.lrange(instrument, 0, -1)
         ]
         if len(cached_rates) > 0:
-            for i in cached_rates:
+            for _ in cached_rates:
                 redis_c.lpop(instrument)
             if [r for r in cached_rates if not r['tradeable']]:
                 self.__logger.warning('cached_rates: {}'.format(cached_rates))

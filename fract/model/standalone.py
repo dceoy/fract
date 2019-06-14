@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-from datetime import datetime
 import logging
-from pprint import pformat
 import time
+from datetime import datetime
+from pprint import pformat
+
 from .base import BaseTrader
 
 
