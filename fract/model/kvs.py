@@ -6,7 +6,6 @@ from datetime import datetime
 from pprint import pformat
 
 import pandas as pd
-
 import redis
 import ujson
 
