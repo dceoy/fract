@@ -82,6 +82,7 @@ import logging
 import os
 
 from docopt import docopt
+
 from oandacli.cli.main import execute_command
 from oandacli.util.config import fetch_config_yml_path, write_config_yml
 from oandacli.util.logger import set_log_config
