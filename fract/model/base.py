@@ -10,9 +10,8 @@ from pprint import pformat
 
 import numpy as np
 import pandas as pd
-import yaml
-
 import ujson
+import yaml
 from oandacli.util.config import create_api, log_response
 from v20 import V20ConnectionError, V20Timeout
 
