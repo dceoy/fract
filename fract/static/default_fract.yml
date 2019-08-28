@@ -73,6 +73,7 @@ position:
     unit: 0.01            # (0, 1)
     preserve: 0.04        # (0, 1)
   ttl_sec: 86400          # [0, Inf]
+  sleep_by_hv: 0.5        # [0, 1)
 feature:
   type: LR Velocity       # { Log Return, LR Velocity, LR Acceleration }
   cache_length: 100       # [1, 5000]
