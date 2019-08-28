@@ -336,7 +336,7 @@ class TraderCore(object):
             if t.get('instrument') == i and t.get('pl')
         ])
         self.print_log(
-            '|{0:^11}|{1:^29}|{2:^13}|'.format(
+            '|{0:^11}|{1:^29}|{2:^15}|'.format(
                 i,
                 '{0:>3}:{1:>21}'.format(
                     'B/A',
@@ -345,7 +345,7 @@ class TraderCore(object):
                         formatter={'float_kind': lambda f: '{:8g}'.format(f)}
                     )
                 ),
-                'PL:{:>6}'.format(int(net_pl))
+                'PL:{:>8}'.format('{:.1g}'.format(net_pl))
             ) + (add_str or '')
         )
 
@@ -465,7 +465,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
     def determine_sig_state(self, df_rate):
         i = df_rate['instrument'].iloc[-1]
         pos = self.pos_dict.get(i)
-        pos_pct = int(
+        pos_pct = (
             (abs(pos['units']) * self.unit_costs[i] * 100 / self.balance)
             if pos else 0
         )
