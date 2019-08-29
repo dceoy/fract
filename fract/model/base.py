@@ -432,6 +432,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             self.__ai = Ewma(config_dict=self.cf)
         else:
             raise ValueError('invalid model name: {}'.format(model))
+        self.__volatility_states = dict()
 
     def invoke(self):
         self.print_log('!!! OPEN DEALS !!!')
@@ -439,6 +440,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         while self.check_health():
             try:
                 self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
+                self._update_volatility_states()
                 for i in self.instruments:
                     self.refresh_oanda_dicts()
                     self.make_decision(instrument=i)
@@ -451,6 +453,24 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
     @abstractmethod
     def check_health(self):
         return True
+
+    def _update_volatility_states(self, window=20, mins=1440):
+        if not self.cf['position']['sleep_by_hv']:
+            self.__volatility_states = {i: True for i in self.instruments}
+        else:
+            count = mins * 2 + window - 1
+            self.__volatility_states = {
+                i: np.log(
+                    self.fetch_candle_df(
+                        instrument=i, granularity='S30', count=count
+                    )[['ask', 'bid']].mean(axis=1)
+                ).diff().rolling(window=window).std(ddof=0).dropna().pipe(
+                    lambda v: (
+                        v.iloc[-1]
+                        > v.quantile(self.cf['position']['sleep_by_hv'])
+                    )
+                ) for i in set(self.instruments)
+            }
 
     @abstractmethod
     def make_decision(self, instrument):
@@ -488,7 +508,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         elif self._is_over_spread(df_rate=df_rate):
             act = None
             state = 'OVER-SPREAD'
-        elif not self._is_volatile(instrument=i):
+        elif not self.__volatility_states[i]:
             act = None
             state = 'SLEEPING'
         elif sig['sig_act'] == 'long':
@@ -527,20 +547,6 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             ) + sig['sig_log_str'] + '{:^18}|'.format(state)
         )
         return {'act': act, 'state': state, 'log_str': log_str, **sig}
-
-    def _is_volatile(self, instrument, mins=1440, window=20):
-        return (
-            (not self.cf['position']['sleep_by_hv'])
-            or np.log(
-                self.fetch_candle_df(
-                    instrument=instrument, granularity='S30',
-                    count=(mins * 2 + window - 1)
-                )[['ask', 'bid']].mean(axis=1)
-            ).diff().rolling(window=window).std(ddof=0).dropna().pipe(
-                lambda v:
-                (v.iloc[-1] > v.quantile(self.cf['position']['sleep_by_hv']))
-            )
-        )
 
     def _fetch_history_dict(self, instrument):
         df_c = self.__cache_dfs[instrument]
