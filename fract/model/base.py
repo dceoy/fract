@@ -479,9 +479,6 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         elif sig['sig_act'] == 'closing':
             act = 'closing'
             state = 'CLOSING'
-        elif not self._is_volatile(instrument=i):
-            act = 'closing'
-            state = 'SLEEPING'
         elif int(self.balance) == 0:
             act = None
             state = 'NO FUND'
@@ -491,6 +488,9 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         elif self._is_over_spread(df_rate=df_rate):
             act = None
             state = 'OVER-SPREAD'
+        elif not self._is_volatile(instrument=i):
+            act = None
+            state = 'SLEEPING'
         elif sig['sig_act'] == 'long':
             if pos and pos['side'] == 'long':
                 act = None
@@ -528,14 +528,15 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         )
         return {'act': act, 'state': state, 'log_str': log_str, **sig}
 
-    def _is_volatile(self, instrument, mins=1440):
+    def _is_volatile(self, instrument, mins=1440, window=20):
         return (
             (not self.cf['position']['sleep_by_hv'])
             or np.log(
                 self.fetch_candle_df(
-                    instrument=instrument, granularity='M1', count=(mins + 59)
+                    instrument=instrument, granularity='S30',
+                    count=(mins * 2 + window - 1)
                 )[['ask', 'bid']].mean(axis=1)
-            ).diff().rolling(60).std(ddof=0).dropna().pipe(
+            ).diff().rolling(window=window).std(ddof=0).dropna().pipe(
                 lambda v:
                 (v.iloc[-1] > v.quantile(self.cf['position']['sleep_by_hv']))
             )
