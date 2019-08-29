@@ -61,6 +61,9 @@ instruments:
 # - USD_TRY
 # - USD_ZAR
 # - ZAR_JPY
+volatility:
+  daily_sleep: 0.75       # [0, 1]
+  history_minutes: 10     # [1, 1440]
 position:
   bet: Oscar's grind      # { Martingale, d'Alembert, Pyramid, Oscar's grind }
   limit_price_ratio:
@@ -73,7 +76,6 @@ position:
     unit: 0.01            # (0, 1)
     preserve: 0.04        # (0, 1)
   ttl_sec: 86400          # [0, Inf]
-  sleep_by_hv: 0.75       # [0, 1)
 feature:
   type: LR Velocity       # { Log Return, LR Velocity, LR Acceleration }
   cache_length: 1000      # [1, 5000]
@@ -101,4 +103,4 @@ feature:
 model:
   ewma:
     alpha: 0.04           # (0, 1)
-    sigma_band: 0.2       # [0, Inf)
+    sigma_band: 0.1       # [0, Inf)

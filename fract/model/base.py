@@ -454,11 +454,12 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
     def check_health(self):
         return True
 
-    def _update_volatility_states(self, window=20, mins=1440):
-        if not self.cf['position']['sleep_by_hv']:
+    def _update_volatility_states(self):
+        if not self.cf['volatility']['daily_sleep']:
             self.__volatility_states = {i: True for i in self.instruments}
         else:
-            count = mins * 2 + window - 1
+            window = self.cf['volatility']['history_minutes'] * 2
+            count = 2880 + window - 1
             self.__volatility_states = {
                 i: np.log(
                     self.fetch_candle_df(
@@ -467,7 +468,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
                 ).diff().rolling(window=window).std(ddof=0).dropna().pipe(
                     lambda v: (
                         v.iloc[-1]
-                        > v.quantile(self.cf['position']['sleep_by_hv'])
+                        > v.quantile(self.cf['volatility']['daily_sleep'])
                     )
                 ) for i in set(self.instruments)
             }
