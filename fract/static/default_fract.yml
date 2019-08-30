@@ -8,10 +8,14 @@ redis:
   port: 6379
   db: 0
 instruments:
-  - AUD_USD
   - EUR_USD
-  - GBP_USD
   - USD_JPY
+  - GBP_USD
+  - AUD_USD
+  - USD_CAD
+  - USD_CHF
+  - EUR_GBP
+  - USD_SGD
 # - AUD_CAD
 # - AUD_CHF
 # - AUD_HKD
@@ -28,7 +32,6 @@ instruments:
 # - EUR_AUD
 # - EUR_CAD
 # - EUR_CHF
-# - EUR_GBP
 # - EUR_HKD
 # - EUR_JPY
 # - EUR_NZD
@@ -54,15 +57,12 @@ instruments:
 # - SGD_HKD
 # - SGD_JPY
 # - TRY_JPY
-# - USD_CAD
-# - USD_CHF
 # - USD_HKD
-# - USD_SGD
 # - USD_TRY
 # - USD_ZAR
 # - ZAR_JPY
 volatility:
-  daily_sleep: 0.75       # [0, 1]
+  daily_sleep: 0.5        # [0, 1]
   history_minutes: 10     # [1, 1440]
 position:
   bet: Oscar's grind      # { Martingale, d'Alembert, Pyramid, Oscar's grind }
@@ -102,5 +102,5 @@ feature:
 #   - D
 model:
   ewma:
-    alpha: 0.04           # (0, 1)
+    alpha: 0.02           # (0, 1)
     sigma_band: 0.1       # [0, Inf)

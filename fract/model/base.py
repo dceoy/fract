@@ -509,38 +509,29 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         elif self._is_over_spread(df_rate=df_rate):
             act = None
             state = 'OVER-SPREAD'
+        elif pos and not sig['sig_act']:
+            act = None
+            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
         elif not self.__volatility_states[i]:
             act = None
-            state = 'SLEEPING'
-        elif sig['sig_act'] == 'long':
-            if pos and pos['side'] == 'long':
-                act = None
-                state = '{:.1f}% LONG'.format(pos_pct)
-            elif pos and pos['side'] == 'short':
-                act = 'long'
-                state = 'SHORT -> LONG'
-            else:
-                act = 'long'
-                state = '-> LONG'
-        elif sig['sig_act'] == 'short':
-            if pos and pos['side'] == 'short':
-                act = None
-                state = '{:.1f}% SHORT'.format(pos_pct)
-            elif pos and pos['side'] == 'long':
-                act = 'short'
-                state = 'LONG -> SHORT'
-            else:
-                act = 'short'
-                state = '-> SHORT'
-        elif pos and pos['side'] == 'long':
-            act = None
-            state = '{:.1f}% LONG'.format(pos_pct)
-        elif pos and pos['side'] == 'short':
-            act = None
-            state = '{:.1f}% SHORT'.format(pos_pct)
-        else:
+            state = (
+                '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
+                if pos else 'SLEEPING'
+            )
+        elif not sig['sig_act']:
             act = None
             state = '-'
+        elif pos and sig['sig_act'] == pos['side']:
+            act = None
+            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
+        elif pos:
+            act = sig['sig_act']
+            state = '{0} -> {1}'.format(
+                pos['side'].upper(), sig['sig_act'].upper()
+            )
+        else:
+            act = sig['sig_act']
+            state = '-> {}'.format(sig['sig_act'].upper())
         log_str = (
             (
                 '{:^14}|'.format('TICK:{:>5}'.format(len(df_rate)))
