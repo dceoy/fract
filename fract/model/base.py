@@ -461,11 +461,16 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             window = self.cf['volatility']['history_minutes'] * 2
             count = 2880 + window - 1
             self.__volatility_states = {
-                i: np.log(
-                    self.fetch_candle_df(
-                        instrument=i, granularity='S30', count=count
-                    )[['ask', 'bid']].mean(axis=1)
-                ).diff().rolling(window=window).std(ddof=0).dropna().pipe(
+                i: self.fetch_candle_df(
+                    instrument=i, granularity='S30', count=count
+                ).pipe(
+                    lambda d: (
+                        np.log(d[['ask', 'bid']].mean(axis=1)).diff().rolling(
+                            window=window
+                        ).std(ddof=0)
+                        * d['volume']
+                    )
+                ).dropna().pipe(
                     lambda v: (
                         v.iloc[-1]
                         > v.quantile(self.cf['volatility']['daily_sleep'])
