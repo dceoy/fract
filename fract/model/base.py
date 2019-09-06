@@ -457,11 +457,11 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         if not self.cf['volatility']['daily_sleep']:
             self.__volatility_states = {i: True for i in self.instruments}
         else:
-            window = self.cf['volatility']['history_minutes'] * 2
+            window = self.cf['volatility']['history_minutes']
             count = 2880 + window - 1
             self.__volatility_states = {
                 i: self.fetch_candle_df(
-                    instrument=i, granularity='S30', count=count
+                    instrument=i, granularity='M1', count=count
                 ).pipe(
                     lambda d: (
                         np.log(d[['ask', 'bid']].mean(axis=1)).diff().rolling(
