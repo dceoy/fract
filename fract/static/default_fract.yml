@@ -104,3 +104,5 @@ model:
   ewma:
     alpha: 0.02           # (0, 1)
     sigma_band: 0.1       # [0, Inf)
+  kalman:
+    alpha: 0.01           # (0, 1)

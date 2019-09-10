@@ -18,6 +18,7 @@ from v20 import V20ConnectionError, V20Timeout
 from ..util.error import APIResponseError
 from .bet import BettingSystem
 from .ewma import Ewma
+from .kalman import Kalman
 
 
 class TraderCore(object):
@@ -429,6 +430,8 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         self.__cache_dfs = {i: pd.DataFrame() for i in self.instruments}
         if model == 'ewma':
             self.__ai = Ewma(config_dict=self.cf)
+        elif model == 'kalman':
+            self.__ai = Kalman(config_dict=self.cf)
         else:
             raise ValueError('invalid model name: {}'.format(model))
         self.__volatility_states = dict()
