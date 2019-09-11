@@ -6,8 +6,9 @@ import numpy as np
 
 
 class LogReturnFeature(object):
-    def __init__(self, type):
+    def __init__(self, type, drop_zero=False):
         self.__logger = logging.getLogger(__name__)
+        self.__drop_zero = drop_zero
         if type and type.lower() == 'lr velocity':
             self.code = 'LRV'
         elif type and type.lower() == 'lr acceleration':
@@ -31,6 +32,11 @@ class LogReturnFeature(object):
             delta_sec=lambda d: d['time'].diff().dt.total_seconds()
         ).assign(
             log_return=lambda d: self._weighted_log_diff(df=d)
+        ).pipe(
+            lambda d: (
+                d.iloc[d['log_return'].to_numpy().nonzero()[0]]
+                if self.__drop_zero else d
+            )
         )
         self.__logger.info(
             'Log return (tail): {}'.format(df_lr['log_return'].tail().values)

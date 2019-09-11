@@ -11,8 +11,8 @@ from .feature import LogReturnFeature
 
 
 class LRFeatureSieve(LogReturnFeature):
-    def __init__(self, type, weight_decay=0):
-        super().__init__(type)
+    def __init__(self, type, drop_zero=False, weight_decay=0):
+        super().__init__(type=type, drop_zero=drop_zero)
         self.__logger = logging.getLogger(__name__)
         self.__weight_decay = weight_decay
 

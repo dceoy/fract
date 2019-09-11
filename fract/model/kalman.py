@@ -16,7 +16,9 @@ class Kalman(object):
         self.__x0 = x0
         self.__v0 = v0
         self.__ci_level = 1 - config_dict['model']['kalman']['alpha']
-        self.__lrfs = LRFeatureSieve(type=config_dict['feature']['type'])
+        self.__lrfs = LRFeatureSieve(
+            type=config_dict['feature']['type'], drop_zero=True
+        )
 
     def detect_signal(self, history_dict, pos=None):
         best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
@@ -29,12 +31,13 @@ class Kalman(object):
         kf = KalmanFilter(
             x0=self.__x0, v0=self.__v0, q=kf_param[0], r=kf_param[1]
         )
-        kf_res = kf.fit(y=best_f['series']).iloc[-1]
+        kf_res = kf.fit(y=best_f['series']).iloc[-1].to_dict()
         self.__logger.debug('kf_res: {}'.format(kf_res))
         gauss_mu = kf_res['x']
         gauss_ci = np.asarray(
             norm.interval(
-                alpha=self.__ci_level, loc=gauss_mu, scale=np.sqrt(kf_res['v'])
+                alpha=self.__ci_level, loc=gauss_mu,
+                scale=np.sqrt(kf_res['v'] + kf_param[0])
             )
         )
         if gauss_ci[0] > 0:
@@ -96,18 +99,6 @@ class KalmanFilter(object):
         return pd.DataFrame(
             {'y': y, 'x': new_x, 'v': new_v},
             index=(y.index if hasattr(y, 'index') else range(len_y))
-        )
-
-    def loglik(self, y):
-        return self.fit(y=y).pipe(
-            lambda d: np.sum(
-                np.log(
-                    norm.pdf(
-                        x=(d['y'] - d['x']), loc=0,
-                        scale=np.sqrt(d['v'] + self.r)
-                    )
-                )
-            )
         )
 
 
