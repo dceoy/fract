@@ -72,7 +72,7 @@ class TraderCore(object):
 
     def _refresh_account_dicts(self):
         res = self.__api.account.get(accountID=self.__account_id)
-        log_response(res, logger=self.__logger)
+        # log_response(res, logger=self.__logger)
         if 'account' in res.body:
             acc = res.body['account']
         else:
@@ -161,7 +161,7 @@ class TraderCore(object):
             ) if self.__last_txn_id
             else self.__api.transaction.list(accountID=self.__account_id)
         )
-        log_response(res, logger=self.__logger)
+        # log_response(res, logger=self.__logger)
         if 'lastTransactionID' in res.body:
             self.__last_txn_id = res.body['lastTransactionID']
         else:
@@ -177,7 +177,7 @@ class TraderCore(object):
 
     def _refresh_inst_dict(self):
         res = self.__api.account.instruments(accountID=self.__account_id)
-        log_response(res, logger=self.__logger)
+        # log_response(res, logger=self.__logger)
         if 'instruments' in res.body:
             self.__inst_dict = {
                 c.name: vars(c) for c in res.body['instruments']
@@ -192,7 +192,7 @@ class TraderCore(object):
             accountID=self.__account_id,
             instruments=','.join(self.__inst_dict.keys())
         )
-        log_response(res, logger=self.__logger)
+        # log_response(res, logger=self.__logger)
         if 'prices' in res.body:
             self.price_dict = {
                 p.instrument: {
@@ -381,7 +381,7 @@ class TraderCore(object):
             instrument=instrument, price='BA', granularity=granularity,
             count=int(count)
         )
-        log_response(res, logger=self.__logger)
+        # log_response(res, logger=self.__logger)
         if 'candles' in res.body:
             return pd.DataFrame([
                 {
@@ -400,7 +400,7 @@ class TraderCore(object):
         res = self.__api.pricing.get(
             accountID=self.__account_id, instruments=instrument
         )
-        log_response(res, logger=self.__logger)
+        # log_response(res, logger=self.__logger)
         if 'prices' in res.body:
             return pd.DataFrame([
                 {'time': r.time, 'bid': r.closeoutBid, 'ask': r.closeoutAsk}

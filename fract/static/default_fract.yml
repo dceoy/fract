@@ -105,4 +105,5 @@ model:
     alpha: 0.02           # (0, 1)
     sigma_band: 0.1       # [0, Inf)
   kalman:
-    alpha: 0.01           # (0, 1)
+    alpha: 0.05           # (0, 1)
+    pmv_ratio: 1.0e-2     # (0, Inf)

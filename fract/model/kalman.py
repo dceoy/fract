@@ -1,20 +1,22 @@
 #!/usr/bin/env python
 
 import logging
+import os
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
+from scipy.optimize import minimize_scalar
 from scipy.stats import norm
 
 from .sieve import LRFeatureSieve
 
 
 class Kalman(object):
-    def __init__(self, config_dict, x0=0, v0=1):
+    def __init__(self, config_dict, x0=0, v0=1e-8):
         self.__logger = logging.getLogger(__name__)
         self.__x0 = x0
         self.__v0 = v0
+        self.__pmv_ratio = config_dict['model']['kalman']['pmv_ratio']
         self.__ci_level = 1 - config_dict['model']['kalman']['alpha']
         self.__lrfs = LRFeatureSieve(
             type=config_dict['feature']['type'], drop_zero=True
@@ -23,21 +25,18 @@ class Kalman(object):
     def detect_signal(self, history_dict, pos=None):
         best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
         kfo = KalmanFilterOptimizer(
-            y=best_f['series'], x0=self.__x0, v0=self.__v0
+            y=best_f['series'], x0=self.__x0, v0=self.__v0,
+            pmv_ratio=self.__pmv_ratio
         )
-        var_f = best_f['series'].pipe(lambda a: a.iloc[a.nonzero()[0]].var())
-        kf_param = kfo.optimize(q0=var_f, r0=var_f).x
-        self.__logger.debug('kf_param: {}'.format(kf_param))
-        kf = KalmanFilter(
-            x0=self.__x0, v0=self.__v0, q=kf_param[0], r=kf_param[1]
-        )
+        q, r = kfo.optimize()
+        kf = KalmanFilter(x0=self.__x0, v0=self.__v0, q=q, r=r)
         kf_res = kf.fit(y=best_f['series']).iloc[-1].to_dict()
         self.__logger.debug('kf_res: {}'.format(kf_res))
         gauss_mu = kf_res['x']
         gauss_ci = np.asarray(
             norm.interval(
                 alpha=self.__ci_level, loc=gauss_mu,
-                scale=np.sqrt(kf_res['v'] + kf_param[0])
+                scale=np.sqrt(kf_res['v'] + q)
             )
         )
         if gauss_ci[0] > 0:
@@ -67,11 +66,11 @@ class Kalman(object):
 
 
 class KalmanFilter(object):
-    def __init__(self, x0=0, v0=1, q=1, r=1, keep_history=False):
-        self.x = np.array([x0])             # estimate of x
-        self.v = np.array([v0])             # error estimate
-        self.q = q                          # process variance
-        self.r = r                          # measurement variance
+    def __init__(self, x0=0, v0=1e-8, q=1e-8, r=1e-8, keep_history=False):
+        self.x = np.array([x0])                 # estimate of x
+        self.v = np.array([v0])                 # error estimate
+        self.q = q                              # process variance
+        self.r = r                              # measurement variance
         self.y = np.array([np.nan])
         self.__keep_history = keep_history
 
@@ -103,25 +102,33 @@ class KalmanFilter(object):
 
 
 class KalmanFilterOptimizer(object):
-    def __init__(self, y, x0=0, v0=1, method='TNC'):
+    def __init__(self, y, x0=0, v0=1e-8, pmv_ratio=1, method='Golden'):
+        self.__logger = logging.getLogger(__name__)
         self.y = y
         self.x0 = x0
         self.v0 = v0
-        self.__method = method
+        self.__pmv_ratio = pmv_ratio    # process / measurement variance ratio
+        self.__method = method          # Brent | Bounded | Golden
 
-    def optimize(self, q0, r0):
-        np.seterr(invalid='ignore')
-        return minimize(
-            fun=self._loss, x0=[q0, r0], args=(self.y, self.x0, self.v0),
+    def optimize(self):
+        res = minimize_scalar(
+            fun=self._loss, args=(self.y, self.x0, self.v0, self.__pmv_ratio),
             method=self.__method
         )
+        self.__logger.debug('{0}{1}'.format(os.linesep, res))
+        r = np.exp(res.x)
+        self.__logger.debug('measurement variance: {}'.format(r))
+        q = r * self.__pmv_ratio
+        self.__logger.debug('process variance: {}'.format(q))
+        return q, r
 
     @staticmethod
-    def _loss(p, y, x0, v0):
-        kf = KalmanFilter(x0=x0, v0=v0, q=p[0], r=p[1])
-        return kf.fit(y=y).pipe(
+    def _loss(a, y, x0, v0, pmv_ratio=1):
+        r = np.exp(a)
+        return KalmanFilter(
+            x0=x0, v0=v0, q=(r * pmv_ratio), r=r
+        ).fit(y=y).pipe(
             lambda d: np.sum(
-                np.log(d['v'] + p[1])
-                + np.square(d['y'] - d['x']) / (d['v'] + p[1])
+                np.log(d['v'] + r) + np.square(d['y'] - d['x']) / (d['v'] + r)
             )
         )
