@@ -26,26 +26,28 @@ class BettingSystem(object):
         ]
         if not (pl_list and size_list):
             return init_size or unit_size
-        elif abs(pl_list[-1]):
-            pl = pd.Series(pl_list)
-            last_won = (
-                None if (
-                    pl.iloc[-1] > 0 and any(pl.le(0)) and
-                    pl[pl.index >= pl[pl.le(0)].index.max()].sum() < 0
-                ) else (pl.iloc[-1] > 0)
-            )
-            return self.calculate_size(
-                unit_size=unit_size, init_size=init_size,
-                last_size=size_list[-1], last_won=last_won,
-                all_time_high=(pl.cumsum().idxmax() == pl.index[-1])
-            )
         else:
-            return size_list[-1]
+            last_size = size_list[-1]
+            self.__logger.debug('last_size: {}'.format(last_size))
+            if abs(pl_list[-1]):
+                pl = pd.Series(pl_list)
+                last_won = (
+                    None if (
+                        pl.iloc[-1] > 0 and any(pl.le(0)) and
+                        pl[pl.index >= pl[pl.le(0)].index.max()].sum() < 0
+                    ) else (pl.iloc[-1] > 0)
+                )
+                self.__logger.debug('last_won: {}'.format(last_won))
+                return self._calculate_size(
+                    unit_size=unit_size, init_size=init_size,
+                    last_size=last_size, last_won=last_won,
+                    all_time_high=(pl.cumsum().idxmax() == pl.index[-1])
+                )
+            else:
+                return last_size
 
-    def calculate_size(self, unit_size, init_size=None, last_size=None,
-                       last_won=None, all_time_high=False):
-        self.__logger.debug('last_won: {}'.format(last_won))
-        self.__logger.debug('last_size: {}'.format(last_size))
+    def _calculate_size(self, unit_size, init_size=None, last_size=None,
+                        last_won=None, all_time_high=False):
         if last_won is None:
             return last_size or init_size or unit_size
         elif self.strategy == 'Martingale':
