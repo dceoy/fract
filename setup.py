@@ -19,11 +19,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     install_requires=[
-        'docopt', 'numpy', 'pandas', 'pyyaml', 'redis', 'scikit-learn',
-        'statsmodels', 'ujson', 'v20'
-    ],
-    dependency_links=[
-        'git+https://github.com/dceoy/oanda-cli.git#egg=oanda-cli'
+        'docopt', 'numpy', 'oanda-cli', 'pandas', 'pyyaml', 'redis',
+        'scikit-learn', 'statsmodels', 'ujson', 'v20'
     ],
     entry_points={'console_scripts': ['fract=fract.cli.main:main']},
     classifiers=[

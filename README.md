@@ -9,9 +9,7 @@ Installation
 ------------
 
 ```sh
-$ pip install -U \
-    https://github.com/dceoy/oanda-cli/archive/master.tar.gz \
-    https://github.com/dceoy/fract/archive/master.tar.gz
+$ pip install -U https://github.com/dceoy/fract/archive/master.tar.gz
 ```
 
 Usage

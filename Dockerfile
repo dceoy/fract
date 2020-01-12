@@ -7,4 +7,4 @@ RUN set -e \
       && pip install -U --no-cache-dir /tmp/oanda-cli.tar.gz /tmp/fract \
       && rm -rf /tmp/oanda-cli.tar.gz /tmp/fract
 
-ENTRYPOINT ["fract"]
+ENTRYPOINT ["/usr/local/bin/fract"]
