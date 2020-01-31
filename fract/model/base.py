@@ -6,6 +6,7 @@ import signal
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
+from pathlib import Path
 from pprint import pformat
 
 import numpy as np
@@ -33,16 +34,11 @@ class TraderCore(object):
         self.__quiet = quiet
         self.__dry_run = dry_run
         if log_dir_path:
-            self.__log_dir_path = os.path.abspath(
-                os.path.expanduser(os.path.expandvars(log_dir_path))
-            )
+            log_dir = Path(log_dir_path).resolve()
+            self.__log_dir_path = str(log_dir)
             os.makedirs(self.__log_dir_path, exist_ok=True)
-            self.__order_log_path = os.path.join(
-                self.__log_dir_path, 'order.json.txt'
-            )
-            self.__txn_log_path = os.path.join(
-                self.__log_dir_path, 'txn.json.txt'
-            )
+            self.__order_log_path = str(log_dir.joinpath('order.json.txt'))
+            self.__txn_log_path = str(log_dir.joinpath('txn.json.txt'))
             self._write_data(
                 yaml.dump(
                     {
@@ -53,7 +49,7 @@ class TraderCore(object):
                     },
                     default_flow_style=False
                 ).strip(),
-                path=os.path.join(self.__log_dir_path, 'parameter.yml'),
+                path=str(log_dir.joinpath('parameter.yml')),
                 mode='w', append_linesep=False
             )
         else:
@@ -112,8 +108,7 @@ class TraderCore(object):
             f_args = {
                 'accountID': self.__account_id, **kwargs,
                 **{
-                    '{}Units'.format(k):
-                    ('ALL' if p and p['side'] == k else 'NONE')
+                    f'{k}Units': ('ALL' if p and p['side'] == k else 'NONE')
                     for k in ['long', 'short']
                 }
             }
@@ -237,10 +232,10 @@ class TraderCore(object):
             self._refresh_txn_list()
         if act in ['long', 'short']:
             limits = self._design_order_limits(instrument=instrument, side=act)
-            self.__logger.debug('limits: {}'.format(limits))
+            self.__logger.debug(f'limits: {limits}')
             units = self._design_order_units(instrument=instrument, side=act)
-            self.__logger.debug('units: {}'.format(units))
-            self.__logger.info('Open a order: {}'.format(act))
+            self.__logger.debug(f'units: {units}')
+            self.__logger.info(f'Open a order: {act}')
             self._place_order(
                 order={
                     'type': 'MARKET', 'instrument': instrument, 'units': units,
@@ -295,13 +290,13 @@ class TraderCore(object):
                 ) / self.unit_costs[instrument]
             ), 0
         )
-        self.__logger.debug('avail_size: {}'.format(avail_size))
+        self.__logger.debug(f'avail_size: {avail_size}')
         sizes = {
             k: np.ceil(self.balance * v / self.unit_costs[instrument])
             for k, v in self.cf['position']['margin_nav_ratio'].items()
             if k in ['unit', 'init']
         }
-        self.__logger.debug('sizes: {}'.format(sizes))
+        self.__logger.debug(f'sizes: {sizes}')
         bet_size = self.__bs.calculate_size_by_pl(
             unit_size=sizes['unit'],
             inst_pl_txns=[
@@ -312,7 +307,7 @@ class TraderCore(object):
             ],
             init_size=sizes['init']
         )
-        self.__logger.debug('bet_size: {}'.format(bet_size))
+        self.__logger.debug(f'bet_size: {bet_size}')
         return str(
             int(min(bet_size, avail_size, max_size)) *
             {'long': 1, 'short': -1}[side]
@@ -343,10 +338,10 @@ class TraderCore(object):
                     'B/A',
                     np.array2string(
                         df_rate[['bid', 'ask']].iloc[-1].values,
-                        formatter={'float_kind': lambda f: '{:8g}'.format(f)}
+                        formatter={'float_kind': lambda f: f'{f:8g}'}
                     )
                 ),
-                'PL:{:>8}'.format('{:.1g}'.format(net_pl))
+                'PL:{:>8}'.format(f'{net_pl:.1g}')
             ) + (add_str or '')
         )
 
@@ -357,23 +352,23 @@ class TraderCore(object):
     def write_turn_log(self, df_rate, **kwargs):
         i = df_rate['instrument'].iloc[-1]
         df_r = df_rate.drop(columns=['instrument'])
-        self._write_log_df(name='rate.{}'.format(i), df=df_r)
+        self._write_log_df(name=f'rate.{i}', df=df_r)
         if kwargs:
             self._write_log_df(
-                name='sig.{}'.format(i), df=df_r.tail(n=1).assign(**kwargs)
+                name=f'sig.{i}', df=df_r.tail(n=1).assign(**kwargs)
             )
 
     def _write_log_df(self, name, df):
         if self.__log_dir_path and df.size:
-            self.__logger.debug('{0} df:{1}{2}'.format(name, os.linesep, df))
-            p = os.path.join(self.__log_dir_path, '{}.tsv'.format(name))
-            self.__logger.info('Write TSV log: {}'.format(p))
+            self.__logger.debug(f'{name} df:{os.linesep}{df}')
+            p = str(Path(self.__log_dir_path).joinpath(f'{name}.tsv'))
+            self.__logger.info(f'Write TSV log: {p}')
             self._write_df(df=df, path=p)
 
     def _write_df(self, df, path, mode='a'):
         df.to_csv(
             path, mode=mode, sep=(',' if path.endswith('.csv') else '\t'),
-            header=(not os.path.isfile(path))
+            header=(not Path(path).is_file())
         )
 
     def fetch_candle_df(self, instrument, granularity='S5', count=5000):
@@ -433,7 +428,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         elif model == 'kalman':
             self.__ai = Kalman(config_dict=self.cf)
         else:
-            raise ValueError('invalid model name: {}'.format(model))
+            raise ValueError(f'invalid model name: {model}')
         self.__volatility_states = dict()
 
     def invoke(self):
@@ -485,7 +480,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         pass
 
     def update_caches(self, df_rate):
-        self.__logger.info('Rate:{0}{1}'.format(os.linesep, df_rate))
+        self.__logger.info(f'Rate:{os.linesep}{df_rate}')
         i = df_rate['instrument'].iloc[-1]
         df_c = self.__cache_dfs[i].append(df_rate).tail(n=self.__n_cache)
         self.__logger.info('Cache length: {}'.format(len(df_c)))
@@ -543,7 +538,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             (
                 '{:^14}|'.format('TICK:{:>5}'.format(len(df_rate)))
                 if self.__use_tick else ''
-            ) + sig['sig_log_str'] + '{:^18}|'.format(state)
+            ) + sig['sig_log_str'] + f'{state:^18}|'
         )
         return {'act': act, 'state': state, 'log_str': log_str, **sig}
 

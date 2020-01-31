@@ -31,7 +31,7 @@ class Kalman(object):
         q, r = kfo.optimize()
         kf = KalmanFilter(x0=self.__x0, v0=self.__v0, q=q, r=r)
         kf_res = kf.fit(y=best_f['series']).iloc[-1].to_dict()
-        self.__logger.debug('kf_res: {}'.format(kf_res))
+        self.__logger.debug(f'kf_res: {kf_res}')
         gauss_mu = kf_res['x']
         gauss_ci = np.asarray(
             norm.interval(
@@ -52,10 +52,9 @@ class Kalman(object):
         sig_log_str = '{:^40}|'.format(
             '{0:>3}[{1:>3}]:{2:>9}{3:>18}'.format(
                 self.__lrfs.code, best_f['granularity_str'],
-                '{:.1g}'.format(gauss_mu),
+                f'{gauss_mu:.1g}',
                 np.array2string(
-                    gauss_ci,
-                    formatter={'float_kind': lambda f: '{:.1g}'.format(f)}
+                    gauss_ci, formatter={'float_kind': lambda f: f'{f:.1g}'}
                 )
             )
         )
@@ -115,11 +114,11 @@ class KalmanFilterOptimizer(object):
             fun=self._loss, args=(self.y, self.x0, self.v0, self.__pmv_ratio),
             method=self.__method
         )
-        self.__logger.debug('{0}{1}'.format(os.linesep, res))
+        self.__logger.debug(f'{os.linesep}{res}')
         r = np.exp(res.x)
-        self.__logger.debug('measurement variance: {}'.format(r))
+        self.__logger.debug(f'measurement variance: {r}')
         q = r * self.__pmv_ratio
-        self.__logger.debug('process variance: {}'.format(q))
+        self.__logger.debug(f'process variance: {q}')
         return q, r
 
     @staticmethod

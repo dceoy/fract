@@ -16,7 +16,7 @@ class LogReturnFeature(object):
         elif type and type.lower() in ['lr', 'log return']:
             self.code = 'LR'
         else:
-            raise ValueError('invalid feature type: {}'.format(type))
+            raise ValueError(f'invalid feature type: {type}')
 
     def series(self, df_rate):
         if self.code == 'LRV':

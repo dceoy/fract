@@ -36,7 +36,7 @@ class Ewma(object):
                 '{:.1g}'.format(sig_dict['ewma']),
                 np.array2string(
                     sig_dict['ewmbb'],
-                    formatter={'float_kind': lambda f: '{:.1g}'.format(f)}
+                    formatter={'float_kind': lambda f: f'{f:.1g}'}
                 )
             )
         )
@@ -49,7 +49,7 @@ class Ewma(object):
     def _ewm_stats(self, series):
         ewm = series.ewm(alpha=self.__alpha)
         ewma = ewm.mean().iloc[-1]
-        self.__logger.debug('ewma: {}'.format(ewma))
+        self.__logger.debug(f'ewma: {ewma}')
         ewm_bollinger_band = (
             np.array([-1, 1]) * ewm.std().iloc[-1] * self.__sigma_band
         ) + ewma

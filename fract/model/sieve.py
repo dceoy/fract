@@ -33,10 +33,10 @@ class LRFeatureSieve(LogReturnFeature):
                     )
                 ) for g, s in feature_dict.items()
             ]).groupby('granularity').mean()['p_score']
-            self.__logger.debug('p_scores:{0}{1}'.format(os.linesep, p_scores))
+            self.__logger.debug(f'p_scores:{os.linesep}{p_scores}')
             granularity = p_scores.idxmin()
         else:
-            raise ValueError('invalid method name: {}'.format(method))
+            raise ValueError(f'invalid method name: {method}')
         return {
             'series': feature_dict[granularity], 'granularity': granularity,
             'granularity_str': self._granularity2str(granularity=granularity)

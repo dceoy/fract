@@ -80,6 +80,7 @@ Arguments:
 
 import logging
 import os
+from pathlib import Path
 
 from docopt import docopt
 from oandacli.cli.main import execute_command
@@ -101,8 +102,10 @@ def main():
     if args['init']:
         write_config_yml(
             dest_path=config_yml_path,
-            template_path=os.path.join(
-                os.path.dirname(__file__), '../static/default_fract.yml'
+            template_path=str(
+                Path(__file__).parent.parent.joinpath(
+                    'static/default_fract.yml'
+                ).resolve()
             )
         )
     elif args['open']:
