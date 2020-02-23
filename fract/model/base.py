@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 import logging
 import os
 import signal
@@ -11,7 +12,6 @@ from pprint import pformat
 
 import numpy as np
 import pandas as pd
-import ujson
 import yaml
 from oandacli.util.config import create_api, log_response
 from v20 import V20ConnectionError, V20Timeout
@@ -133,7 +133,7 @@ class TraderCore(object):
                 )
             elif self.__order_log_path:
                 self._write_data(
-                    ujson.dumps(res.body), path=self.__order_log_path
+                    json.dumps(res.body), path=self.__order_log_path
                 )
             else:
                 time.sleep(0.5)
@@ -168,7 +168,7 @@ class TraderCore(object):
             self.print_log(yaml.dump(t_new, default_flow_style=False).strip())
             self.__txn_list = self.__txn_list + t_new
             if self.__txn_log_path:
-                self._write_data(ujson.dumps(t_new), path=self.__txn_log_path)
+                self._write_data(json.dumps(t_new), path=self.__txn_log_path)
 
     def _refresh_inst_dict(self):
         res = self.__api.account.instruments(accountID=self.__account_id)

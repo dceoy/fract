@@ -20,7 +20,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'docopt', 'numpy', 'oanda-cli', 'pandas', 'pyyaml', 'redis',
-        'scikit-learn', 'statsmodels', 'ujson', 'v20'
+        'scikit-learn', 'statsmodels', 'v20'
     ],
     entry_points={'console_scripts': ['fract=fract.cli.main:main']},
     classifiers=[

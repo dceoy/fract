@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 import logging
 import time
 from datetime import datetime
@@ -7,7 +8,6 @@ from pprint import pformat
 
 import pandas as pd
 import redis
-import ujson
 
 from .base import BaseTrader
 
@@ -66,7 +66,7 @@ class RedisTrader(BaseTrader):
     def _fetch_rate_df(self, instrument):
         redis_c = redis.StrictRedis(connection_pool=self.__redis_pool)
         cached_rates = [
-            ujson.loads(s) for s in redis_c.lrange(instrument, 0, -1)
+            json.loads(s) for s in redis_c.lrange(instrument, 0, -1)
         ]
         if len(cached_rates) > 0:
             for _ in cached_rates:
