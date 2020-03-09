@@ -451,25 +451,24 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         return True
 
     def _update_volatility_states(self):
-        if not self.cf['volatility']['daily_sleep']:
+        if not self.cf['volatility']['sleeping']:
             self.__volatility_states = {i: True for i in self.instruments}
         else:
-            window = self.cf['volatility']['history_minutes']
-            count = 2880 + window - 1
             self.__volatility_states = {
                 i: self.fetch_candle_df(
-                    instrument=i, granularity='M1', count=count
+                    instrument=i,
+                    granularity=self.cf['volatility']['granularity'],
+                    count=self.cf['volatility']['track_length']
                 ).pipe(
                     lambda d: (
                         np.log(d[['ask', 'bid']].mean(axis=1)).diff().rolling(
-                            window=window
-                        ).std(ddof=0)
-                        * d['volume']
+                            window=self.cf['volatility']['window_length']
+                        ).std(ddof=0) * d['volume']
                     )
                 ).dropna().pipe(
                     lambda v: (
                         v.iloc[-1]
-                        > v.quantile(self.cf['volatility']['daily_sleep'])
+                        > v.quantile(self.cf['volatility']['sleeping'])
                     )
                 ) for i in set(self.instruments)
             }
