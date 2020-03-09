@@ -7,6 +7,7 @@ import signal
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import datetime
+from math import ceil
 from pathlib import Path
 from pprint import pformat
 
@@ -281,7 +282,7 @@ class TraderCore(object):
     def _design_order_units(self, instrument, side):
         max_size = int(self.__inst_dict[instrument]['maximumOrderUnits'])
         avail_size = max(
-            np.ceil(
+            ceil(
                 (
                     self.margin_avail - self.balance *
                     self.cf['position']['margin_nav_ratio']['preserve']
@@ -290,7 +291,7 @@ class TraderCore(object):
         )
         self.__logger.debug(f'avail_size: {avail_size}')
         sizes = {
-            k: np.ceil(self.balance * v / self.unit_costs[instrument])
+            k: ceil(self.balance * v / self.unit_costs[instrument])
             for k, v in self.cf['position']['margin_nav_ratio'].items()
             if k in ['unit', 'init']
         }
@@ -488,8 +489,9 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         i = df_rate['instrument'].iloc[-1]
         pos = self.pos_dict.get(i)
         pos_pct = (
-            (abs(pos['units']) * self.unit_costs[i] * 100 / self.balance)
-            if pos else 0
+            round(
+                abs(pos['units'] * self.unit_costs[i] * 100 / self.balance), 1
+            ) if pos else 0
         )
         history_dict = self._fetch_history_dict(instrument=i)
         if not history_dict:
@@ -505,7 +507,8 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             if not self.price_dict[i]['tradeable']:
                 act = None
                 state = 'TRADING HALTED'
-            elif sig['sig_act'] == 'closing':
+            elif (pos and sig['sig_act'] and sig['sig_act'] != pos['side']
+                  and not self.__volatility_states[i]):
                 act = 'closing'
                 state = 'CLOSING'
             elif int(self.balance) == 0:
