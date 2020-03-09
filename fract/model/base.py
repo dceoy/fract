@@ -132,9 +132,7 @@ class TraderCore(object):
                     'unexpected response:' + os.linesep + pformat(res.body)
                 )
             elif self.__order_log_path:
-                self._write_data(
-                    json.dumps(res.body), path=self.__order_log_path
-                )
+                self._write_data(res.raw_body, path=self.__order_log_path)
             else:
                 time.sleep(0.5)
 
@@ -164,7 +162,7 @@ class TraderCore(object):
                 'unexpected response:' + os.linesep + pformat(res.body)
             )
         if res.body.get('transactions'):
-            t_new = [vars(t) for t in res.body['transactions']]
+            t_new = [t.dict() for t in res.body['transactions']]
             self.print_log(yaml.dump(t_new, default_flow_style=False).strip())
             self.__txn_list = self.__txn_list + t_new
             if self.__txn_log_path:
