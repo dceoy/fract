@@ -61,8 +61,8 @@ instruments:
 # - USD_ZAR
 # - ZAR_JPY
 volatility:
-  daily_sleep: 0.5        # [0, 1]
-  history_minutes: 30     # [1, 1440]
+  daily_sleep: 0.8        # [0, 1]
+  history_minutes: 15     # [1, 1440]
 position:
   bet: Oscar's grind      # { Martingale, d'Alembert, Pyramid, Oscar's grind }
   limit_price_ratio:

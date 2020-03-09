@@ -491,54 +491,62 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             (abs(pos['units']) * self.unit_costs[i] * 100 / self.balance)
             if pos else 0
         )
-        sig = self.__ai.detect_signal(
-            history_dict=self._fetch_history_dict(instrument=i), pos=pos
-        )
-        if not self.price_dict[i]['tradeable']:
-            act = None
-            state = 'TRADING HALTED'
-        elif sig['sig_act'] == 'closing':
-            act = 'closing'
-            state = 'CLOSING'
-        elif int(self.balance) == 0:
-            act = None
-            state = 'NO FUND'
-        elif self._is_margin_lack(instrument=i):
-            act = None
-            state = 'LACK OF FUNDS'
-        elif self._is_over_spread(df_rate=df_rate):
-            act = None
-            state = 'OVER-SPREAD'
-        elif pos and not sig['sig_act']:
-            act = None
-            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
-        elif not self.__volatility_states[i]:
-            act = None
-            state = (
-                '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
-                if pos else 'SLEEPING'
-            )
-        elif not sig['sig_act']:
-            act = None
-            state = '-'
-        elif pos and sig['sig_act'] == pos['side']:
-            act = None
-            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
-        elif pos:
-            act = sig['sig_act']
-            state = '{0} -> {1}'.format(
-                pos['side'].upper(), sig['sig_act'].upper()
-            )
+        history_dict = self._fetch_history_dict(instrument=i)
+        if not history_dict:
+            return {
+                'act': None,
+                'log_str': (
+                    '{:^14}|'.format('TICK:{:>5}'.format(len(df_rate)))
+                    + ' ' * 40 + '|{:^18}|'.format('LOADING')
+                )
+            }
         else:
-            act = sig['sig_act']
-            state = '-> {}'.format(sig['sig_act'].upper())
-        log_str = (
-            (
-                '{:^14}|'.format('TICK:{:>5}'.format(len(df_rate)))
-                if self.__use_tick else ''
-            ) + sig['sig_log_str'] + f'{state:^18}|'
-        )
-        return {'act': act, 'state': state, 'log_str': log_str, **sig}
+            sig = self.__ai.detect_signal(history_dict=history_dict, pos=pos)
+            if not self.price_dict[i]['tradeable']:
+                act = None
+                state = 'TRADING HALTED'
+            elif sig['sig_act'] == 'closing':
+                act = 'closing'
+                state = 'CLOSING'
+            elif int(self.balance) == 0:
+                act = None
+                state = 'NO FUND'
+            elif self._is_margin_lack(instrument=i):
+                act = None
+                state = 'LACK OF FUNDS'
+            elif self._is_over_spread(df_rate=df_rate):
+                act = None
+                state = 'OVER-SPREAD'
+            elif pos and not sig['sig_act']:
+                act = None
+                state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
+            elif not self.__volatility_states[i]:
+                act = None
+                state = (
+                    '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
+                    if pos else 'SLEEPING'
+                )
+            elif not sig['sig_act']:
+                act = None
+                state = '-'
+            elif pos and sig['sig_act'] == pos['side']:
+                act = None
+                state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
+            elif pos:
+                act = sig['sig_act']
+                state = '{0} -> {1}'.format(
+                    pos['side'].upper(), sig['sig_act'].upper()
+                )
+            else:
+                act = sig['sig_act']
+                state = '-> {}'.format(sig['sig_act'].upper())
+            log_str = (
+                (
+                    '{:^14}|'.format('TICK:{:>5}'.format(len(df_rate)))
+                    if self.__use_tick else ''
+                ) + sig['sig_log_str'] + f'{state:^18}|'
+            )
+            return {'act': act, 'state': state, 'log_str': log_str, **sig}
 
     def _fetch_history_dict(self, instrument):
         df_c = self.__cache_dfs[instrument]
