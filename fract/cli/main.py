@@ -72,10 +72,10 @@ Arguments:
                           EUR_ZAR, GBP_AUD, GBP_CAD, GBP_CHF, GBP_HKD, GBP_JPY,
                           GBP_NZD, GBP_PLN, GBP_SGD, GBP_USD, GBP_ZAR, HKD_JPY,
                           NZD_CAD, NZD_CHF, NZD_HKD, NZD_JPY, NZD_SGD, NZD_USD,
-                          SGD_CHF, SGD_HKD, SGD_JPY, TRY_JPY, USD_CAD, USD_CHF,
-                          USD_CNH, USD_CZK, USD_DKK, USD_HKD, USD_HUF, USD_INR,
-                          USD_JPY, USD_MXN, USD_NOK, USD_PLN, USD_SAR, USD_SEK,
-                          USD_SGD, USD_THB, USD_TRY, USD_ZAR, ZAR_JPY }
+                          SGD_CHF, SGD_JPY, TRY_JPY, USD_CAD, USD_CHF, USD_CNH,
+                          USD_CZK, USD_DKK, USD_HKD, USD_HUF, USD_INR, USD_JPY,
+                          USD_MXN, USD_NOK, USD_PLN, USD_SAR, USD_SEK, USD_SGD,
+                          USD_THB, USD_TRY, USD_ZAR, ZAR_JPY }
 """
 
 import logging
