@@ -1,13 +1,15 @@
 ---
 box:
-  id: dceoy/jupyter:latest
+  id: dceoy/oanda:latest
   entrypoint: /bin/bash -c
 test:
   steps:
     - script:
         name: Install fract
         code: |
-          pip install -U https://github.com/dceoy/oanda-cli/archive/master.tar.gz .
+          pip install -U \
+            flake8 flake8-bugbear flake8-isort pep8-naming \
+            https://github.com/dceoy/oanda-cli/archive/master.tar.gz .
     - script:
         name: Validate the codes using flake8
         code: |
