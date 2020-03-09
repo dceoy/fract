@@ -2,6 +2,7 @@
 
 import logging
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -23,15 +24,20 @@ class LRFeatureSieve(LogReturnFeature):
         if len(feature_dict) <= 1:
             granularity = list(feature_dict.keys())[0]
         elif method == 'Ljung-Box':
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', FutureWarning)
+                p_values = [
+                    {
+                        'granularity': g,
+                        'pvalue': sm.stats.diagnostic.acorr_ljungbox(x=s)[1]
+                    } for g, s in feature_dict.items()
+                ]
             p_scores = pd.concat([
-                pd.DataFrame({
-                    'granularity': g,
-                    'pvalue': sm.stats.diagnostic.acorr_ljungbox(x=s)[1]
-                }).assign(
+                pd.DataFrame(v).assign(
                     p_score=lambda d: d['pvalue'] / np.power(
                         1 - self.__weight_decay, np.arange(len(d))
                     )
-                ) for g, s in feature_dict.items()
+                ) for v in p_values
             ]).groupby('granularity').mean()['p_score']
             self.__logger.debug(f'p_scores:{os.linesep}{p_scores}')
             granularity = p_scores.idxmin()
