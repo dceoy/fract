@@ -24,6 +24,10 @@ class Ewma(object):
             sig_act = 'long'
         elif sig_dict['ewmbb'][1] < 0:
             sig_act = 'short'
+        elif (pos
+              and ((pos['side'] == 'long' and sig_dict['ewma'] < 0) or
+                   (pos['side'] == 'short' and sig_dict['ewma'] > 0))):
+            sig_act = 'closing'
         else:
             sig_act = None
         sig_log_str = '{:^40}|'.format(

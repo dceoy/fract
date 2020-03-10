@@ -450,19 +450,17 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
     def check_health(self):
         return True
 
-    def _update_volatility_states(self):
+    def _update_volatility_states(self, granularity='M1', track_length=5000):
         if not self.cf['volatility']['sleeping']:
             self.__volatility_states = {i: True for i in self.instruments}
         else:
             self.__volatility_states = {
                 i: self.fetch_candle_df(
-                    instrument=i,
-                    granularity=self.cf['volatility']['granularity'],
-                    count=self.cf['volatility']['track_length']
+                    instrument=i, granularity=granularity, count=track_length
                 ).pipe(
                     lambda d: (
                         np.log(d[['ask', 'bid']].mean(axis=1)).diff().rolling(
-                            window=self.cf['volatility']['window_length']
+                            window=int(self.cf['volatility']['window_minutes'])
                         ).std(ddof=0) * d['volume']
                     )
                 ).dropna().pipe(
@@ -506,8 +504,10 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             if not self.price_dict[i]['tradeable']:
                 act = None
                 state = 'TRADING HALTED'
-            elif (pos and sig['sig_act'] and sig['sig_act'] != pos['side']
-                  and not self.__volatility_states[i]):
+            elif (pos and sig['sig_act']
+                  and (sig['sig_act'] == 'closing'
+                       or (not self.__volatility_states[i]
+                           and sig['sig_act'] != pos['side']))):
                 act = 'closing'
                 state = 'CLOSING'
             elif int(self.balance) == 0:
