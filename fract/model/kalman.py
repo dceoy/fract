@@ -21,9 +21,15 @@ class Kalman(object):
         self.__lrfs = LRFeatureSieve(
             type=config_dict['feature']['type'], drop_zero=True
         )
+        self.__granularity = None
 
     def detect_signal(self, history_dict, pos=None):
-        best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
+        best_f = self.__lrfs.extract_best_feature(
+            history_dict=history_dict,
+            granularities=(
+                [self.__granularity] if self.__granularity else None
+            )
+        )
         kfo = KalmanFilterOptimizer(
             y=best_f['series'], x0=self.__x0, v0=self.__v0,
             pmv_ratio=self.__pmv_ratio
@@ -58,6 +64,8 @@ class Kalman(object):
                 )
             )
         )
+        if not (pos and self.__granularity):
+            self.__granularity = (best_f['granularity'] if sig_act else None)
         return {
             'sig_act': sig_act, 'sig_log_str': sig_log_str,
             'sig_mu': gauss_mu, 'sig_cil': gauss_ci[0], 'sig_ciu': gauss_ci[1]

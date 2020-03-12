@@ -16,9 +16,15 @@ class Ewma(object):
             type=config_dict['feature']['type'], drop_zero=False,
             weight_decay=config_dict['model']['ewma']['alpha']
         )
+        self.__granularity = None
 
     def detect_signal(self, history_dict, pos=None):
-        best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
+        best_f = self.__lrfs.extract_best_feature(
+            history_dict=history_dict,
+            granularities=(
+                [self.__granularity] if self.__granularity else None
+            )
+        )
         sig_dict = self._ewm_stats(series=best_f['series'])
         if sig_dict['ewmbb'][0] > 0:
             sig_act = 'long'
@@ -40,6 +46,8 @@ class Ewma(object):
                 )
             )
         )
+        if not (pos and self.__granularity):
+            self.__granularity = (best_f['granularity'] if sig_act else None)
         return {
             'sig_act': sig_act, 'sig_log_str': sig_log_str,
             'sig_ewma': sig_dict['ewma'], 'sig_ewmbbl': sig_dict['ewmbb'][0],

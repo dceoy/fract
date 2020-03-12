@@ -569,14 +569,14 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
     def _is_margin_lack(self, instrument):
         return (
             not self.pos_dict.get(instrument) and
-            self.margin_avail <=
             self.balance * self.cf['position']['margin_nav_ratio']['preserve']
+            >= self.margin_avail
         )
 
     def _is_over_spread(self, df_rate):
         return (
             df_rate.tail(n=1).pipe(
                 lambda d: (d['ask'] - d['bid']) / (d['ask'] + d['bid']) * 2
-            ).values[0] >=
-            self.cf['position']['limit_price_ratio']['max_spread']
+            ).values[0]
+            >= self.cf['position']['limit_price_ratio']['max_spread']
         )
