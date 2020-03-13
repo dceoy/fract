@@ -429,6 +429,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         else:
             raise ValueError(f'invalid model name: {model}')
         self.__volatility_states = dict()
+        self.__granularity_constraint = dict()
 
     def invoke(self):
         self.print_log('!!! OPEN DEALS !!!')
@@ -500,7 +501,19 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
                 )
             }
         else:
-            sig = self.__ai.detect_signal(history_dict=history_dict, pos=pos)
+            sig = self.__ai.detect_signal(
+                history_dict=(
+                    {
+                        k: v for k, v in history_dict.items()
+                        if k == self.__granularity_constraint[i]
+                    } if self.__granularity_constraint.get(i) else history_dict
+                ),
+                pos=pos
+            )
+            self.__granularity_constraint[i] = (
+                sig['granularity']
+                if pos or sig['sig_act'] in {'long', 'short'} else None
+            )
             if not self.price_dict[i]['tradeable']:
                 act = None
                 state = 'TRADING HALTED'

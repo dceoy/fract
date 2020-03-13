@@ -17,14 +17,12 @@ class LRFeatureSieve(LogReturnFeature):
         self.__logger = logging.getLogger(__name__)
         self.__weight_decay = weight_decay
 
-    def extract_best_feature(self, history_dict, granularities=None,
-                             method='Ljung-Box'):
+    def extract_best_feature(self, history_dict, method='Ljung-Box'):
         feature_dict = {
             g: self.series(df_rate=d).dropna() for g, d in history_dict.items()
-            if not granularities or g in granularities
         }
-        if len(feature_dict) <= 1:
-            granularity = list(feature_dict.keys())[0]
+        if len(history_dict) == 1:
+            granularity = list(history_dict.keys())[0]
         elif method == 'Ljung-Box':
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', FutureWarning)
