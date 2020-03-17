@@ -429,7 +429,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         else:
             raise ValueError(f'invalid model name: {model}')
         self.__volatility_states = dict()
-        self.__granularity_constraint = dict()
+        self.__granularity_lock = dict()
 
     def invoke(self):
         self.print_log('!!! OPEN DEALS !!!')
@@ -493,75 +493,79 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         )
         history_dict = self._fetch_history_dict(instrument=i)
         if not history_dict:
-            return {
-                'act': None,
-                'log_str': (
-                    '{:^14}|'.format('TICK:{:>5}'.format(len(df_rate)))
-                    + ' ' * 40 + '|{:^18}|'.format('LOADING')
-                )
+            sig = {
+                'sig_act': None, 'granularity': None, 'sig_log_str': (' ' * 40)
             }
-        else:
+        elif self.cf['granularity_lock']:
             sig = self.__ai.detect_signal(
                 history_dict=(
                     {
                         k: v for k, v in history_dict.items()
-                        if k == self.__granularity_constraint[i]
-                    } if self.__granularity_constraint.get(i) else history_dict
+                        if k == self.__granularity_lock[i]
+                    } if self.__granularity_lock.get(i) else history_dict
                 ),
                 pos=pos
             )
-            self.__granularity_constraint[i] = (
+            self.__granularity_lock[i] = (
                 sig['granularity']
                 if pos or sig['sig_act'] in {'long', 'short'} else None
             )
-            if not self.price_dict[i]['tradeable']:
-                act = None
-                state = 'TRADING HALTED'
-            elif (pos and sig['sig_act']
-                  and (sig['sig_act'] == 'closing'
-                       or (not self.__volatility_states[i]
-                           and sig['sig_act'] != pos['side']))):
-                act = 'closing'
-                state = 'CLOSING'
-            elif int(self.balance) == 0:
-                act = None
-                state = 'NO FUND'
-            elif self._is_margin_lack(instrument=i):
-                act = None
-                state = 'LACK OF FUNDS'
-            elif self._is_over_spread(df_rate=df_rate):
-                act = None
-                state = 'OVER-SPREAD'
-            elif pos and not sig['sig_act']:
-                act = None
-                state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
-            elif not self.__volatility_states[i]:
-                act = None
-                state = (
-                    '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
-                    if pos else 'SLEEPING'
-                )
-            elif not sig['sig_act']:
-                act = None
-                state = '-'
-            elif pos and sig['sig_act'] == pos['side']:
-                act = None
-                state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
-            elif pos:
-                act = sig['sig_act']
-                state = '{0} -> {1}'.format(
-                    pos['side'].upper(), sig['sig_act'].upper()
-                )
-            else:
-                act = sig['sig_act']
-                state = '-> {}'.format(sig['sig_act'].upper())
-            log_str = (
+        else:
+            sig = self.__ai.detect_signal(history_dict=history_dict, pos=pos)
+        if not sig['granularity']:
+            act = None
+            state = 'LOADING'
+        elif not self.price_dict[i]['tradeable']:
+            act = None
+            state = 'TRADING HALTED'
+        elif (pos and sig['sig_act']
+              and (sig['sig_act'] == 'closing'
+                   or (not self.__volatility_states[i]
+                       and sig['sig_act'] != pos['side']))):
+            act = 'closing'
+            state = 'CLOSING'
+        elif int(self.balance) == 0:
+            act = None
+            state = 'NO FUND'
+        elif self._is_margin_lack(instrument=i):
+            act = None
+            state = 'LACK OF FUNDS'
+        elif self._is_over_spread(df_rate=df_rate):
+            act = None
+            state = 'OVER-SPREAD'
+        elif pos and not sig['sig_act']:
+            act = None
+            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
+        elif not self.__volatility_states[i]:
+            act = None
+            state = (
+                '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
+                if pos else 'SLEEPING'
+            )
+        elif not sig['sig_act']:
+            act = None
+            state = '-'
+        elif pos and sig['sig_act'] == pos['side']:
+            act = None
+            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
+        elif pos:
+            act = sig['sig_act']
+            state = '{0} -> {1}'.format(
+                pos['side'].upper(), sig['sig_act'].upper()
+            )
+        else:
+            act = sig['sig_act']
+            state = '-> {}'.format(sig['sig_act'].upper())
+        return {
+            'act': act, 'state': state,
+            'log_str': (
                 (
                     '{:^14}|'.format('TICK:{:>5}'.format(len(df_rate)))
                     if self.__use_tick else ''
                 ) + sig['sig_log_str'] + f'{state:^18}|'
-            )
-            return {'act': act, 'state': state, 'log_str': log_str, **sig}
+            ),
+            **sig
+        }
 
     def _fetch_history_dict(self, instrument):
         df_c = self.__cache_dfs[instrument]
