@@ -8,7 +8,10 @@ import pandas as pd
 class BettingSystem(object):
     def __init__(self, strategy='Martingale'):
         self.__logger = logging.getLogger(__name__)
-        strategies = ['Martingale', "d'Alembert", 'Pyramid', "Oscar's grind"]
+        strategies = [
+            'Martingale', 'Paroli', "d'Alembert", "Reverse d'Alembert",
+            'Pyramid', "Oscar's grind"
+        ]
         matched_st = [
             s for s in strategies
             if strategy.lower().replace("'", '') == s.lower().replace("'", '')
@@ -53,8 +56,12 @@ class BettingSystem(object):
             return last_size or init_size or unit_size
         elif self.strategy == 'Martingale':
             return (unit_size if last_won else last_size * 2)
+        elif self.strategy == 'Paroli':
+            return (last_size * 2 if last_won else unit_size)
         elif self.strategy == "d'Alembert":
             return (unit_size if last_won else last_size + unit_size)
+        elif self.strategy == "Reverse d'Alembert":
+            return (last_size + unit_size if last_won else unit_size)
         elif self.strategy == 'Pyramid':
             if not last_won:
                 return (last_size + unit_size)
