@@ -496,7 +496,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             sig = {
                 'sig_act': None, 'granularity': None, 'sig_log_str': (' ' * 40)
             }
-        elif self.cf['granularity_lock']:
+        elif self.cf['feature']['granularity_lock']:
             sig = self.__ai.detect_signal(
                 history_dict=(
                     {
