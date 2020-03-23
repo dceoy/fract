@@ -17,16 +17,16 @@ class Ewma(object):
             weight_decay=config_dict['model']['ewma']['alpha']
         )
 
-    def detect_signal(self, history_dict, pos=None):
+    def detect_signal(self, history_dict, pos=None, contrary=False):
         best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
         sig_dict = self._ewm_stats(series=best_f['series'])
-        if sig_dict['ewmbb'][0] > 0:
-            sig_act = 'long'
-        elif sig_dict['ewmbb'][1] < 0:
-            sig_act = 'short'
-        elif (pos
-              and ((pos['side'] == 'long' and sig_dict['ewma'] < 0) or
-                   (pos['side'] == 'short' and sig_dict['ewma'] > 0))):
+        sig_side = (
+            'short' if sig_dict['ewma'] * [1, -1][int(contrary)] < 0
+            else 'long'
+        )
+        if sig_dict['ewmbb'][1] < 0 or sig_dict['ewmbb'][0] > 0:
+            sig_act = sig_side
+        elif pos and pos.get('side') != sig_side:
             sig_act = 'closing'
         else:
             sig_act = None

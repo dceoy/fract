@@ -20,7 +20,7 @@ class Kalman(object):
             type=config_dict['feature']['type'], drop_zero=True
         )
 
-    def detect_signal(self, history_dict, pos=None):
+    def detect_signal(self, history_dict, pos=None, contrary=False):
         best_f = self.__lrfs.extract_best_feature(history_dict=history_dict)
         kfo = KalmanFilterOptimizer(
             y=best_f['series'], x0=self.__x0, v0=self.__v0,
@@ -37,13 +37,10 @@ class Kalman(object):
                 scale=np.sqrt(kf_res['v'] + q)
             )
         )
-        if gauss_ci[0] > 0:
-            sig_act = 'long'
-        elif gauss_ci[1] < 0:
-            sig_act = 'short'
-        elif (pos
-              and ((pos['side'] == 'long' and gauss_mu < 0) or
-                   (pos['side'] == 'short' and gauss_mu > 0))):
+        sig_side = 'short' if gauss_mu * [1, -1][int(contrary)] < 0 else 'long'
+        if gauss_ci[1] < 0 or gauss_ci[0] > 0:
+            sig_act = sig_side
+        elif pos and pos.get('side') != sig_side:
             sig_act = 'closing'
         else:
             sig_act = None

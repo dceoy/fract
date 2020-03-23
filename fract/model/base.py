@@ -62,7 +62,7 @@ class TraderCore(object):
         self.balance = None
         self.margin_avail = None
         self.__account_currency = None
-        self.__txn_list = list()
+        self.txn_list = list()
         self.__inst_dict = dict()
         self.price_dict = dict()
         self.unit_costs = dict()
@@ -165,7 +165,7 @@ class TraderCore(object):
         if res.body.get('transactions'):
             t_new = [t.dict() for t in res.body['transactions']]
             self.print_log(yaml.dump(t_new, default_flow_style=False).strip())
-            self.__txn_list = self.__txn_list + t_new
+            self.txn_list = self.txn_list + t_new
             if self.__txn_log_path:
                 self._write_data(json.dumps(t_new), path=self.__txn_log_path)
 
@@ -299,7 +299,7 @@ class TraderCore(object):
         bet_size = self.__bs.calculate_size_by_pl(
             unit_size=sizes['unit'],
             inst_pl_txns=[
-                t for t in self.__txn_list if (
+                t for t in self.txn_list if (
                     t.get('instrument') == instrument and t.get('pl') and
                     t.get('units')
                 )
@@ -327,7 +327,7 @@ class TraderCore(object):
     def print_state_line(self, df_rate, add_str):
         i = df_rate['instrument'].iloc[-1]
         net_pl = sum([
-            float(t['pl']) for t in self.__txn_list
+            float(t['pl']) for t in self.txn_list
             if t.get('instrument') == i and t.get('pl')
         ])
         self.print_log(
@@ -496,7 +496,11 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
             sig = {
                 'sig_act': None, 'granularity': None, 'sig_log_str': (' ' * 40)
             }
-        elif self.cf['feature']['granularity_lock']:
+        else:
+            inst_pls = [
+                t['pl'] for t in self.txn_list
+                if t.get('instrument') == i and t.get('pl')
+            ]
             sig = self.__ai.detect_signal(
                 history_dict=(
                     {
@@ -504,14 +508,13 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
                         if k == self.__granularity_lock[i]
                     } if self.__granularity_lock.get(i) else history_dict
                 ),
-                pos=pos
+                pos=pos, contrary=bool(inst_pls and float(inst_pls[-1]) < 0)
             )
-            self.__granularity_lock[i] = (
-                sig['granularity']
-                if pos or sig['sig_act'] in {'long', 'short'} else None
-            )
-        else:
-            sig = self.__ai.detect_signal(history_dict=history_dict, pos=pos)
+            if self.cf['feature']['granularity_lock']:
+                self.__granularity_lock[i] = (
+                    sig['granularity']
+                    if pos or sig['sig_act'] in {'long', 'short'} else None
+                )
         if not sig['granularity']:
             act = None
             state = 'LOADING'
