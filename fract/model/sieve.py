@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 
 import logging
-import os
 import warnings
 
-import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 
@@ -12,10 +10,9 @@ from .feature import LogReturnFeature
 
 
 class LRFeatureSieve(LogReturnFeature):
-    def __init__(self, type, drop_zero=False, weight_decay=0):
+    def __init__(self, type, drop_zero=False):
         super().__init__(type=type, drop_zero=drop_zero)
         self.__logger = logging.getLogger(__name__)
-        self.__weight_decay = weight_decay
 
     def extract_best_feature(self, history_dict, method='Ljung-Box'):
         feature_dict = {
@@ -26,21 +23,15 @@ class LRFeatureSieve(LogReturnFeature):
         elif method == 'Ljung-Box':
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', FutureWarning)
-                p_values = [
+                df_g = pd.DataFrame([
                     {
                         'granularity': g,
-                        'pvalue': sm.stats.diagnostic.acorr_ljungbox(x=s)[1]
+                        'pvalue': sm.stats.diagnostic.acorr_ljungbox(x=s)[1][0]
                     } for g, s in feature_dict.items()
-                ]
-            p_scores = pd.concat([
-                pd.DataFrame(v).assign(
-                    p_score=lambda d: d['pvalue'] / np.power(
-                        1 - self.__weight_decay, np.arange(len(d))
-                    )
-                ) for v in p_values
-            ]).groupby('granularity').mean()['p_score']
-            self.__logger.debug(f'p_scores:{os.linesep}{p_scores}')
-            granularity = p_scores.idxmin()
+                ])
+            best_g = df_g.pipe(lambda d: d.iloc[d['pvalue'].idxmin()])
+            granularity = best_g['granularity']
+            self.__logger.debug('p-value: {}'.format(best_g['pvalue']))
         else:
             raise ValueError(f'invalid method name: {method}')
         return {

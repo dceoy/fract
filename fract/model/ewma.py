@@ -13,8 +13,7 @@ class Ewma(object):
         self.__alpha = config_dict['model']['ewma']['alpha']
         self.__sigma_band = config_dict['model']['ewma']['sigma_band']
         self.__lrfs = LRFeatureSieve(
-            type=config_dict['feature']['type'], drop_zero=False,
-            weight_decay=config_dict['model']['ewma']['alpha']
+            type=config_dict['feature']['type'], drop_zero=False
         )
 
     def detect_signal(self, history_dict, pos=None, contrary=False):
