@@ -93,16 +93,6 @@ class TraderCore(object):
             else:
                 self.pos_dict[i]['dt'] = datetime.now()
 
-    def expire_positions(self, ttl_sec=86400):
-        for i, d in self.pos_dict.items():
-            es = (datetime.now() - d['dt']).total_seconds()
-            self.__logger.info(
-                '{0}: {1} => {2} sec elapsed'.format(d['units'], d['side'], es)
-            )
-            if es > ttl_sec:
-                self.__logger.info('Close a position: {}'.format(d['side']))
-                self._place_order(closing=True, instrument=i)
-
     def _place_order(self, closing=False, **kwargs):
         if closing:
             p = self.pos_dict.get(kwargs['instrument'])
@@ -225,7 +215,7 @@ class TraderCore(object):
 
     def design_and_place_order(self, instrument, act):
         pos = self.pos_dict.get(instrument)
-        if act and pos and (act == 'closing' or act != pos['side']):
+        if pos and act and (act == 'closing' or act != pos['side']):
             self.__logger.info('Close a position: {}'.format(pos['side']))
             self._place_order(closing=True, instrument=instrument)
             self._refresh_txn_list()
@@ -436,7 +426,6 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         signal.signal(signal.SIGINT, signal.SIG_DFL)
         while self.check_health():
             try:
-                self.expire_positions(ttl_sec=self.cf['position']['ttl_sec'])
                 self._update_volatility_states()
                 for i in self.instruments:
                     self.refresh_oanda_dicts()
@@ -519,6 +508,8 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
                     sig['granularity']
                     if pos or sig['sig_act'] in {'long', 'short'} else None
                 )
+            if pos and sig['sig_act'] and sig['sig_act'] == pos['side']:
+                self.pos_dict[i]['dt'] = datetime.now()
         if not sig['granularity']:
             act = None
             state = 'LOADING'
@@ -531,6 +522,11 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
                        and sig['sig_act'] != pos['side']))):
             act = 'closing'
             state = 'CLOSING'
+        elif (pos and not sig['sig_act']
+              and ((datetime.now() - pos['dt']).total_seconds()
+                   > self.cf['position']['ttl_sec'])):
+            act = 'closing'
+            state = 'POSITION EXPIRED'
         elif int(self.balance) == 0:
             act = None
             state = 'NO FUND'
@@ -540,21 +536,17 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         elif self._is_over_spread(df_rate=df_rate):
             act = None
             state = 'OVER-SPREAD'
-        elif pos and not sig['sig_act']:
+        elif (pos
+              and ((sig['sig_act'] and sig['sig_act'] == pos['side'])
+                   or not sig['sig_act'])):
             act = None
             state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
         elif not self.__volatility_states[i]:
             act = None
-            state = (
-                '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
-                if pos else 'SLEEPING'
-            )
+            state = 'SLEEPING'
         elif not sig['sig_act']:
             act = None
             state = '-'
-        elif pos and sig['sig_act'] == pos['side']:
-            act = None
-            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
         elif pos:
             act = sig['sig_act']
             state = '{0} -> {1}'.format(

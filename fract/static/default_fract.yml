@@ -66,7 +66,7 @@ volatility:
 position:
   bet: Oscar's grind        # { Martingale, Paroli, d'Alembert,
   #                         #   Reverse d'Alembert, Pyramid, Oscar's grind }
-  side: auto                # { auto, follower, contrarian }
+  side: follower            # { auto, follower, contrarian }
   limit_price_ratio:
     take_profit: 0.01       # (0, 1)
     trailing_stop: 0.001    # (0, 1)
@@ -76,7 +76,7 @@ position:
     init: 0.01              # (0, 1)
     unit: 0.01              # (0, 1)
     preserve: 0.04          # (0, 1)
-  ttl_sec: 86400            # [0, Inf]
+  ttl_sec: 900              # [0, Inf]
 feature:
   type: LR Velocity         # { Log Return, LR Velocity, LR Acceleration }
   cache_length: 1000        # [1, 5000]
@@ -107,5 +107,5 @@ model:
     alpha: 0.02             # (0, 1)
     sigma_band: 0.1         # [0, Inf)
   kalman:
-    alpha: 0.05             # (0, 1)
+    alpha: 0.1              # (0, 1)
     pmv_ratio: 1.0e-2       # (0, Inf)
