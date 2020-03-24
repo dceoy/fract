@@ -497,10 +497,14 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
                 'sig_act': None, 'granularity': None, 'sig_log_str': (' ' * 40)
             }
         else:
-            inst_pls = [
-                t['pl'] for t in self.txn_list
-                if t.get('instrument') == i and t.get('pl')
-            ]
+            if self.cf['position']['side'] == 'auto':
+                inst_pls = [
+                    t['pl'] for t in self.txn_list
+                    if t.get('instrument') == i and t.get('pl')
+                ]
+                contrary = bool(inst_pls and float(inst_pls[-1]) < 0)
+            else:
+                contrary = (self.cf['position']['side'] == 'contrarian')
             sig = self.__ai.detect_signal(
                 history_dict=(
                     {
@@ -508,7 +512,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
                         if k == self.__granularity_lock[i]
                     } if self.__granularity_lock.get(i) else history_dict
                 ),
-                pos=pos, contrary=bool(inst_pls and float(inst_pls[-1]) < 0)
+                pos=pos, contrary=contrary
             )
             if self.cf['feature']['granularity_lock']:
                 self.__granularity_lock[i] = (

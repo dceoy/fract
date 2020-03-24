@@ -66,6 +66,7 @@ volatility:
 position:
   bet: Oscar's grind        # { Martingale, Paroli, d'Alembert,
   #                         #   Reverse d'Alembert, Pyramid, Oscar's grind }
+  side: auto                # { auto, follower, contrarian }
   limit_price_ratio:
     take_profit: 0.01       # (0, 1)
     trailing_stop: 0.001    # (0, 1)
