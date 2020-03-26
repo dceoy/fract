@@ -404,7 +404,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         super().__init__(**kwargs)
         self.__logger = logging.getLogger(__name__)
         self.__ignore_api_error = ignore_api_error
-        self.__n_cache = self.cf['feature']['cache_length']
+        self.__n_cache = self.cf['feature']['cache']
         self.__use_tick = (
             'TICK' in self.cf['feature']['granularities'] and not standalone
         )
@@ -440,17 +440,19 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
     def check_health(self):
         return True
 
-    def _update_volatility_states(self, granularity='M1', track_length=5000):
+    def _update_volatility_states(self):
         if not self.cf['volatility']['sleeping']:
             self.__volatility_states = {i: True for i in self.instruments}
         else:
             self.__volatility_states = {
                 i: self.fetch_candle_df(
-                    instrument=i, granularity=granularity, count=track_length
+                    instrument=i,
+                    granularity=self.cf['volatility']['granularity'],
+                    count=self.cf['volatility']['cache']
                 ).pipe(
                     lambda d: (
                         np.log(d[['ask', 'bid']].mean(axis=1)).diff().rolling(
-                            window=int(self.cf['volatility']['window_minutes'])
+                            window=int(self.cf['volatility']['window'])
                         ).std(ddof=0) * d['volume']
                     )
                 ).dropna().pipe(
