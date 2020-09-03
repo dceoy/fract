@@ -40,8 +40,6 @@ class Kalman(object):
         sig_side = 'short' if gauss_mu * [1, -1][int(contrary)] < 0 else 'long'
         if gauss_ci[1] < 0 or gauss_ci[0] > 0:
             sig_act = sig_side
-        elif pos and pos.get('side') != sig_side:
-            sig_act = 'closing'
         else:
             sig_act = None
         sig_log_str = '{:^40}|'.format(

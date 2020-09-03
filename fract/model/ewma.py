@@ -25,8 +25,6 @@ class Ewma(object):
         )
         if sig_dict['ewmbb'][1] < 0 or sig_dict['ewmbb'][0] > 0:
             sig_act = sig_side
-        elif pos and pos.get('side') != sig_side:
-            sig_act = 'closing'
         else:
             sig_act = None
         sig_log_str = '{:^40}|'.format(

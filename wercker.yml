@@ -13,7 +13,7 @@ test:
     - script:
         name: Validate the codes using flake8
         code: |
-          find . -name '*.py' | xargs flake8 --no-isort-config
+          find . -name '*.py' | xargs flake8
     - script:
         name: Test base options
         code: |
