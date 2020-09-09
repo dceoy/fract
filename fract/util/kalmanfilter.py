@@ -60,9 +60,9 @@ class KalmanFilterOptimizer(object):
         )
         self.__logger.debug(f'{os.linesep}{res}')
         r = np.exp(res.x)
-        self.__logger.debug(f'measurement variance: {r}')
+        self.__logger.debug(f'measurement variance:\t{r}')
         q = r * self.__pmv_ratio
-        self.__logger.debug(f'process variance: {q}')
+        self.__logger.debug(f'process variance:\t{q}')
         return q, r
 
     @staticmethod

@@ -18,7 +18,7 @@ class BettingSystem(object):
         ]
         if matched_st:
             self.strategy = matched_st[0]
-            self.__logger.info(f'Betting strategy: {self.strategy}')
+            self.__logger.info(f'Betting strategy:\t{self.strategy}')
         else:
             raise ValueError('invalid strategy name')
 
@@ -32,7 +32,7 @@ class BettingSystem(object):
             return init_size or unit_size
         else:
             last_size = size_list[-1]
-            self.__logger.debug(f'last_size: {last_size}')
+            self.__logger.debug(f'last_size:\t{last_size}')
             if abs(pl_list[-1]):
                 pl = pd.Series(pl_list)
                 last_won = (
@@ -41,7 +41,7 @@ class BettingSystem(object):
                         pl[pl.index >= pl[pl.le(0)].index.max()].sum() < 0
                     ) else (pl.iloc[-1] > 0)
                 )
-                self.__logger.debug(f'last_won: {last_won}')
+                self.__logger.debug(f'last_won:\t{last_won}')
                 return self._calculate_size(
                     unit_size=unit_size, init_size=init_size,
                     last_size=last_size, last_won=last_won,
@@ -70,7 +70,7 @@ class BettingSystem(object):
             else:
                 return (last_size - unit_size)
         elif self.strategy == "Oscar's grind":
-            self.__logger.debug(f'all_time_high: {all_time_high}')
+            self.__logger.debug(f'all_time_high:\t{all_time_high}')
             if all_time_high:
                 return init_size or unit_size
             elif last_won:

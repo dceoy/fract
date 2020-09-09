@@ -29,7 +29,7 @@ class Kalman(object):
         q, r = kfo.optimize()
         kf = KalmanFilter(x0=self.__x0, v0=self.__v0, q=q, r=r)
         kf_res = kf.fit(y=best_f['series']).iloc[-1].to_dict()
-        self.__logger.debug(f'kf_res: {kf_res}')
+        self.__logger.debug(f'kf_res:\t{kf_res}')
         gauss_mu = kf_res['x']
         gauss_ci = np.asarray(
             norm.interval(

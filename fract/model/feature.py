@@ -16,7 +16,7 @@ class LogReturnFeature(object):
         elif type and type.lower() in ['lr', 'log return']:
             self.code = 'LR'
         else:
-            raise ValueError(f'invalid feature type: {type}')
+            raise ValueError(f'invalid feature type:\t{type}')
 
     def series(self, df_rate):
         if self.code == 'LRV':
@@ -39,7 +39,7 @@ class LogReturnFeature(object):
             )
         )
         self.__logger.info(
-            'Log return (tail): {}'.format(df_lr['log_return'].tail().values)
+            'Log return (tail):\t{}'.format(df_lr['log_return'].tail().values)
         )
         return (df_lr if return_df else df_lr['log_return'])
 
@@ -61,7 +61,7 @@ class LogReturnFeature(object):
             lrv=lambda d: d['log_return'] / d['delta_sec']
         )
         self.__logger.info(
-            'Log return verocity (tail): {}'.format(
+            'Log return verocity (tail):\t{}'.format(
                 df_lrv['lrv'].tail().values
             )
         )
@@ -74,7 +74,7 @@ class LogReturnFeature(object):
             lra=lambda d: d['lrv'].diff() / d['delta_sec']
         )
         self.__logger.info(
-            'Log return acceleration (tail): {}'.format(
+            'Log return acceleration (tail):\t{}'.format(
                 df_lra['lra'].tail().values
             )
         )

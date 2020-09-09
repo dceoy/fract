@@ -4,7 +4,7 @@ Automated Trader using Oanda V20 REST API
 
 Usage:
     fract -h|--help
-    fract -v|--version
+    fract --version
     fract init [--debug|--info] [--file=<yaml>]
     fract info [--debug|--info] [--file=<yaml>] [--json] <info_target>
                [<instrument>...]
@@ -16,6 +16,10 @@ Usage:
                  [--use-redis] [--redis-host=<ip>] [--redis-port=<int>]
                  [--redis-db=<int>] [--redis-max-llen=<int>]
                  [--ignore-api-error] [--quiet] [<instrument>...]
+    fract transaction [--debug|--info] [--file=<yaml>] [--from=<date>]
+                      [--to=<date>] [--csv=<path>] [--sqlite=<path>]
+                      [--pl-graph=<path>] [--json] [--quiet]
+    fract plotpl [--debug|--info] <data_path> <graph_path>
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--standalone]
@@ -25,7 +29,7 @@ Usage:
 
 Options:
     -h, --help          Print help and exit
-    -v, --version       Print version and exit
+    --version           Print version and exit
     --debug, --info     Execute a command with debug|info messages
     --file=<yaml>       Set a path to a YAML for configurations [$OANDA_YML]
     --quiet             Suppress messages
@@ -51,19 +55,24 @@ Options:
     --standalone        Invoke a trader with standalone mode
     --log-dir=<path>    Write output log files in a directory
     --dry-run           Invoke a trader with dry-run mode
+    --from=<date>       Specify the starting time
+    --to=<date>         Specify the ending time
+    --pl-graph=<path>   Visualize PL in a graphics file such as PDF or PNG
 
 Commands:
     init                Create a YAML template for configuration
     info                Print information about <info_target>
     track               Fetch past rates
     stream              Stream market prices or authorized account events
+    transaction         Fetch the latest transactions
+    plotpl              Visualize cumulative PL in a file
     close               Close positions (if not <instrument>, close all)
     open                Invoke an autonomous trader
 
 Arguments:
     <info_target>       { instruments, prices, account, accounts, orders,
-                          trades, positions, position, transactions,
-                          order_book, position_book }
+                          trades, positions, position, order_book,
+                          position_book }
     <instrument>        { AUD_CAD, AUD_CHF, AUD_HKD, AUD_JPY, AUD_NZD, AUD_SGD,
                           AUD_USD, CAD_CHF, CAD_HKD, CAD_JPY, CAD_SGD, CHF_HKD,
                           CHF_JPY, CHF_ZAR, EUR_AUD, EUR_CAD, EUR_CHF, EUR_CZK,
@@ -72,10 +81,12 @@ Arguments:
                           EUR_ZAR, GBP_AUD, GBP_CAD, GBP_CHF, GBP_HKD, GBP_JPY,
                           GBP_NZD, GBP_PLN, GBP_SGD, GBP_USD, GBP_ZAR, HKD_JPY,
                           NZD_CAD, NZD_CHF, NZD_HKD, NZD_JPY, NZD_SGD, NZD_USD,
-                          SGD_CHF, SGD_JPY, TRY_JPY, USD_CAD, USD_CHF, USD_CNH,
-                          USD_CZK, USD_DKK, USD_HKD, USD_HUF, USD_INR, USD_JPY,
-                          USD_MXN, USD_NOK, USD_PLN, USD_SAR, USD_SEK, USD_SGD,
-                          USD_THB, USD_TRY, USD_ZAR, ZAR_JPY }
+                          SGD_CHF, SGD_HKD, SGD_JPY, TRY_JPY, USD_CAD, USD_CHF,
+                          USD_CNH, USD_CZK, USD_DKK, USD_HKD, USD_HUF, USD_INR,
+                          USD_JPY, USD_MXN, USD_NOK, USD_PLN, USD_SAR, USD_SEK,
+                          USD_SGD, USD_THB, USD_TRY, USD_ZAR, ZAR_JPY }
+    <data_path>         Path to an input CSV or SQLite file
+    <graph_path>        Path to an output graphics file such as PDF or PNG
 """
 
 import logging
@@ -92,10 +103,10 @@ from ..call.trader import invoke_trader
 
 
 def main():
-    args = docopt(__doc__, version='fract {}'.format(__version__))
+    args = docopt(__doc__, version=f'fract {__version__}')
     set_log_config(debug=args['--debug'], info=args['--info'])
     logger = logging.getLogger(__name__)
-    logger.debug('args:{0}{1}'.format(os.linesep, args))
+    logger.debug(f'args:{os.linesep}{args}')
     config_yml_path = fetch_config_yml_path(
         path=args['--file'], env='FRACT_YML', default='fract.yml'
     )

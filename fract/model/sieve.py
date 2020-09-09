@@ -31,9 +31,9 @@ class LRFeatureSieve(LogReturnFeature):
                 ])
             best_g = df_g.pipe(lambda d: d.iloc[d['pvalue'].idxmin()])
             granularity = best_g['granularity']
-            self.__logger.debug('p-value: {}'.format(best_g['pvalue']))
+            self.__logger.debug('p-value:\t{}'.format(best_g['pvalue']))
         else:
-            raise ValueError(f'invalid method name: {method}')
+            raise ValueError(f'invalid method name:\t{method}')
         return {
             'series': feature_dict[granularity], 'granularity': granularity,
             'granularity_str': self._granularity2str(granularity=granularity)

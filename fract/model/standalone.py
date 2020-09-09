@@ -21,7 +21,7 @@ class StandaloneTrader(BaseTrader):
         self.__interval_sec = float(interval_sec)
         self.__timeout_sec = float(timeout_sec) if timeout_sec else None
         self.__latest_update_time = None
-        self.__logger.debug('vars(self): ' + pformat(vars(self)))
+        self.__logger.debug('vars(self):\t' + pformat(vars(self)))
 
     def check_health(self):
         if not self.__latest_update_time:
@@ -29,7 +29,7 @@ class StandaloneTrader(BaseTrader):
         else:
             td = datetime.now() - self.__latest_update_time
             if self.__timeout_sec and td.total_seconds() > self.__timeout_sec:
-                self.__logger.warning(f'Timeout: {self.__timeout_sec} sec')
+                self.__logger.warning(f'Timeout:\t{self.__timeout_sec} sec')
                 return False
             else:
                 time.sleep(self.__interval_sec)

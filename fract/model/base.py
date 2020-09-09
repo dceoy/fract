@@ -216,15 +216,15 @@ class TraderCore(object):
     def design_and_place_order(self, instrument, act):
         pos = self.pos_dict.get(instrument)
         if pos and act and (act == 'closing' or act != pos['side']):
-            self.__logger.info('Close a position: {}'.format(pos['side']))
+            self.__logger.info('Close a position:\t{}'.format(pos['side']))
             self._place_order(closing=True, instrument=instrument)
             self._refresh_txn_list()
         if act in ['long', 'short']:
             limits = self._design_order_limits(instrument=instrument, side=act)
-            self.__logger.debug(f'limits: {limits}')
+            self.__logger.debug(f'limits:\t{limits}')
             units = self._design_order_units(instrument=instrument, side=act)
-            self.__logger.debug(f'units: {units}')
-            self.__logger.info(f'Open a order: {act}')
+            self.__logger.debug(f'units:\t{units}')
+            self.__logger.info(f'Open a order:\t{act}')
             self._place_order(
                 order={
                     'type': 'MARKET', 'instrument': instrument, 'units': units,
@@ -279,13 +279,13 @@ class TraderCore(object):
                 ) / self.unit_costs[instrument]
             ), 0
         )
-        self.__logger.debug(f'avail_size: {avail_size}')
+        self.__logger.debug(f'avail_size:\t{avail_size}')
         sizes = {
             k: ceil(self.balance * v / self.unit_costs[instrument])
             for k, v in self.cf['position']['margin_nav_ratio'].items()
             if k in ['unit', 'init']
         }
-        self.__logger.debug(f'sizes: {sizes}')
+        self.__logger.debug(f'sizes:\t{sizes}')
         bet_size = self.__bs.calculate_size_by_pl(
             unit_size=sizes['unit'],
             inst_pl_txns=[
@@ -296,7 +296,7 @@ class TraderCore(object):
             ],
             init_size=sizes['init']
         )
-        self.__logger.debug(f'bet_size: {bet_size}')
+        self.__logger.debug(f'bet_size:\t{bet_size}')
         return str(
             int(min(bet_size, avail_size, max_size)) *
             {'long': 1, 'short': -1}[side]
@@ -351,7 +351,7 @@ class TraderCore(object):
         if self.__log_dir_path and df.size:
             self.__logger.debug(f'{name} df:{os.linesep}{df}')
             p = str(Path(self.__log_dir_path).joinpath(f'{name}.tsv'))
-            self.__logger.info(f'Write TSV log: {p}')
+            self.__logger.info(f'Write TSV log:\t{p}')
             self._write_df(df=df, path=p)
 
     def _write_df(self, df, path, mode='a'):
@@ -417,7 +417,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         elif model == 'kalman':
             self.__ai = Kalman(config_dict=self.cf)
         else:
-            raise ValueError(f'invalid model name: {model}')
+            raise ValueError(f'invalid model name:\t{model}')
         self.__volatility_states = dict()
         self.__granularity_lock = dict()
 
@@ -471,7 +471,7 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         self.__logger.info(f'Rate:{os.linesep}{df_rate}')
         i = df_rate['instrument'].iloc[-1]
         df_c = self.__cache_dfs[i].append(df_rate).tail(n=self.__n_cache)
-        self.__logger.info('Cache length: {}'.format(len(df_c)))
+        self.__logger.info('Cache length:\t{}'.format(len(df_c)))
         self.__cache_dfs[i] = df_c
 
     def determine_sig_state(self, df_rate):

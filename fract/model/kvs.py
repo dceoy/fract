@@ -30,7 +30,7 @@ class RedisTrader(BaseTrader):
         )
         self.__is_active = True
         self.__latest_update_time = None
-        self.__logger.debug('vars(self): ' + pformat(vars(self)))
+        self.__logger.debug('vars(self):\t' + pformat(vars(self)))
 
     def check_health(self):
         if not self.__latest_update_time:
@@ -41,7 +41,7 @@ class RedisTrader(BaseTrader):
         else:
             td = datetime.now() - self.__latest_update_time
             if self.__timeout_sec and td.total_seconds() > self.__timeout_sec:
-                self.__logger.warning(f'Timeout: {self.__timeout_sec} sec')
+                self.__logger.warning(f'Timeout:\t{self.__timeout_sec} sec')
                 self.__is_active = False
                 self.__redis_pool.disconnect()
             else:
@@ -72,11 +72,11 @@ class RedisTrader(BaseTrader):
             for _ in cached_rates:
                 redis_c.lpop(instrument)
             if [r for r in cached_rates if not r['tradeable']]:
-                self.__logger.warning(f'cached_rates: {cached_rates}')
+                self.__logger.warning(f'cached_rates:\t{cached_rates}')
                 self.__is_active = False
                 return pd.DataFrame()
             else:
-                self.__logger.debug(f'cached_rates: {cached_rates}')
+                self.__logger.debug(f'cached_rates:\t{cached_rates}')
                 return pd.DataFrame([
                     {
                         'time': r['time'], 'bid': r['closeoutBid'],

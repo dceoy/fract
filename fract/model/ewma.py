@@ -47,7 +47,7 @@ class Ewma(object):
     def _ewm_stats(self, series):
         ewm = series.ewm(alpha=self.__alpha)
         ewma = ewm.mean().iloc[-1]
-        self.__logger.debug(f'ewma: {ewma}')
+        self.__logger.debug(f'ewma:\t{ewma}')
         ewm_bollinger_band = (
             np.array([-1, 1]) * ewm.std().iloc[-1] * self.__sigma_band
         ) + ewma

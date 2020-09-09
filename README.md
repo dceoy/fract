@@ -23,5 +23,6 @@ The following commands are the same as those of `oanda-cli`.
 - `track`
 - `stream`
 - `close`
+- `plotpl`
 
 See [oanda-cli](https://github.com/dceoy/oanda-cli) for more detail.
