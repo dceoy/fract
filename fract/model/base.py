@@ -202,15 +202,25 @@ class TraderCore(object):
         elif cur_pair[1] == self.__account_currency:
             bpv = self.price_dict[instrument]['ask']
         else:
-            inst_bpv = [
-                i for i in self.__inst_dict.keys()
-                if set(i.split('_')) == {cur_pair[1], self.__account_currency}
-            ][0]
-            bpv = self.price_dict[instrument]['ask'] * (
-                self.price_dict[inst_bpv]['ask']
-                if inst_bpv.split('_')[1] == self.__account_currency
-                else (1 / self.price_dict[inst_bpv]['ask'])
-            )
+            bpv = None
+            for i in self.__inst_dict.keys():
+                if bpv:
+                    break
+                elif i == cur_pair[1] + '_' + self.__account_currency:
+                    bpv = (
+                        self.price_dict[instrument]['ask']
+                        * self.price_dict[i]['ask']
+                    )
+                elif i == self.__account_currency + '_' + cur_pair[1]:
+                    bpv = (
+                        self.price_dict[instrument]['ask']
+                        / self.price_dict[i]['ask']
+                    )
+                elif i == cur_pair[0] + '_' + self.__account_currency:
+                    bpv = self.price_dict[i]['ask']
+                elif i == self.__account_currency + '_' + cur_pair[0]:
+                    bpv = 1 / self.price_dict[i]['ask']
+            assert bpv, f'unsupported instrument:\t{instrument}'
         return bpv
 
     def design_and_place_order(self, instrument, act):
