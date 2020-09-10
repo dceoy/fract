@@ -206,6 +206,10 @@ class TraderCore(object):
             for i in self.__inst_dict.keys():
                 if bpv:
                     break
+                elif i == cur_pair[0] + '_' + self.__account_currency:
+                    bpv = self.price_dict[i]['ask']
+                elif i == self.__account_currency + '_' + cur_pair[0]:
+                    bpv = 1 / self.price_dict[i]['ask']
                 elif i == cur_pair[1] + '_' + self.__account_currency:
                     bpv = (
                         self.price_dict[instrument]['ask']
@@ -216,11 +220,7 @@ class TraderCore(object):
                         self.price_dict[instrument]['ask']
                         / self.price_dict[i]['ask']
                     )
-                elif i == cur_pair[0] + '_' + self.__account_currency:
-                    bpv = self.price_dict[i]['ask']
-                elif i == self.__account_currency + '_' + cur_pair[0]:
-                    bpv = 1 / self.price_dict[i]['ask']
-            assert bpv, f'unsupported instrument:\t{instrument}'
+            assert bpv, f'bp value calculatiton failed:\t{instrument}'
         return bpv
 
     def design_and_place_order(self, instrument, act):
@@ -542,17 +542,17 @@ class BaseTrader(TraderCore, metaclass=ABCMeta):
         elif int(self.balance) == 0:
             act = None
             state = 'NO FUND'
+        elif (pos
+              and ((sig['sig_act'] and sig['sig_act'] == pos['side'])
+                   or not sig['sig_act'])):
+            act = None
+            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
         elif self._is_margin_lack(instrument=i):
             act = None
             state = 'LACK OF FUNDS'
         elif self._is_over_spread(df_rate=df_rate):
             act = None
             state = 'OVER-SPREAD'
-        elif (pos
-              and ((sig['sig_act'] and sig['sig_act'] == pos['side'])
-                   or not sig['sig_act'])):
-            act = None
-            state = '{0:.1f}% {1}'.format(pos_pct, pos['side'].upper())
         elif not self.__volatility_states[i]:
             act = None
             state = 'SLEEPING'
