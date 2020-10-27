@@ -20,6 +20,8 @@ Usage:
                       [--to=<date>] [--csv=<path>] [--sqlite=<path>]
                       [--pl-graph=<path>] [--json] [--quiet]
     fract plotpl [--debug|--info] <data_path> <graph_path>
+    fract spread [--debug|--info] [--file=<yaml>] [--csv=<path>] [--quiet]
+                 [<instrument>...]
     fract close [--debug|--info] [--file=<yaml>] [<instrument>...]
     fract open [--debug|--info] [--file=<yaml>] [--model=<str>]
                [--interval=<sec>] [--timeout=<sec>] [--standalone]
@@ -66,6 +68,7 @@ Commands:
     stream              Stream market prices or authorized account events
     transaction         Fetch the latest transactions
     plotpl              Visualize cumulative PL in a file
+    spread              Print the ratios of spread to price
     close               Close positions (if not <instrument>, close all)
     open                Invoke an autonomous trader
 
