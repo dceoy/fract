@@ -17,10 +17,13 @@ import yaml
 from oandacli.util.config import create_api, log_response
 from v20 import V20ConnectionError, V20Timeout
 
-from ..util.error import APIResponseError
 from .bet import BettingSystem
 from .ewma import Ewma
 from .kalman import Kalman
+
+
+class APIResponseError(RuntimeError):
+    pass
 
 
 class TraderCore(object):
