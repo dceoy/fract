@@ -33,7 +33,7 @@ Options:
     -h, --help          Print help and exit
     --version           Print version and exit
     --debug, --info     Execute a command with debug|info messages
-    --file=<yaml>       Set a path to a YAML for configurations [$OANDA_YML]
+    --file=<yaml>       Set a path to a YAML for configurations [$FRACT_YML]
     --quiet             Suppress messages
     --csv-dir=<path>    Write data with daily CSV in a directory
     --sqlite=<path>     Save data in an SQLite3 database
