@@ -1,0 +1,31 @@
+---
+name: Test
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+jobs:
+  test_installation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+      - name: Install fract
+        run: |
+          pip install -U \
+            autopep8 flake8 flake8-bugbear flake8-isort pep8-naming \
+            https://github.com/dceoy/oanda-cli/archive/master.tar.gz .
+      - name: Validate the codes using flake8
+        run: |
+          find . -name '*.py' | xargs flake8
+      - name: Test commands
+        run: |
+          fract --version
+          fract --help
+          fract init --debug
