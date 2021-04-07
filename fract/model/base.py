@@ -14,8 +14,8 @@ from pprint import pformat
 import numpy as np
 import pandas as pd
 import yaml
-from oandacli.util.config import create_api, log_response
-from v20 import V20ConnectionError, V20Timeout
+from oandacli.util.logger import log_response
+from v20 import Context, V20ConnectionError, V20Timeout
 
 from .bet import BettingSystem
 from .ewma import Ewma
@@ -31,7 +31,12 @@ class TraderCore(object):
                  quiet=False, dry_run=False):
         self.__logger = logging.getLogger(__name__)
         self.cf = config_dict
-        self.__api = create_api(config=self.cf)
+        self.__api = Context(
+            hostname='api-fx{}.oanda.com'.format(
+                self.cf['oanda']['environment']
+            ),
+            token=self.cf['oanda']['token']
+        )
         self.__account_id = self.cf['oanda']['account_id']
         self.instruments = (instruments or self.cf['instruments'])
         self.__bs = BettingSystem(strategy=self.cf['position']['bet'])
