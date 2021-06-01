@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import logging
-import warnings
 
 import pandas as pd
 import statsmodels.api as sm
@@ -21,15 +20,14 @@ class LRFeatureSieve(LogReturnFeature):
         if len(history_dict) == 1:
             granularity = list(history_dict.keys())[0]
         elif method == 'Ljung-Box':
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore', FutureWarning)
-                df_g = pd.DataFrame([
-                    {
-                        'granularity': g,
-                        'pvalue': sm.stats.diagnostic.acorr_ljungbox(x=s)[1][0]
-                    } for g, s in feature_dict.items()
-                ])
-            best_g = df_g.pipe(lambda d: d.iloc[d['pvalue'].idxmin()])
+            best_g = pd.DataFrame([
+                {
+                    'granularity': g,
+                    'pvalue': sm.stats.diagnostic.acorr_ljungbox(
+                        x=s, return_df=True, lags=1
+                    ).iloc[0]['lb_pvalue']
+                } for g, s in feature_dict.items()
+            ]).pipe(lambda d: d.iloc[d['pvalue'].idxmin()])
             granularity = best_g['granularity']
             self.__logger.debug('p-value:\t{}'.format(best_g['pvalue']))
         else:
