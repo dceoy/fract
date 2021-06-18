@@ -4,6 +4,7 @@ fract
 Automated Forex Trader based on [oanda-cli](https://github.com/dceoy/oanda-cli) using Oanda V20 REST API
 
 [![Test](https://github.com/dceoy/fract/actions/workflows/test.yml/badge.svg)](https://github.com/dceoy/fract/actions/workflows/test.yml)
+[![CI to Docker Hub](https://github.com/dceoy/fract/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/dceoy/fract/actions/workflows/docker-publish.yml)
 
 Installation
 ------------
